@@ -14,11 +14,11 @@ apiKeyInput.addEventListener('change', () => {
 });
 
 const DEMO_SCRIPT = [
-  { char: "hero", emotion: "smug", bg: "white", zoom: "normal", sfx: "none", text: "Bhai kal exam hai, par aaj raat sirf 10 minute reel dekh ke so jaunga." },
-  { char: "bro", emotion: "shocked", bg: "white", zoom: "in", sfx: "boom", text: "Bro subah ke 4 baj gaye hain! Tune ek chapter bhi nahi khola!" },
-  { char: "hero", emotion: "crying", bg: "dramatic", zoom: "shake", sfx: "gasp", text: "Kya?! Ab toh bhagwan hi bacha sakta hai mujhe!" },
-  { char: "mom", emotion: "angry", bg: "red", zoom: "in", sfx: "slap", text: "Uth ja nalayak! Tera phone aaj se mere locker mein rahega!" },
-  { char: "npc", emotion: "smug", bg: "white", zoom: "normal", sfx: "cricket", text: "Rest in peace bro. Agle saal phir milenge." }
+  { char: "hero", emotion: "smug", prop: "phone", bg: "white", zoom: "normal", sfx: "none", text: "Bhai kal exam hai, par aaj raat sirf 10 minute reel dekh ke so jaunga." },
+  { char: "bro", emotion: "shocked", prop: "sweat", bg: "white", zoom: "in", sfx: "boom", text: "Bro subah ke 4 baj gaye hain! Tune ek chapter bhi nahi khola!" },
+  { char: "hero", emotion: "crying", prop: "sweat", bg: "dramatic", zoom: "shake", sfx: "gasp", text: "Kya?! Ab toh bhagwan hi bacha sakta hai mujhe!" },
+  { char: "mom", emotion: "angry", prop: "anger", bg: "red", zoom: "in", sfx: "slap", text: "Uth ja nalayak! Tera phone aaj se mere locker mein rahega!" },
+  { char: "npc", emotion: "smug", prop: "chai", bg: "white", zoom: "normal", sfx: "cricket", text: "Rest in peace bro. Agle saal phir milenge." }
 ];
 scriptEditor.value = JSON.stringify(DEMO_SCRIPT, null, 2);
 
@@ -29,7 +29,7 @@ document.getElementById('loadDemoBtn').onclick = () => {
 
 function setStatus(msg) { statusBar.textContent = msg; }
 
-// Web Audio API Setup (Neural Voice + SFX + Real-Time Lip-Sync + Video Audio Track)
+// Web Audio API Setup (Audio + Pitch Shift + Lip-Sync + Video Audio Track)
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null;
 let destNode = null;
@@ -87,33 +87,33 @@ function playSFX(type) {
   }
 }
 
-// Fixed & Bulletproof Gemini AI Script Generator
+// Multi-Model Gemini AI Script Generator
 document.getElementById('generateScriptBtn').onclick = async () => {
   const key = apiKeyInput.value.trim();
   const topic = topicInput.value.trim();
   if (!key) return setStatus('Please enter your Google AI Studio API Key first!');
   if (!topic) return setStatus('Please enter a video topic!');
 
-  setStatus('Gemini AI writing funny Hinglish script...');
   const prompt = `You are a viral Indian storytime animator like "NOT YOUR TYPE".
 Write a ${lengthSelect.value}-line funny Hinglish script on topic: "${topic}".
 Tone: ${toneSelect.value}.
 Available characters: "hero", "bro", "mom", "npc"
 Available emotions: "normal", "shocked", "smug", "angry", "crying", "dead"
+Available props: "none", "phone", "chai", "anger", "sweat"
 Available backgrounds: "white", "dramatic", "red"
 Available zooms: "normal", "in", "shake"
 Available sfx: "none", "boom", "slap", "gasp", "cricket"
 
 Return ONLY a valid JSON array like:
-[{"char":"hero","emotion":"smug","bg":"white","zoom":"normal","sfx":"none","text":"Dialogue in Hinglish"}]
-Keep each dialogue punchy (8-15 words max).`;
+[{"char":"hero","emotion":"smug","prop":"phone","bg":"white","zoom":"normal","sfx":"none","text":"Dialogue in Hinglish"}]
+Keep each dialogue punchy (8-14 words max).`;
 
   const models = ['gemini-3.8-flash', 'gemini-3.8-flash-lite', 'gemini-3.5-flash', 'gemini-3.0-flash'];
   let lastErr = 'All models busy';
 
   for (const model of models) {
     try {
-      setStatus(`Trying ${model}...`);
+      setStatus(`Writing script with ${model}...`);
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -139,7 +139,7 @@ Keep each dialogue punchy (8-15 words max).`;
 
       const parsed = JSON.parse(raw.slice(startIdx, endIdx + 1));
       scriptEditor.value = JSON.stringify(parsed, null, 2);
-      setStatus(`Script ready (${parsed.length} scenes via ${model})! Tap "2. Play & Save Video".`);
+      setStatus(`Script ready (${parsed.length} scenes)! Tap "2. Play & Save Video".`);
       return;
     } catch (err) {
       lastErr = err.message;
@@ -148,22 +148,29 @@ Keep each dialogue punchy (8-15 words max).`;
   setStatus(`Error: ${lastErr}`);
 };
 
-let currentScene = { char: 'hero', emotion: 'normal', bg: 'white', zoom: 'normal', text: 'Tap Play & Save Video to start!' };
+// Dynamic Animation State
+let currentScene = { char: 'hero', emotion: 'normal', prop: 'none', bg: 'white', zoom: 'normal', text: 'Tap Play & Save Video to start!' };
 let mouthOpen = 0;
 let fallbackSpeaking = false;
 let frameTick = 0;
+let scenePop = 1;
+let blinkTimer = 0;
+
+function triggerScenePop() {
+  scenePop = 0.72;
+}
 
 function drawBackground(bg) {
   if (bg === 'red') {
     ctx.fillStyle = '#dc2626';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-    ctx.lineWidth = 6;
+    ctx.lineWidth = 7;
     for (let i = 0; i < 24; i++) {
-      const angle = (i / 24) * Math.PI * 2 + frameTick * 0.02;
+      const angle = (i / 24) * Math.PI * 2 + frameTick * 0.03;
       ctx.beginPath();
-      ctx.moveTo(360 + Math.cos(angle) * 240, 640 + Math.sin(angle) * 240);
-      ctx.lineTo(360 + Math.cos(angle) * 900, 640 + Math.sin(angle) * 900);
+      ctx.moveTo(360 + Math.cos(angle) * 230, 620 + Math.sin(angle) * 230);
+      ctx.lineTo(360 + Math.cos(angle) * 900, 620 + Math.sin(angle) * 900);
       ctx.stroke();
     }
   } else if (bg === 'dramatic') {
@@ -183,17 +190,92 @@ function drawBackground(bg) {
   }
 }
 
-function drawCharacter(char, emotion, talkAmt) {
+function drawProps(prop, emotion) {
+  // Anime Anger Vein
+  if (prop === 'anger' || emotion === 'angry') {
+    ctx.save();
+    ctx.translate(92, -135);
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(-16, -6); ctx.quadraticCurveTo(-4, -4, -6, -18);
+    ctx.moveTo(16, -6); ctx.quadraticCurveTo(4, -4, 6, -18);
+    ctx.moveTo(-16, 12); ctx.quadraticCurveTo(-4, 10, -6, 22);
+    ctx.moveTo(16, 12); ctx.quadraticCurveTo(4, 10, 6, 22);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Anime Sweat Drop
+  if (prop === 'sweat' || emotion === 'shocked') {
+    const dropY = (frameTick % 40) * 0.6;
+    ctx.fillStyle = '#38bdf8';
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(125, -110 + dropY);
+    ctx.quadraticCurveTo(142, -82 + dropY, 125, -72 + dropY);
+    ctx.quadraticCurveTo(108, -82 + dropY, 125, -110 + dropY);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Smartphone in Hand
+  if (prop === 'phone') {
+    ctx.save();
+    ctx.translate(-155, 85);
+    ctx.rotate(-0.2);
+    ctx.fillStyle = '#1e293b';
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 6;
+    ctx.fillRect(-26, -45, 52, 90);
+    ctx.strokeRect(-26, -45, 52, 90);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(-20, -36, 40, 70);
+    ctx.restore();
+  }
+
+  // Chai Cup in Hand
+  if (prop === 'chai') {
+    ctx.save();
+    ctx.translate(-155, 105);
+    ctx.fillStyle = '#d97706';
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(-24, -25); ctx.lineTo(24, -25);
+    ctx.lineTo(18, 30); ctx.lineTo(-18, 30);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    // Steam
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 4;
+    const wave = Math.sin(frameTick * 0.15) * 6;
+    ctx.beginPath(); ctx.moveTo(-8, -35); ctx.quadraticCurveTo(-8 + wave, -52, -8, -68); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(8, -35); ctx.quadraticCurveTo(8 - wave, -52, 8, -68); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawCharacter(char, emotion, prop, talkAmt) {
   const isDarkBg = currentScene.bg === 'dramatic' || currentScene.bg === 'red';
   const ink = isDarkBg ? '#ffffff' : '#0f172a';
-  const bounce = talkAmt * 14;
+  const bounce = talkAmt * 18;
+  const tilt = talkAmt * Math.sin(frameTick * 0.25) * 0.06;
+
+  // Smooth spring back to scale 1.0
+  scenePop += (1 - scenePop) * 0.22;
 
   ctx.save();
-  ctx.translate(360, 740 - bounce);
+  ctx.translate(360, 750 - bounce);
+  ctx.scale(scenePop, 2 - scenePop);
+  ctx.rotate(tilt);
+
   ctx.strokeStyle = ink;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
+  // Body
   ctx.lineWidth = 10;
   ctx.fillStyle = char === 'hero' ? '#3b82f6' : char === 'bro' ? '#f59e0b' : char === 'mom' ? '#ec4899' : '#475569';
   ctx.beginPath();
@@ -204,16 +286,20 @@ function drawCharacter(char, emotion, talkAmt) {
   ctx.fill();
   ctx.stroke();
 
+  // Dynamic Hands
   ctx.lineWidth = 9;
   if (emotion === 'shocked' || emotion === 'crying') {
     ctx.beginPath(); ctx.moveTo(-105, 190); ctx.lineTo(-145, 40); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(105, 190); ctx.lineTo(145, 40); ctx.stroke();
   } else if (emotion === 'angry') {
-    ctx.beginPath(); ctx.moveTo(105, 180); ctx.lineTo(185, 60 - Math.sin(frameTick * 0.4) * 15); ctx.stroke();
-  } else if (talkAmt > 0.15) {
-    ctx.beginPath(); ctx.moveTo(-105, 200); ctx.lineTo(-165, 120 - talkAmt * 30); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(105, 180); ctx.lineTo(185, 55 - Math.sin(frameTick * 0.45) * 18); ctx.stroke();
+  } else if (prop === 'phone' || prop === 'chai') {
+    ctx.beginPath(); ctx.moveTo(-105, 200); ctx.lineTo(-150, 115); ctx.stroke();
+  } else if (talkAmt > 0.12) {
+    ctx.beginPath(); ctx.moveTo(-105, 200); ctx.lineTo(-170, 115 - talkAmt * 35); ctx.stroke();
   }
 
+  // Head
   ctx.fillStyle = '#ffffff';
   ctx.lineWidth = 11;
   ctx.beginPath();
@@ -221,6 +307,7 @@ function drawCharacter(char, emotion, talkAmt) {
   ctx.fill();
   ctx.stroke();
 
+  // Hair & Accessories
   ctx.fillStyle = '#0f172a';
   if (char === 'hero') {
     ctx.beginPath();
@@ -248,10 +335,19 @@ function drawCharacter(char, emotion, talkAmt) {
     ctx.beginPath(); ctx.moveTo(-20, -50); ctx.lineTo(20, -50); ctx.stroke();
   }
 
+  // Blinking logic every ~140 frames
+  blinkTimer = (blinkTimer + 1) % 150;
+  const isBlinking = blinkTimer > 143;
+
+  // Eyes
   ctx.strokeStyle = '#0f172a';
   ctx.fillStyle = '#0f172a';
   if (char !== 'npc') {
-    if (emotion === 'shocked') {
+    if (isBlinking && emotion === 'normal') {
+      ctx.lineWidth = 7;
+      ctx.beginPath(); ctx.moveTo(-68, -42); ctx.lineTo(-32, -42); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(32, -42); ctx.lineTo(68, -42); ctx.stroke();
+    } else if (emotion === 'shocked') {
       ctx.fillStyle = '#fff'; ctx.lineWidth = 7;
       ctx.beginPath(); ctx.arc(-52, -45, 32, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.arc(52, -45, 32, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -297,13 +393,14 @@ function drawCharacter(char, emotion, talkAmt) {
     ctx.beginPath(); ctx.moveTo(-18, -46); ctx.lineTo(18, -46); ctx.stroke();
   }
 
-  const openH = Math.max(6, talkAmt * 48);
+  // Lip-Sync Mouth
+  const openH = Math.max(8, talkAmt * 54);
   ctx.fillStyle = '#991b1b';
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 7;
   if (talkAmt > 0.08) {
     ctx.beginPath();
-    ctx.ellipse(0, 38, 34, openH, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 38, 35, openH, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
   } else {
@@ -317,6 +414,8 @@ function drawCharacter(char, emotion, talkAmt) {
     }
     ctx.stroke();
   }
+
+  drawProps(prop, emotion);
   ctx.restore();
 }
 
@@ -360,9 +459,9 @@ function renderLoop() {
     let sum = 0;
     for (let i = 0; i < 32; i++) sum += dataArray[i];
     const avg = sum / 32;
-    mouthOpen = Math.min(1, Math.max(0, (avg - 15) / 80));
+    mouthOpen = Math.min(1, Math.max(0, (avg - 12) / 70));
   } else if (fallbackSpeaking) {
-    mouthOpen = 0.35 + Math.abs(Math.sin(frameTick * 0.35)) * 0.65;
+    mouthOpen = 0.35 + Math.abs(Math.sin(frameTick * 0.4)) * 0.65;
   } else {
     mouthOpen = 0;
   }
@@ -377,7 +476,7 @@ function renderLoop() {
   }
 
   drawBackground(currentScene.bg || 'white');
-  drawCharacter(currentScene.char || 'hero', currentScene.emotion || 'normal', mouthOpen);
+  drawCharacter(currentScene.char || 'hero', currentScene.emotion || 'normal', currentScene.prop || 'none', mouthOpen);
   ctx.restore();
 
   drawCaptions(currentScene.text, currentScene.char);
@@ -385,75 +484,46 @@ function renderLoop() {
 }
 renderLoop();
 
-// Bulletproof Voice + Timer Fallback Engine (Never Hangs on Android)
-async function speakLineNeural(scene) {
-  currentScene = scene;
-  playSFX(scene.sfx);
+// Pre-fetch all TTS MP3 buffers first so playback has ZERO delay & perfect lip-sync!
+async function fetchSceneAudio(scene) {
+  const res = await fetch('/api/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: scene.text })
+  });
+  if (!res.ok) throw new Error('TTS HTTP ' + res.status);
+  const arrayBuffer = await res.arrayBuffer();
+  return await audioCtx.decodeAudioData(arrayBuffer);
+}
 
-  const words = (scene.text || '').split(' ').length;
-  const estimatedMs = Math.max(1800, words * 360);
+function playBufferedVoice(audioBuffer, char) {
+  // Character-specific pitch & speed modulation
+  const voiceTune = {
+    hero: { rate: 1.08, detune: 40 },
+    bro:  { rate: 1.16, detune: 280 },
+    mom:  { rate: 1.02, detune: -160 },
+    npc:  { rate: 0.94, detune: -420 }
+  };
+  const tune = voiceTune[char] || voiceTune.hero;
 
-  // 1. Try Vercel Neural TTS API first
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => { if (!done) { done = true; setTimeout(resolve, 180); } };
 
-    const res = await fetch('/api/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: scene.text, char: scene.char }),
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
+    const source = audioCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.playbackRate.value = tune.rate;
+    source.detune.value = tune.detune;
 
-    if (!res.ok) throw new Error('API ' + res.status);
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
+    analyser.connect(destNode);
 
-    const arrayBuffer = await res.arrayBuffer();
-    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-
-    return new Promise((resolve) => {
-      let done = false;
-      const finish = () => { if (!done) { done = true; setTimeout(resolve, 220); } };
-
-      const source = audioCtx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(analyser);
-      analyser.connect(audioCtx.destination);
-      analyser.connect(destNode);
-
-      source.onended = finish;
-      source.start(0);
-      setTimeout(finish, (audioBuffer.duration * 1000) + 500);
-    });
-  } catch (err) {
-    // 2. Bulletproof Android Browser TTS + Guaranteed Timer Fallback
-    return new Promise((resolve) => {
-      let done = false;
-      const finish = () => {
-        if (!done) {
-          done = true;
-          fallbackSpeaking = false;
-          setTimeout(resolve, 220);
-        }
-      };
-
-      fallbackSpeaking = true;
-      try {
-        if ('speechSynthesis' in window) {
-          window.speechSynthesis.cancel();
-          const utter = new SpeechSynthesisUtterance(scene.text);
-          utter.pitch = scene.char === 'bro' ? 1.35 : scene.char === 'mom' ? 1.25 : scene.char === 'npc' ? 0.7 : 1.0;
-          utter.rate = 1.1;
-          utter.onend = finish;
-          utter.onerror = finish;
-          window.speechSynthesis.speak(utter);
-        }
-      } catch (e) {}
-
-      // Guaranteed timer so Android never gets stuck
-      setTimeout(finish, estimatedMs);
-    });
-  }
+    source.onended = finish;
+    source.start(0);
+    const actualDurationMs = (audioBuffer.duration / tune.rate) * 1000;
+    setTimeout(finish, actualDurationMs + 300);
+  });
 }
 
 async function runAnimation(recordVideo = false) {
@@ -467,9 +537,23 @@ async function runAnimation(recordVideo = false) {
 
   initAudio();
   downloadLink.classList.add('hidden');
+
+  // Step 1: Pre-load all human voice audio clips BEFORE starting video recording (Eliminates 5s mute gap!)
+  setStatus('Generating human voices for all scenes...');
+  const audioBuffers = [];
+  for (let i = 0; i < scenes.length; i++) {
+    try {
+      setStatus(`Loading voice ${i + 1}/${scenes.length}...`);
+      const buf = await fetchSceneAudio(scenes[i]);
+      audioBuffers.push(buf);
+    } catch (err) {
+      audioBuffers.push(null);
+    }
+  }
+
+  // Step 2: Start MediaRecorder AFTER voices are ready
   let recorder = null;
   const recordedChunks = [];
-
   if (recordVideo) {
     try {
       const canvasStream = canvas.captureStream(30);
@@ -493,17 +577,30 @@ async function runAnimation(recordVideo = false) {
         const videoUrl = URL.createObjectURL(videoBlob);
         downloadLink.href = videoUrl;
         downloadLink.classList.remove('hidden');
-        setStatus('Video ready! Tap "⬇ Save Video" below.');
+        setStatus('Video + Full Voice saved! Tap "⬇ Save Video" below.');
       };
-      recorder.start(250);
+      recorder.start(200);
     } catch (recErr) {
-      setStatus('Recording fallback mode: ' + recErr.message);
+      setStatus('Recording note: ' + recErr.message);
     }
   }
 
+  // Step 3: Play scenes seamlessly with instant lip-sync
   for (let i = 0; i < scenes.length; i++) {
+    currentScene = scenes[i];
+    triggerScenePop();
+    playSFX(scenes[i].sfx);
     setStatus(`Playing Scene ${i + 1}/${scenes.length}: ${(scenes[i].char || 'HERO').toUpperCase()}...`);
-    await speakLineNeural(scenes[i]);
+
+    if (audioBuffers[i]) {
+      await playBufferedVoice(audioBuffers[i], scenes[i].char);
+    } else {
+      // Fallback if offline
+      const words = (scenes[i].text || '').split(' ').length;
+      fallbackSpeaking = true;
+      await new Promise((r) => setTimeout(r, Math.max(1500, words * 320)));
+      fallbackSpeaking = false;
+    }
   }
 
   fallbackSpeaking = false;

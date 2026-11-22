@@ -1,40 +1,32 @@
-import { Communicate } from 'edge-tts-universal';
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { text, char } = req.body;
+    const { text } = req.body;
     if (!text) return res.status(400).json({ error: 'Text is required' });
 
-    // 4 Distinct Realistic Indian Neural Voices
-    const profiles = {
-      hero: { voice: 'hi-IN-MadhurNeural', rate: '+10%', pitch: '+3Hz' },   // Energetic main guy
-      bro:  { voice: 'hi-IN-MadhurNeural', rate: '+18%', pitch: '+26Hz' },  // High-pitch funny friend
-      mom:  { voice: 'hi-IN-SwaraNeural',  rate: '+4%',  pitch: '-4Hz' },   // Strict Indian mom/teacher
-      npc:  { voice: 'en-IN-PrabhatNeural', rate: '-4%', pitch: '-20Hz' }   // Deep savage guy
-    };
+    // Split text into safe chunks under 180 chars for fast, reliable MP3 streaming
+    const cleanText = text.replace(/[\r\n]+/g, ' ').trim();
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=hi&client=tw-ob`;
 
-    const profile = profiles[char] || profiles.hero;
-    const communicate = new Communicate(text, {
-      voice: profile.voice,
-      rate: profile.rate,
-      pitch: profile.pitch
+    const ttsRes = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
     });
 
-    const chunks = [];
-    for await (const chunk of communicate.stream()) {
-      if (chunk.type === 'audio' && chunk.data) {
-        chunks.push(chunk.data);
-      }
+    if (!ttsRes.ok) {
+      throw new Error(`Upstream TTS HTTP ${ttsRes.status}`);
     }
 
-    const audioBuffer = Buffer.concat(chunks);
+    const arrayBuffer = await ttsRes.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Cache-Control', 'no-store');
-    return res.status(200).send(audioBuffer);
+    return res.status(200).send(buffer);
   } catch (err) {
     console.error('TTS Error:', err);
     return res.status(500).json({ error: err.message });
