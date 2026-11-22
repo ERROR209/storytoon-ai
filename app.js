@@ -385,45 +385,73 @@ function renderLoop() {
 }
 renderLoop();
 
-// Neural Voice API with Real Audio Buffer Decoding (Captures directly into Video File!)
+// Bulletproof Voice + Timer Fallback Engine (Never Hangs on Android)
 async function speakLineNeural(scene) {
   currentScene = scene;
   playSFX(scene.sfx);
 
+  const words = (scene.text || '').split(' ').length;
+  const estimatedMs = Math.max(1800, words * 360);
+
+  // 1. Try Vercel Neural TTS API first
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     const res = await fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: scene.text, char: scene.char })
+      body: JSON.stringify({ text: scene.text, char: scene.char }),
+      signal: controller.signal
     });
-    if (!res.ok) throw new Error('Neural TTS unavailable');
+    clearTimeout(timeoutId);
+
+    if (!res.ok) throw new Error('API ' + res.status);
 
     const arrayBuffer = await res.arrayBuffer();
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
     return new Promise((resolve) => {
+      let done = false;
+      const finish = () => { if (!done) { done = true; setTimeout(resolve, 220); } };
+
       const source = audioCtx.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(analyser);
       analyser.connect(audioCtx.destination);
       analyser.connect(destNode);
 
-      source.onended = () => {
-        setTimeout(resolve, 220);
-      };
+      source.onended = finish;
       source.start(0);
+      setTimeout(finish, (audioBuffer.duration * 1000) + 500);
     });
   } catch (err) {
-    // Fallback to local SpeechSynthesis if opened offline
+    // 2. Bulletproof Android Browser TTS + Guaranteed Timer Fallback
     return new Promise((resolve) => {
-      window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(scene.text);
-      utter.pitch = scene.char === 'bro' ? 1.35 : scene.char === 'mom' ? 1.25 : scene.char === 'npc' ? 0.7 : 1.0;
-      utter.rate = 1.1;
+      let done = false;
+      const finish = () => {
+        if (!done) {
+          done = true;
+          fallbackSpeaking = false;
+          setTimeout(resolve, 220);
+        }
+      };
+
       fallbackSpeaking = true;
-      utter.onend = () => { fallbackSpeaking = false; setTimeout(resolve, 220); };
-      utter.onerror = () => { fallbackSpeaking = false; setTimeout(resolve, 1800); };
-      window.speechSynthesis.speak(utter);
+      try {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(scene.text);
+          utter.pitch = scene.char === 'bro' ? 1.35 : scene.char === 'mom' ? 1.25 : scene.char === 'npc' ? 0.7 : 1.0;
+          utter.rate = 1.1;
+          utter.onend = finish;
+          utter.onerror = finish;
+          window.speechSynthesis.speak(utter);
+        }
+      } catch (e) {}
+
+      // Guaranteed timer so Android never gets stuck
+      setTimeout(finish, estimatedMs);
     });
   }
 }
@@ -432,8 +460,9 @@ async function runAnimation(recordVideo = false) {
   let scenes;
   try {
     scenes = JSON.parse(scriptEditor.value);
-  } catch {
-    return setStatus('Invalid JSON in script editor!');
+    if (!Array.isArray(scenes) || scenes.length === 0) throw new Error('Empty script');
+  } catch (e) {
+    return setStatus('Script Error: Click "Load Demo" or generate valid JSON first!');
   }
 
   initAudio();
@@ -442,32 +471,46 @@ async function runAnimation(recordVideo = false) {
   const recordedChunks = [];
 
   if (recordVideo) {
-    const canvasStream = canvas.captureStream(30);
-    const combinedStream = new MediaStream([
-      ...canvasStream.getVideoTracks(),
-      ...destNode.stream.getAudioTracks()
-    ]);
-    recorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
-    recorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
-    recorder.onstop = () => {
-      const videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
-      const videoUrl = URL.createObjectURL(videoBlob);
-      downloadLink.href = videoUrl;
-      downloadLink.classList.remove('hidden');
-      setStatus('Video + Neural Voice ready! Tap "⬇ Save Video" below.');
-    };
-    recorder.start();
+    try {
+      const canvasStream = canvas.captureStream(30);
+      const audioTracks = destNode ? destNode.stream.getAudioTracks() : [];
+      const combinedStream = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        ...audioTracks
+      ]);
+
+      let options = {};
+      if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
+        options = { mimeType: 'video/webm;codecs=vp8,opus' };
+      } else if (MediaRecorder.isTypeSupported('video/webm')) {
+        options = { mimeType: 'video/webm' };
+      }
+
+      recorder = new MediaRecorder(combinedStream, options);
+      recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+      recorder.onstop = () => {
+        const videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
+        const videoUrl = URL.createObjectURL(videoBlob);
+        downloadLink.href = videoUrl;
+        downloadLink.classList.remove('hidden');
+        setStatus('Video ready! Tap "⬇ Save Video" below.');
+      };
+      recorder.start(250);
+    } catch (recErr) {
+      setStatus('Recording fallback mode: ' + recErr.message);
+    }
   }
 
   for (let i = 0; i < scenes.length; i++) {
-    setStatus(`Scene ${i + 1}/${scenes.length}: ${scenes[i].char.toUpperCase()} speaking...`);
+    setStatus(`Playing Scene ${i + 1}/${scenes.length}: ${(scenes[i].char || 'HERO').toUpperCase()}...`);
     await speakLineNeural(scenes[i]);
   }
 
+  fallbackSpeaking = false;
   if (recorder && recorder.state !== 'inactive') {
     recorder.stop();
   } else {
-    setStatus('Preview finished!');
+    setStatus('Playback finished!');
   }
 }
 
