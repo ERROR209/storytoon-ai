@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>StoryToon AI — Local Reels Animator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header>
+      <h1>🎬 StoryToon AI</h1>
+      <span class="badge">Local Download Edition</span>
+    </header>
+
+    <div class="controls-card">
+      <div class="input-group">
+        <label>Google AI Studio (Gemini) API Key</label>
+        <input type="password" id="apiKeyInput" placeholder="AIzaSy... (Saved in Chrome)" />
+      </div>
+
+      <div class="input-group">
+        <label>Video Topic / Story Idea</label>
+        <textarea id="topicInput" rows="2" placeholder="e.g., Jab exam hall mein dost ne galat answer bata diya..."></textarea>
+      </div>
+
+      <div class="row-2">
+        <div class="input-group">
+          <label>Vibe / Tone</label>
+          <select id="toneSelect">
+            <option value="relatable Indian comedy storytime">Relatable Comedy</option>
+            <option value="overdramatic anime roast">Overdramatic Anime</option>
+            <option value="savage dark humor">Savage / Dark Humor</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Duration</label>
+          <select id="lengthSelect">
+            <option value="5">Short Reel (~20s)</option>
+            <option value="8" selected>Full Reel (~35s)</option>
+            <option value="11">Long Story (~50s)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button id="generateScriptBtn" class="btn secondary">1. Write Script</button>
+        <button id="playRecordBtn" class="btn primary">2. Play & Save Video</button>
+      </div>
+      <div id="statusBar" class="status">Ready! Enter topic & click Write Script.</div>
+    </div>
+
+    <div class="stage-wrapper">
+      <canvas id="stageCanvas" width="720" height="1280"></canvas>
+      <div class="stage-controls">
+        <button id="previewOnlyBtn" class="btn small">▶ Preview Only</button>
+        <a id="downloadLink" class="btn small success hidden" download="storytoon-reel.webm">⬇ Save Video</a>
+      </div>
+    </div>
+
+    <div class="script-card">
+      <div class="script-header">
+        <h3>Scene Script (Editable JSON)</h3>
+        <button id="loadDemoBtn" class="btn tiny">Load Demo</button>
+      </div>
+      <textarea id="scriptEditor" rows="8"></textarea>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
