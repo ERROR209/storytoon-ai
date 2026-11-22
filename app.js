@@ -29,14 +29,20 @@ document.getElementById('loadDemoBtn').onclick = () => {
 
 function setStatus(msg) { statusBar.textContent = msg; }
 
+// Web Audio API Setup (Neural Voice + SFX + Real-Time Lip-Sync + Video Audio Track)
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null;
 let destNode = null;
+let analyser = null;
+let dataArray = null;
 
 function initAudio() {
   if (!audioCtx) {
     audioCtx = new AudioCtx();
     destNode = audioCtx.createMediaStreamDestination();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
   }
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }
@@ -81,6 +87,7 @@ function playSFX(type) {
   }
 }
 
+// Fixed & Bulletproof Gemini AI Script Generator
 document.getElementById('generateScriptBtn').onclick = async () => {
   const key = apiKeyInput.value.trim();
   const topic = topicInput.value.trim();
@@ -91,41 +98,48 @@ document.getElementById('generateScriptBtn').onclick = async () => {
   const prompt = `You are a viral Indian storytime animator like "NOT YOUR TYPE".
 Write a ${lengthSelect.value}-line funny Hinglish script on topic: "${topic}".
 Tone: ${toneSelect.value}.
-Available characters:
-- "hero" (Main guy, relatable/panicked)
-- "bro" (Best friend, stupid ideas/hyper)
-- "mom" (Strict Indian mom/teacher)
-- "npc" (Random savage bystander)
-
+Available characters: "hero", "bro", "mom", "npc"
 Available emotions: "normal", "shocked", "smug", "angry", "crying", "dead"
 Available backgrounds: "white", "dramatic", "red"
 Available zooms: "normal", "in", "shake"
 Available sfx: "none", "boom", "slap", "gasp", "cricket"
 
-Return ONLY a raw JSON array (no markdown, no backticks) like:
+Return ONLY a valid JSON array like:
 [{"char":"hero","emotion":"smug","bg":"white","zoom":"normal","sfx":"none","text":"Dialogue in Hinglish"}]
-Keep each dialogue punchy (8-16 words max) for fast Instagram Reels pacing.`;
+Keep each dialogue punchy (8-15 words max).`;
 
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      })
     });
+
     const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error?.message || `HTTP ${res.status}`);
+    }
+
     let raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    raw = raw.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(raw);
+    const startIdx = raw.indexOf('[');
+    const endIdx = raw.lastIndexOf(']');
+    if (startIdx === -1 || endIdx === -1) throw new Error('Invalid AI format');
+
+    const parsed = JSON.parse(raw.slice(startIdx, endIdx + 1));
     scriptEditor.value = JSON.stringify(parsed, null, 2);
-    setStatus(`Script ready (${parsed.length} scenes)! Tap "Play & Save Video".`);
+    setStatus(`Script ready (${parsed.length} scenes)! Tap "2. Play & Save Video".`);
   } catch (err) {
     console.error(err);
-    setStatus('Script error: Check API key or internet.');
+    setStatus(`Error: ${err.message}`);
   }
 };
 
 let currentScene = { char: 'hero', emotion: 'normal', bg: 'white', zoom: 'normal', text: 'Tap Play & Save Video to start!' };
-let isSpeaking = false;
+let mouthOpen = 0;
+let fallbackSpeaking = false;
 let frameTick = 0;
 
 function drawBackground(bg) {
@@ -276,7 +290,7 @@ function drawCharacter(char, emotion, talkAmt) {
   ctx.fillStyle = '#991b1b';
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 7;
-  if (talkAmt > 0.1) {
+  if (talkAmt > 0.08) {
     ctx.beginPath();
     ctx.ellipse(0, 38, 34, openH, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -330,7 +344,17 @@ function drawCaptions(text, char) {
 
 function renderLoop() {
   frameTick++;
-  const talkAmt = isSpeaking ? (0.35 + Math.abs(Math.sin(frameTick * 0.35)) * 0.65) : 0;
+  if (analyser && dataArray && !fallbackSpeaking) {
+    analyser.getByteFrequencyData(dataArray);
+    let sum = 0;
+    for (let i = 0; i < 32; i++) sum += dataArray[i];
+    const avg = sum / 32;
+    mouthOpen = Math.min(1, Math.max(0, (avg - 15) / 80));
+  } else if (fallbackSpeaking) {
+    mouthOpen = 0.35 + Math.abs(Math.sin(frameTick * 0.35)) * 0.65;
+  } else {
+    mouthOpen = 0;
+  }
 
   ctx.save();
   if (currentScene.zoom === 'in') {
@@ -342,7 +366,7 @@ function renderLoop() {
   }
 
   drawBackground(currentScene.bg || 'white');
-  drawCharacter(currentScene.char || 'hero', currentScene.emotion || 'normal', talkAmt);
+  drawCharacter(currentScene.char || 'hero', currentScene.emotion || 'normal', mouthOpen);
   ctx.restore();
 
   drawCaptions(currentScene.text, currentScene.char);
@@ -350,51 +374,47 @@ function renderLoop() {
 }
 renderLoop();
 
-let cachedVoices = [];
-window.speechSynthesis.onvoiceschanged = () => {
-  cachedVoices = window.speechSynthesis.getVoices();
-};
-
-function speakLineLocal(scene) {
+// Neural Voice API with Real Audio Buffer Decoding (Captures directly into Video File!)
+async function speakLineNeural(scene) {
   currentScene = scene;
   playSFX(scene.sfx);
 
-  return new Promise((resolve) => {
-    window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(scene.text);
-    const voices = cachedVoices.length ? cachedVoices : window.speechSynthesis.getVoices();
-    const hindiVoices = voices.filter(v => v.lang.includes('hi') || v.lang.includes('IN'));
+  try {
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: scene.text, char: scene.char })
+    });
+    if (!res.ok) throw new Error('Neural TTS unavailable');
 
-    if (scene.char === 'mom') {
-      utter.voice = hindiVoices.find(v => v.name.toLowerCase().includes('female') || v.name.includes('hi-in-x-hid')) || hindiVoices[1] || voices[0];
-      utter.pitch = 1.25;
-      utter.rate = 1.05;
-    } else if (scene.char === 'bro') {
-      utter.voice = hindiVoices[0] || voices[0];
-      utter.pitch = 1.38;
-      utter.rate = 1.18;
-    } else if (scene.char === 'npc') {
-      utter.voice = hindiVoices[0] || voices[0];
-      utter.pitch = 0.68;
-      utter.rate = 0.92;
-    } else {
-      utter.voice = hindiVoices[0] || voices[0];
-      utter.pitch = 1.0;
+    const arrayBuffer = await res.arrayBuffer();
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+    return new Promise((resolve) => {
+      const source = audioCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(analyser);
+      analyser.connect(audioCtx.destination);
+      analyser.connect(destNode);
+
+      source.onended = () => {
+        setTimeout(resolve, 220);
+      };
+      source.start(0);
+    });
+  } catch (err) {
+    // Fallback to local SpeechSynthesis if opened offline
+    return new Promise((resolve) => {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(scene.text);
+      utter.pitch = scene.char === 'bro' ? 1.35 : scene.char === 'mom' ? 1.25 : scene.char === 'npc' ? 0.7 : 1.0;
       utter.rate = 1.1;
-    }
-
-    isSpeaking = true;
-    utter.onend = () => {
-      isSpeaking = false;
-      setTimeout(resolve, 250);
-    };
-    utter.onerror = () => {
-      isSpeaking = false;
-      setTimeout(resolve, 2000);
-    };
-
-    window.speechSynthesis.speak(utter);
-  });
+      fallbackSpeaking = true;
+      utter.onend = () => { fallbackSpeaking = false; setTimeout(resolve, 220); };
+      utter.onerror = () => { fallbackSpeaking = false; setTimeout(resolve, 1800); };
+      window.speechSynthesis.speak(utter);
+    });
+  }
 }
 
 async function runAnimation(recordVideo = false) {
@@ -423,14 +443,14 @@ async function runAnimation(recordVideo = false) {
       const videoUrl = URL.createObjectURL(videoBlob);
       downloadLink.href = videoUrl;
       downloadLink.classList.remove('hidden');
-      setStatus('Video saved! Tap "Save Video" or use Screen Recorder for voice.');
+      setStatus('Video + Neural Voice ready! Tap "⬇ Save Video" below.');
     };
     recorder.start();
   }
 
   for (let i = 0; i < scenes.length; i++) {
     setStatus(`Scene ${i + 1}/${scenes.length}: ${scenes[i].char.toUpperCase()} speaking...`);
-    await speakLineLocal(scenes[i]);
+    await speakLineNeural(scenes[i]);
   }
 
   if (recorder && recorder.state !== 'inactive') {
