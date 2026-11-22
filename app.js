@@ -30,7 +30,7 @@ document.getElementById('loadDemoBtn').onclick = () => {
 
 function setStatus(msg) { statusBar.textContent = msg; }
 
-// Web Audio API Setup (Voice + Auto-Ducking Comedy BGM + SFX + Video Audio Track)
+// Single Clean Audio Engine (Prevents Double-Voice Playback Bug!)
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null;
 let destNode = null;
@@ -38,6 +38,7 @@ let analyser = null;
 let dataArray = null;
 let bgmGain = null;
 let bgmInterval = null;
+let isPlayingSequence = false;
 
 function initAudio() {
   if (!audioCtx) {
@@ -48,14 +49,13 @@ function initAudio() {
     dataArray = new Uint8Array(analyser.frequencyBinCount);
 
     bgmGain = audioCtx.createGain();
-    bgmGain.gain.value = 0.14;
+    bgmGain.gain.value = 0.12;
     bgmGain.connect(audioCtx.destination);
     bgmGain.connect(destNode);
   }
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }
 
-// Catchy Comedic Pizzicato / Marimba Loop with Auto-Ducking
 function startComedyBGM() {
   stopComedyBGM();
   const notes = [261.63, 329.63, 392.00, 329.63, 293.66, 349.23, 440.00, 349.23];
@@ -72,14 +72,14 @@ function startComedyBGM() {
     step++;
 
     noteGain.gain.setValueAtTime(0.001, now);
-    noteGain.gain.linearRampToValueAtTime(0.35, now + 0.02);
-    noteGain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+    noteGain.gain.linearRampToValueAtTime(0.3, now + 0.02);
+    noteGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
 
     osc.connect(noteGain);
     noteGain.connect(bgmGain);
     osc.start(now);
-    osc.stop(now + 0.25);
-  }, 280);
+    osc.stop(now + 0.23);
+  }, 270);
 }
 
 function stopComedyBGM() {
@@ -89,13 +89,11 @@ function stopComedyBGM() {
   }
 }
 
-function duckBGM(isSpeakingNow) {
+function duckBGM(speaking) {
   if (!bgmGain || !audioCtx) return;
-  const target = isSpeakingNow ? 0.05 : 0.16;
-  bgmGain.gain.setTargetAtTime(target, audioCtx.currentTime, 0.08);
+  bgmGain.gain.setTargetAtTime(speaking ? 0.04 : 0.14, audioCtx.currentTime, 0.06);
 }
 
-// Punchy Noise + Sub-Bass Meme SFX
 function playSFX(type) {
   if (!type || type === 'none') return;
   initAudio();
@@ -106,20 +104,20 @@ function playSFX(type) {
     const gain = audioCtx.createGain();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(115, now);
-    osc.frequency.exponentialRampToValueAtTime(26, now + 0.55);
-    gain.gain.setValueAtTime(1.0, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+    osc.frequency.exponentialRampToValueAtTime(26, now + 0.5);
+    gain.gain.setValueAtTime(0.95, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
     osc.connect(gain); gain.connect(audioCtx.destination); gain.connect(destNode);
-    osc.start(now); osc.stop(now + 0.6);
+    osc.start(now); osc.stop(now + 0.55);
   } else if (type === 'slap') {
-    const bufferSize = audioCtx.sampleRate * 0.16;
+    const bufferSize = audioCtx.sampleRate * 0.15;
     const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const output = noiseBuffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.25));
     const whiteNoise = audioCtx.createBufferSource();
     whiteNoise.buffer = noiseBuffer;
     const gain = audioCtx.createGain();
-    gain.gain.setValueAtTime(0.95, now);
+    gain.gain.setValueAtTime(0.9, now);
     whiteNoise.connect(gain); gain.connect(audioCtx.destination); gain.connect(destNode);
     whiteNoise.start(now);
   } else if (type === 'gasp') {
@@ -127,15 +125,15 @@ function playSFX(type) {
     const gain = audioCtx.createGain();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(280, now);
-    osc.frequency.exponentialRampToValueAtTime(750, now + 0.18);
-    gain.gain.setValueAtTime(0.45, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+    osc.frequency.exponentialRampToValueAtTime(750, now + 0.16);
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
     osc.connect(gain); gain.connect(audioCtx.destination); gain.connect(destNode);
-    osc.start(now); osc.stop(now + 0.2);
+    osc.start(now); osc.stop(now + 0.18);
   }
 }
 
-// Gemini Script Writer (With Visual Cutaways & Dramatic Emotions)
+// Gemini Script Writer
 document.getElementById('generateScriptBtn').onclick = async () => {
   const key = apiKeyInput.value.trim();
   const topic = topicInput.value.trim();
@@ -146,15 +144,15 @@ document.getElementById('generateScriptBtn').onclick = async () => {
 Write a ${lengthSelect.value}-line fast-paced funny Hinglish story on topic: "${topic}".
 Tone: ${toneSelect.value}.
 Characters: "hero" (Main guy), "bro" (Best friend), "mom" (Strict Indian mom/teacher), "npc" (Savage bystander).
-Emotions: "normal", "shocked", "smug", "angry", "crying", "dead", "shadow" (use "shadow" for scary/roast punchlines).
-Cutaways (visual pop-up cards): "none", "insta", "phone", "money", "chappal", "exam"
+Emotions: "normal", "shocked", "smug", "angry", "crying", "dead", "shadow"
+Cutaways: "none", "insta", "phone", "money", "chappal", "exam"
 Backgrounds: "white", "dramatic", "red"
 Zooms: "normal", "in", "shake"
 SFX: "none", "boom", "slap", "gasp"
 
 Return ONLY a valid JSON array like:
 [{"char":"hero","other":"bro","emotion":"smug","otherEmotion":"shocked","cutaway":"insta","bg":"white","zoom":"normal","sfx":"none","text":"Short punchy Hinglish line"}]
-Keep each line 7-13 words max. Make sure dead characters do NOT speak!`;
+Keep each line 7-13 words max. Dead characters must NEVER speak.`;
 
   const models = ['gemini-3.8-flash', 'gemini-3.8-flash-lite', 'gemini-3.5-flash', 'gemini-3.0-flash'];
   let lastErr = 'All models busy';
@@ -233,15 +231,13 @@ function drawBackground(bg) {
   }
 }
 
-// Visual Storytelling Pop-Up Cutaways (Top-Right / Center Comic Card)
 function drawCutaway(type) {
   if (!type || type === 'none') return;
   const bob = Math.sin(frameTick * 0.14) * 8;
   ctx.save();
   ctx.translate(495, 290 + bob);
-  ctx.rotate(0.06);
+  ctx.rotate(0.05);
 
-  // Comic Card Frame
   ctx.fillStyle = '#ffffff';
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 7;
@@ -251,17 +247,14 @@ function drawCutaway(type) {
   ctx.stroke();
 
   if (type === 'insta') {
-    // Fake Insta Post Card
     ctx.fillStyle = '#ec4899';
     ctx.fillRect(-115, -85, 230, 115);
     ctx.fillStyle = '#ffffff';
     ctx.beginPath(); ctx.arc(0, -28, 26, 0, Math.PI * 2); ctx.fill();
-    // Red Heart
     ctx.fillStyle = '#ef4444';
     ctx.font = 'bold 42px sans-serif';
     ctx.fillText('❤️ 1 LIKE', -95, 78);
   } else if (type === 'phone') {
-    // Incoming Call / Message Screen
     ctx.fillStyle = '#1e293b';
     ctx.fillRect(-55, -85, 110, 170);
     ctx.fillStyle = '#38bdf8';
@@ -270,7 +263,6 @@ function drawCutaway(type) {
     ctx.font = 'bold 22px sans-serif';
     ctx.fillText('99+ MISSED', -85, 95);
   } else if (type === 'money') {
-    // Flying Cash / Empty Wallet
     ctx.fillStyle = '#10b981';
     ctx.fillRect(-95, -55, 190, 85);
     ctx.strokeRect(-95, -55, 190, 85);
@@ -281,7 +273,6 @@ function drawCutaway(type) {
     ctx.font = 'bold 26px sans-serif';
     ctx.fillText('KHARCHA ALERT!', -105, 75);
   } else if (type === 'chappal') {
-    // Flying Chappal Incoming!
     ctx.save();
     ctx.rotate(Math.sin(frameTick * 0.4) * 0.45);
     ctx.fillStyle = '#f97316';
@@ -293,7 +284,6 @@ function drawCutaway(type) {
     ctx.font = 'bold 26px sans-serif';
     ctx.fillText('FLYING CHAPPAL!', -112, 88);
   } else if (type === 'exam') {
-    // Red F Fail Paper
     ctx.fillStyle = '#dc2626';
     ctx.font = 'bold 110px sans-serif';
     ctx.fillText('F-', -45, 25);
@@ -301,28 +291,37 @@ function drawCutaway(type) {
     ctx.font = 'bold 24px sans-serif';
     ctx.fillText('0 / 100 MARKS', -82, 78);
   }
-
   ctx.restore();
+}
+
+function drawCartoonHand(x, y, radius = 22) {
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
 }
 
 function drawSingleCharacter(char, emotion, talkAmt, posX, posY, scaleVal, isSpeaker) {
   const isDarkBg = currentScene.bg === 'dramatic' || currentScene.bg === 'red';
   const ink = isDarkBg ? '#ffffff' : '#0f172a';
-  const bounce = isSpeaker ? talkAmt * 18 : Math.sin(frameTick * 0.06) * 3;
-  const tilt = isSpeaker ? talkAmt * Math.sin(frameTick * 0.3) * 0.07 : 0;
+  const bounce = isSpeaker ? talkAmt * 16 : Math.sin(frameTick * 0.06) * 3;
+  const tilt = isSpeaker ? talkAmt * Math.sin(frameTick * 0.28) * 0.06 : 0;
 
   ctx.save();
   ctx.translate(posX, posY - bounce);
   ctx.scale(scaleVal * (isSpeaker ? scenePop : 1), scaleVal * (isSpeaker ? (2 - scenePop) : 1));
   ctx.rotate(tilt);
 
-  if (!isSpeaker) ctx.globalAlpha = 0.88;
+  if (!isSpeaker) ctx.globalAlpha = 0.9;
 
   ctx.strokeStyle = ink;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  // Body
+  // Body (Hoodie / Shirt with collar details)
   ctx.lineWidth = 10;
   ctx.fillStyle = char === 'hero' ? '#3b82f6' : char === 'bro' ? '#f59e0b' : char === 'mom' ? '#ec4899' : '#475569';
   ctx.beginPath();
@@ -332,15 +331,28 @@ function drawSingleCharacter(char, emotion, talkAmt, posX, posY, scaleVal, isSpe
   ctx.closePath();
   ctx.fill(); ctx.stroke();
 
-  // Hands
-  ctx.lineWidth = 9;
+  // Hoodie Strings for Hero/Bro
+  if (char === 'hero' || char === 'bro') {
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(-25, 125); ctx.lineTo(-28, 195); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(25, 125); ctx.lineTo(28, 195); ctx.stroke();
+  }
+
+  // Expressive Cartoon Arms + Mittens/Hands (No ugly stick lines!)
+  ctx.lineWidth = 10;
   if (emotion === 'shocked' || emotion === 'crying') {
-    ctx.beginPath(); ctx.moveTo(-100, 185); ctx.lineTo(-140, 40); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(100, 185); ctx.lineTo(140, 40); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-105, 185); ctx.quadraticCurveTo(-155, 120, -135, 35); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(105, 185); ctx.quadraticCurveTo(155, 120, 135, 35); ctx.stroke();
+    drawCartoonHand(-135, 30, 22);
+    drawCartoonHand(135, 30, 22);
   } else if (emotion === 'angry') {
-    ctx.beginPath(); ctx.moveTo(100, 180); ctx.lineTo(180, 55 - Math.sin(frameTick * 0.45) * 18); ctx.stroke();
-  } else if (isSpeaker && talkAmt > 0.12) {
-    ctx.beginPath(); ctx.moveTo(-100, 195); ctx.lineTo(-165, 110 - talkAmt * 35); ctx.stroke();
+    const fistY = 45 - Math.sin(frameTick * 0.45) * 18;
+    ctx.beginPath(); ctx.moveTo(105, 180); ctx.quadraticCurveTo(175, 135, 175, fistY); ctx.stroke();
+    drawCartoonHand(175, fistY, 24);
+  } else if (isSpeaker && talkAmt > 0.1) {
+    const handY = 115 - talkAmt * 38;
+    ctx.beginPath(); ctx.moveTo(-105, 190); ctx.quadraticCurveTo(-165, 165, -165, handY); ctx.stroke();
+    drawCartoonHand(-165, handY, 22);
   }
 
   // Head
@@ -348,7 +360,7 @@ function drawSingleCharacter(char, emotion, talkAmt, posX, posY, scaleVal, isSpe
   ctx.lineWidth = 11;
   ctx.beginPath(); ctx.arc(0, -35, 140, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-  // Anime Dark Shadow Overlay on Upper Face for Scary/Roast Moments
+  // Anime Dark Shadow Overlay on Upper Face
   if (emotion === 'shadow') {
     ctx.save();
     ctx.beginPath(); ctx.arc(0, -35, 136, Math.PI, 0); ctx.clip();
@@ -383,7 +395,6 @@ function drawSingleCharacter(char, emotion, talkAmt, posX, posY, scaleVal, isSpe
   ctx.strokeStyle = '#0f172a'; ctx.fillStyle = '#0f172a';
   if (char !== 'npc') {
     if (emotion === 'shadow') {
-      // Glowing white anime eyes in dark shadow
       ctx.fillStyle = '#ffffff';
       ctx.beginPath(); ctx.ellipse(-48, -42, 18, 9, 0.2, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.ellipse(48, -42, 18, 9, -0.2, 0, Math.PI * 2); ctx.fill();
@@ -465,13 +476,11 @@ function drawSingleCharacter(char, emotion, talkAmt, posX, posY, scaleVal, isSpe
   ctx.restore();
 }
 
-// Modern Bold Outlined Reels Captions (No Ugly White Box!)
 function drawCaptions(text, char) {
   if (!text) return;
   const names = { hero: 'ME', bro: 'BRO', mom: 'MUMMY', npc: 'RANDOM GUY' };
   const colors = { hero: '#3b82f6', bro: '#f59e0b', mom: '#ec4899', npc: '#ef4444' };
 
-  // Speaker Badge
   ctx.fillStyle = colors[char] || '#ef4444';
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 5;
@@ -484,7 +493,6 @@ function drawCaptions(text, char) {
   ctx.font = '900 26px sans-serif';
   ctx.fillText(names[char] || 'ME', 68, 98);
 
-  // Word Wrap Outlined Subtitles at Bottom
   ctx.font = '900 38px sans-serif';
   ctx.textAlign = 'center';
   const words = text.split(' ');
@@ -562,119 +570,45 @@ function renderLoop() {
 }
 renderLoop();
 
-// Gemini Native Multi-Voice TTS with Safe Spacing & Male Fallback
-function pcmToWavBuffer(base64Pcm, sampleRate = 24000) {
-  const binary = atob(base64Pcm);
-  const pcmLen = binary.length;
-  const wavBuffer = new ArrayBuffer(44 + pcmLen);
-  const view = new DataView(wavBuffer);
-
-  const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
-  writeStr(0, 'RIFF');
-  view.setUint32(4, 36 + pcmLen, true);
-  writeStr(8, 'WAVE');
-  writeStr(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  writeStr(36, 'data');
-  view.setUint32(40, pcmLen, true);
-
-  const bytes = new Uint8Array(wavBuffer, 44);
-  for (let i = 0; i < pcmLen; i++) bytes[i] = binary.charCodeAt(i);
-  return wavBuffer;
-}
-
-async function fetchGeminiVoice(scene) {
-  const key = apiKeyInput.value.trim();
-  const voiceMap = {
-    hero: 'Puck',
-    bro:  'Fenrir',
-    mom:  'Kore',
-    npc:  'Charon'
-  };
-  const voiceName = voiceMap[scene.char] || 'Puck';
-
-  if (key) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(key)}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `Speak this Hinglish dialogue fast and naturally: ${scene.text}` }] }],
-            generationConfig: {
-              responseModalities: ["AUDIO"],
-              speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } }
-            }
-          })
-        });
-        if (res.status === 429) {
-          await new Promise((r) => setTimeout(r, 1400));
-          continue;
-        }
-        if (res.ok) {
-          const data = await res.json();
-          const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-          if (inlineData?.data) {
-            const wavBuf = pcmToWavBuffer(inlineData.data, 24000);
-            return { buffer: await audioCtx.decodeAudioData(wavBuf), isFallback: false };
-          }
-        }
-      } catch (e) {}
-    }
-  }
-
-  // Fallback TTS with phonetic fix ("hi" -> "he")
+// Consistent Neural Voice Fetcher (100% Same Voice Per Character, Zero Rate-Limit Glitch)
+async function fetchConsistentVoice(scene) {
   const cleanText = scene.text.replace(/\bhi\b/gi, 'he').replace(/\bab\b/gi, 'abb');
   const res = await fetch('/api/tts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: cleanText })
+    body: JSON.stringify({ text: cleanText, char: scene.char })
   });
-  if (!res.ok) throw new Error('Fallback TTS failed');
+  if (!res.ok) throw new Error('TTS HTTP ' + res.status);
   const arr = await res.arrayBuffer();
-  return { buffer: await audioCtx.decodeAudioData(arr), isFallback: true };
+  return await audioCtx.decodeAudioData(arr);
 }
 
-function playAudioBuffer(audioObj, char) {
+// Single Guaranteed Playback Promise (Fixes Double-Audio Bug!)
+function playAudioOnce(audioBuffer) {
   return new Promise((resolve) => {
-    let done = false;
+    let resolved = false;
     duckBGM(true);
-    const finish = () => {
-      if (!done) {
-        done = true;
+
+    const source = audioCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
+    analyser.connect(destNode);
+
+    source.onended = () => {
+      if (!resolved) {
+        resolved = true;
         duckBGM(false);
         setTimeout(resolve, 60);
       }
     };
 
-    const source = audioCtx.createBufferSource();
-    source.buffer = audioObj.buffer;
-
-    // If fallback voice is used, pitch down male characters so they don't sound like a high-pitched lady
-    let rate = 1.08;
-    if (audioObj.isFallback) {
-      source.detune.value = char === 'mom' ? 60 : char === 'npc' ? -450 : -320;
-      rate = 1.12;
-    }
-    source.playbackRate.value = rate;
-
-    source.connect(analyser);
-    analyser.connect(audioCtx.destination);
-    analyser.connect(destNode);
-
-    source.onended = finish;
     source.start(0);
-    setTimeout(finish, ((audioObj.buffer.duration / rate) * 1000) + 120);
   });
 }
 
 async function runAnimation(recordVideo = false) {
+  if (isPlayingSequence) return;
   let scenes;
   try {
     scenes = JSON.parse(scriptEditor.value);
@@ -683,15 +617,16 @@ async function runAnimation(recordVideo = false) {
     return setStatus('Script Error: Click "Load Demo" or generate valid JSON first!');
   }
 
+  isPlayingSequence = true;
   initAudio();
   downloadLink.classList.add('hidden');
 
   const audioList = [];
   for (let i = 0; i < scenes.length; i++) {
-    setStatus(`Generating voice ${i + 1}/${scenes.length} (${scenes[i].char.toUpperCase()})...`);
+    setStatus(`Loading voice ${i + 1}/${scenes.length} (${scenes[i].char.toUpperCase()})...`);
     try {
-      const obj = await fetchGeminiVoice(scenes[i]);
-      audioList.push(obj);
+      const buf = await fetchConsistentVoice(scenes[i]);
+      audioList.push(buf);
     } catch {
       audioList.push(null);
     }
@@ -732,7 +667,7 @@ async function runAnimation(recordVideo = false) {
     setStatus(`Playing Scene ${i + 1}/${scenes.length}...`);
 
     if (audioList[i]) {
-      await playAudioBuffer(audioList[i], scenes[i].char);
+      await playAudioOnce(audioList[i]);
     } else {
       const words = (scenes[i].text || '').split(' ').length;
       fallbackSpeaking = true;
@@ -743,6 +678,7 @@ async function runAnimation(recordVideo = false) {
 
   stopComedyBGM();
   fallbackSpeaking = false;
+  isPlayingSequence = false;
   if (recorder && recorder.state !== 'inactive') recorder.stop();
   else setStatus('Playback finished!');
 }
