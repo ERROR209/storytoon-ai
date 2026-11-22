@@ -108,33 +108,44 @@ Return ONLY a valid JSON array like:
 [{"char":"hero","emotion":"smug","bg":"white","zoom":"normal","sfx":"none","text":"Dialogue in Hinglish"}]
 Keep each dialogue punchy (8-15 words max).`;
 
-  try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(key)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
-      })
-    });
+  const models = ['gemini-3.8-flash', 'gemini-3.8-flash-lite', 'gemini-3.5-flash', 'gemini-3.0-flash'];
+  let lastErr = 'All models busy';
 
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error?.message || `HTTP ${res.status}`);
+  for (const model of models) {
+    try {
+      setStatus(`Trying ${model}...`);
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: "application/json" }
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        lastErr = data.error?.message || `HTTP ${res.status}`;
+        continue;
+      }
+
+      let raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const startIdx = raw.indexOf('[');
+      const endIdx = raw.lastIndexOf(']');
+      if (startIdx === -1 || endIdx === -1) {
+        lastErr = 'Invalid AI format';
+        continue;
+      }
+
+      const parsed = JSON.parse(raw.slice(startIdx, endIdx + 1));
+      scriptEditor.value = JSON.stringify(parsed, null, 2);
+      setStatus(`Script ready (${parsed.length} scenes via ${model})! Tap "2. Play & Save Video".`);
+      return;
+    } catch (err) {
+      lastErr = err.message;
     }
-
-    let raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    const startIdx = raw.indexOf('[');
-    const endIdx = raw.lastIndexOf(']');
-    if (startIdx === -1 || endIdx === -1) throw new Error('Invalid AI format');
-
-    const parsed = JSON.parse(raw.slice(startIdx, endIdx + 1));
-    scriptEditor.value = JSON.stringify(parsed, null, 2);
-    setStatus(`Script ready (${parsed.length} scenes)! Tap "2. Play & Save Video".`);
-  } catch (err) {
-    console.error(err);
-    setStatus(`Error: ${err.message}`);
   }
+  setStatus(`Error: ${lastErr}`);
 };
 
 let currentScene = { char: 'hero', emotion: 'normal', bg: 'white', zoom: 'normal', text: 'Tap Play & Save Video to start!' };
