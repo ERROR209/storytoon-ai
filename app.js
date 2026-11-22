@@ -25,12 +25,82 @@ scriptEditor.value = JSON.stringify(DEMO_SCRIPT, null, 2);
 
 document.getElementById('loadDemoBtn').onclick = () => {
   scriptEditor.value = JSON.stringify(DEMO_SCRIPT, null, 2);
+  renderMicControls();
   setStatus('Demo script loaded!');
 };
 
 function setStatus(msg) { statusBar.textContent = msg; }
 
-// Single Clean Audio Engine (Prevents Double-Voice Playback Bug!)
+// Custom Mic Recordings Store (Scene Index -> AudioBuffer)
+const customMicBuffers = {};
+
+// Inject Mic Voiceover Panel dynamically below Script Editor
+const scriptCard = document.querySelector('.script-card');
+const micPanel = document.createElement('div');
+micPanel.id = 'micPanel';
+micPanel.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-top:6px;';
+scriptCard.appendChild(micPanel);
+
+let activeMediaRecorder = null;
+let recordingSceneIdx = -1;
+
+function renderMicControls() {
+  micPanel.innerHTML = '<div style="font-size:0.75rem;color:#94a3b8;font-weight:700;margin-top:4px;">🎙️ Optional: Apni Real Voice Record Karo (Scene-by-Scene)</div>';
+  let scenes = [];
+  try { scenes = JSON.parse(scriptEditor.value); } catch { return; }
+
+  scenes.forEach((sc, idx) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:#0f1117;padding:6px 8px;border-radius:8px;border:1px solid #2a2f3d;gap:6px;';
+    
+    const label = document.createElement('span');
+    label.style.cssText = 'font-size:0.72rem;color:#e2e8f0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    label.textContent = `${idx + 1}. [${sc.char.toUpperCase()}] ${sc.text}`;
+
+    const btn = document.createElement('button');
+    btn.className = 'btn tiny';
+    btn.style.background = customMicBuffers[idx] ? '#10b981' : '#334155';
+    btn.style.color = '#fff';
+    btn.textContent = recordingSceneIdx === idx ? '⏹ Stop' : (customMicBuffers[idx] ? '✅ Re-record' : '🎙️ Rec');
+
+    btn.onclick = async () => {
+      initAudio();
+      if (recordingSceneIdx === idx && activeMediaRecorder) {
+        activeMediaRecorder.stop();
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const chunks = [];
+        activeMediaRecorder = new MediaRecorder(stream);
+        recordingSceneIdx = idx;
+        renderMicControls();
+        setStatus(`🎙️ Recording Scene ${idx + 1}... Bolo aur Stop dabao!`);
+
+        activeMediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+        activeMediaRecorder.onstop = async () => {
+          stream.getTracks().forEach(t => t.stop());
+          const blob = new Blob(chunks, { type: 'audio/webm' });
+          const arr = await blob.arrayBuffer();
+          customMicBuffers[idx] = await audioCtx.decodeAudioData(arr);
+          recordingSceneIdx = -1;
+          renderMicControls();
+          setStatus(`✅ Scene ${idx + 1} ki tumhari real voice save ho gayi!`);
+        };
+        activeMediaRecorder.start();
+      } catch (err) {
+        setStatus('Mic permission denied: ' + err.message);
+      }
+    };
+
+    row.appendChild(label);
+    row.appendChild(btn);
+    micPanel.appendChild(row);
+  });
+}
+scriptEditor.addEventListener('change', renderMicControls);
+
+// Audio Engine
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null;
 let destNode = null;
@@ -49,7 +119,7 @@ function initAudio() {
     dataArray = new Uint8Array(analyser.frequencyBinCount);
 
     bgmGain = audioCtx.createGain();
-    bgmGain.gain.value = 0.12;
+    bgmGain.gain.value = 0.11;
     bgmGain.connect(audioCtx.destination);
     bgmGain.connect(destNode);
   }
@@ -72,7 +142,7 @@ function startComedyBGM() {
     step++;
 
     noteGain.gain.setValueAtTime(0.001, now);
-    noteGain.gain.linearRampToValueAtTime(0.3, now + 0.02);
+    noteGain.gain.linearRampToValueAtTime(0.28, now + 0.02);
     noteGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
 
     osc.connect(noteGain);
@@ -83,15 +153,12 @@ function startComedyBGM() {
 }
 
 function stopComedyBGM() {
-  if (bgmInterval) {
-    clearInterval(bgmInterval);
-    bgmInterval = null;
-  }
+  if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; }
 }
 
 function duckBGM(speaking) {
   if (!bgmGain || !audioCtx) return;
-  bgmGain.gain.setTargetAtTime(speaking ? 0.04 : 0.14, audioCtx.currentTime, 0.06);
+  bgmGain.gain.setTargetAtTime(speaking ? 0.035 : 0.13, audioCtx.currentTime, 0.06);
 }
 
 function playSFX(type) {
@@ -179,7 +246,9 @@ Keep each line 7-13 words max. Dead characters must NEVER speak.`;
 
       const parsed = JSON.parse(raw.slice(startIdx, endIdx + 1));
       scriptEditor.value = JSON.stringify(parsed, null, 2);
-      setStatus(`Script ready (${parsed.length} scenes)! Tap "2. Play & Save Video".`);
+      Object.keys(customMicBuffers).forEach(k => delete customMicBuffers[k]);
+      renderMicControls();
+      setStatus(`Script ready (${parsed.length} scenes)! Tap "2. Play & Save Video" or record your own voice below.`);
       return;
     } catch (err) {
       lastErr = err.message;
@@ -321,7 +390,7 @@ function drawSingleCharacter(char, emotion, talkAmt, posX, posY, scaleVal, isSpe
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  // Body (Hoodie / Shirt with collar details)
+  // Body
   ctx.lineWidth = 10;
   ctx.fillStyle = char === 'hero' ? '#3b82f6' : char === 'bro' ? '#f59e0b' : char === 'mom' ? '#ec4899' : '#475569';
   ctx.beginPath();
@@ -331,14 +400,13 @@ function drawSingleCharacter(char, emotion, talkAmt, posX, posY, scaleVal, isSpe
   ctx.closePath();
   ctx.fill(); ctx.stroke();
 
-  // Hoodie Strings for Hero/Bro
   if (char === 'hero' || char === 'bro') {
     ctx.lineWidth = 5;
     ctx.beginPath(); ctx.moveTo(-25, 125); ctx.lineTo(-28, 195); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(25, 125); ctx.lineTo(28, 195); ctx.stroke();
   }
 
-  // Expressive Cartoon Arms + Mittens/Hands (No ugly stick lines!)
+  // Arms & Cartoon Hands
   ctx.lineWidth = 10;
   if (emotion === 'shocked' || emotion === 'crying') {
     ctx.beginPath(); ctx.moveTo(-105, 185); ctx.quadraticCurveTo(-155, 120, -135, 35); ctx.stroke();
@@ -360,7 +428,6 @@ function drawSingleCharacter(char, emotion, talkAmt, posX, posY, scaleVal, isSpe
   ctx.lineWidth = 11;
   ctx.beginPath(); ctx.arc(0, -35, 140, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-  // Anime Dark Shadow Overlay on Upper Face
   if (emotion === 'shadow') {
     ctx.save();
     ctx.beginPath(); ctx.arc(0, -35, 136, Math.PI, 0); ctx.clip();
@@ -570,20 +637,95 @@ function renderLoop() {
 }
 renderLoop();
 
-// Consistent Neural Voice Fetcher (100% Same Voice Per Character, Zero Rate-Limit Glitch)
-async function fetchConsistentVoice(scene) {
-  const cleanText = scene.text.replace(/\bhi\b/gi, 'he').replace(/\bab\b/gi, 'abb');
-  const res = await fetch('/api/tts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: cleanText, char: scene.char })
-  });
-  if (!res.ok) throw new Error('TTS HTTP ' + res.status);
-  const arr = await res.arrayBuffer();
-  return await audioCtx.decodeAudioData(arr);
+// Gemini Native Human Voice Acting (100% Real Male & Female Acting, Zero Robotic TTS)
+function pcmToWavBuffer(base64Pcm, sampleRate = 24000) {
+  const binary = atob(base64Pcm);
+  const pcmLen = binary.length;
+  const wavBuffer = new ArrayBuffer(44 + pcmLen);
+  const view = new DataView(wavBuffer);
+
+  const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + pcmLen, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, 'data');
+  view.setUint32(40, pcmLen, true);
+
+  const bytes = new Uint8Array(wavBuffer, 44);
+  for (let i = 0; i < pcmLen; i++) bytes[i] = binary.charCodeAt(i);
+  return wavBuffer;
 }
 
-// Single Guaranteed Playback Promise (Fixes Double-Audio Bug!)
+async function fetchHumanActingVoice(scene, sceneIdx) {
+  // 1. Priority: User's own recorded mic voice!
+  if (customMicBuffers[sceneIdx]) {
+    return customMicBuffers[sceneIdx];
+  }
+
+  const key = apiKeyInput.value.trim();
+  if (!key) throw new Error('Gemini API Key needed for real human voice acting!');
+
+  const voiceMap = {
+    hero: 'Puck',    // Young expressive Indian male
+    bro:  'Fenrir',  // Energetic funny male friend
+    mom:  'Kore',    // Strict Indian mom female
+    npc:  'Charon'   // Deep savage male
+  };
+  const emotionStyle = {
+    angry:   'Speak loudly and angrily like an Indian parent scolding:',
+    shocked: 'Speak in a shocked, panicked voice:',
+    crying:  'Speak in a dramatic crying, whining comedic tone:',
+    smug:    'Speak in a confident, sarcastic, funny tone:',
+    shadow:  'Speak in a dark, dramatic anime villain tone:',
+    normal:  'Speak naturally like an Indian YouTuber telling a funny story:'
+  };
+
+  const voiceName = voiceMap[scene.char] || 'Puck';
+  const stylePrompt = emotionStyle[scene.emotion] || emotionStyle.normal;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(key)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `${stylePrompt} "${scene.text}"` }] }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } }
+        }
+      })
+    });
+
+    if (res.status === 429) {
+      // Wait smoothly for rate limit reset instead of falling back to robotic lady voice!
+      setStatus(`Rate limit pause (waiting 3s for real human voice ${sceneIdx + 1})...`);
+      await new Promise((r) => setTimeout(r, 3200));
+      continue;
+    }
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || `Voice HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+    if (inlineData?.data) {
+      const wavBuf = pcmToWavBuffer(inlineData.data, 24000);
+      return await audioCtx.decodeAudioData(wavBuf);
+    }
+  }
+  throw new Error('Could not fetch human voice after retries');
+}
+
 function playAudioOnce(audioBuffer) {
   return new Promise((resolve) => {
     let resolved = false;
@@ -623,12 +765,13 @@ async function runAnimation(recordVideo = false) {
 
   const audioList = [];
   for (let i = 0; i < scenes.length; i++) {
-    setStatus(`Loading voice ${i + 1}/${scenes.length} (${scenes[i].char.toUpperCase()})...`);
+    setStatus(`Generating human acting voice ${i + 1}/${scenes.length} (${scenes[i].char.toUpperCase()})...`);
     try {
-      const buf = await fetchConsistentVoice(scenes[i]);
+      const buf = await fetchHumanActingVoice(scenes[i], i);
       audioList.push(buf);
-    } catch {
-      audioList.push(null);
+    } catch (err) {
+      isPlayingSequence = false;
+      return setStatus(`Voice Error on Scene ${i + 1}: ${err.message}`);
     }
   }
 
@@ -665,19 +808,10 @@ async function runAnimation(recordVideo = false) {
     scenePop = 0.78;
     playSFX(scenes[i].sfx);
     setStatus(`Playing Scene ${i + 1}/${scenes.length}...`);
-
-    if (audioList[i]) {
-      await playAudioOnce(audioList[i]);
-    } else {
-      const words = (scenes[i].text || '').split(' ').length;
-      fallbackSpeaking = true;
-      await new Promise((r) => setTimeout(r, Math.max(1200, words * 280)));
-      fallbackSpeaking = false;
-    }
+    await playAudioOnce(audioList[i]);
   }
 
   stopComedyBGM();
-  fallbackSpeaking = false;
   isPlayingSequence = false;
   if (recorder && recorder.state !== 'inactive') recorder.stop();
   else setStatus('Playback finished!');
@@ -685,3 +819,4 @@ async function runAnimation(recordVideo = false) {
 
 document.getElementById('previewOnlyBtn').onclick = () => runAnimation(false);
 document.getElementById('playRecordBtn').onclick = () => runAnimation(true);
+renderMicControls();
