@@ -14,12 +14,12 @@ apiKeyInput.addEventListener('change', () => {
 });
 
 const DEMO_SCRIPT = [
-  { char: "hero", other: "bro", emotion: "smug", otherEmotion: "normal", prop: "chai", bg: "white", zoom: "normal", sfx: "none", text: "Mera dost Rahul kal bolta hai, biwi se bada dar lagta hai." },
-  { char: "bro", other: "hero", emotion: "crying", otherEmotion: "smug", prop: "sweat", bg: "white", zoom: "in", sfx: "boom", text: "Bhai usne mera phone, password aur meri azaadi sab cheen li!" },
-  { char: "hero", other: "bro", emotion: "smug", otherEmotion: "shocked", prop: "none", bg: "white", zoom: "normal", sfx: "none", text: "Toh maine kaha, mard ban aur uski aankhon me aankhein daal!" },
-  { char: "bro", other: "hero", emotion: "shocked", otherEmotion: "smug", prop: "sweat", bg: "dramatic", zoom: "in", sfx: "gasp", text: "Phir kya bolu? Seedha bol du ki daal me namak kam hai?" },
-  { char: "hero", other: "bro", emotion: "angry", otherEmotion: "shocked", prop: "anger", bg: "red", zoom: "shake", sfx: "slap", text: "Bol de, aur kehna meri mummy tere se accha banati hai!" },
-  { char: "bro", other: "hero", emotion: "dead", otherEmotion: "shocked", prop: "none", bg: "dramatic", zoom: "in", sfx: "boom", text: "Agli subah tawa fek ke maara, khopdi pe fracture ho gaya!" }
+  { char: "hero", other: "bro", emotion: "smug", otherEmotion: "normal", cutaway: "insta", bg: "white", zoom: "normal", sfx: "none", text: "Bhai kal Rahul ne Insta par ek ladki ki photo like kar di." },
+  { char: "bro", other: "hero", emotion: "shocked", otherEmotion: "smug", cutaway: "phone", bg: "white", zoom: "in", sfx: "gasp", text: "Bas ek heart react kiya tha yaar, itna bada crime hai kya?" },
+  { char: "hero", other: "bro", emotion: "shadow", otherEmotion: "shocked", cutaway: "none", bg: "dramatic", zoom: "in", sfx: "boom", text: "Crime nahi bhai, tune seedha maut ko DM bhej diya hai!" },
+  { char: "bro", other: "hero", emotion: "crying", otherEmotion: "smug", cutaway: "money", bg: "white", zoom: "normal", sfx: "none", text: "Ab maafi maangne ke liye iPhone aur mehenga bag maang rahi hai!" },
+  { char: "mom", other: "bro", emotion: "angry", otherEmotion: "shocked", cutaway: "chappal", bg: "red", zoom: "shake", sfx: "slap", text: "Ghar mein chappal aur tawa dono taiyar hain, aaja tu!" },
+  { char: "npc", other: "bro", emotion: "smug", otherEmotion: "dead", cutaway: "none", bg: "dramatic", zoom: "normal", sfx: "boom", text: "Rest in peace Rahul. Agle janam mein single rehna!" }
 ];
 scriptEditor.value = JSON.stringify(DEMO_SCRIPT, null, 2);
 
@@ -30,12 +30,14 @@ document.getElementById('loadDemoBtn').onclick = () => {
 
 function setStatus(msg) { statusBar.textContent = msg; }
 
-// Web Audio API Setup
+// Web Audio API Setup (Voice + Auto-Ducking Comedy BGM + SFX + Video Audio Track)
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null;
 let destNode = null;
 let analyser = null;
 let dataArray = null;
+let bgmGain = null;
+let bgmInterval = null;
 
 function initAudio() {
   if (!audioCtx) {
@@ -44,11 +46,56 @@ function initAudio() {
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 256;
     dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    bgmGain = audioCtx.createGain();
+    bgmGain.gain.value = 0.14;
+    bgmGain.connect(audioCtx.destination);
+    bgmGain.connect(destNode);
   }
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }
 
-// Punchy Noise + Sub-Bass Meme SFX (No cheap beeps!)
+// Catchy Comedic Pizzicato / Marimba Loop with Auto-Ducking
+function startComedyBGM() {
+  stopComedyBGM();
+  const notes = [261.63, 329.63, 392.00, 329.63, 293.66, 349.23, 440.00, 349.23];
+  let step = 0;
+
+  bgmInterval = setInterval(() => {
+    if (!audioCtx || audioCtx.state !== 'running') return;
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const noteGain = audioCtx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(notes[step % notes.length], now);
+    step++;
+
+    noteGain.gain.setValueAtTime(0.001, now);
+    noteGain.gain.linearRampToValueAtTime(0.35, now + 0.02);
+    noteGain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+
+    osc.connect(noteGain);
+    noteGain.connect(bgmGain);
+    osc.start(now);
+    osc.stop(now + 0.25);
+  }, 280);
+}
+
+function stopComedyBGM() {
+  if (bgmInterval) {
+    clearInterval(bgmInterval);
+    bgmInterval = null;
+  }
+}
+
+function duckBGM(isSpeakingNow) {
+  if (!bgmGain || !audioCtx) return;
+  const target = isSpeakingNow ? 0.05 : 0.16;
+  bgmGain.gain.setTargetAtTime(target, audioCtx.currentTime, 0.08);
+}
+
+// Punchy Noise + Sub-Bass Meme SFX
 function playSFX(type) {
   if (!type || type === 'none') return;
   initAudio();
@@ -58,14 +105,13 @@ function playSFX(type) {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(110, now);
-    osc.frequency.exponentialRampToValueAtTime(28, now + 0.55);
+    osc.frequency.setValueAtTime(115, now);
+    osc.frequency.exponentialRampToValueAtTime(26, now + 0.55);
     gain.gain.setValueAtTime(1.0, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
     osc.connect(gain); gain.connect(audioCtx.destination); gain.connect(destNode);
     osc.start(now); osc.stop(now + 0.6);
   } else if (type === 'slap') {
-    // White noise burst + low punch for real slap sound
     const bufferSize = audioCtx.sampleRate * 0.16;
     const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
     const output = noiseBuffer.getChannelData(0);
@@ -81,7 +127,7 @@ function playSFX(type) {
     const gain = audioCtx.createGain();
     osc.type = 'sine';
     osc.frequency.setValueAtTime(280, now);
-    osc.frequency.exponentialRampToValueAtTime(720, now + 0.18);
+    osc.frequency.exponentialRampToValueAtTime(750, now + 0.18);
     gain.gain.setValueAtTime(0.45, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
     osc.connect(gain); gain.connect(audioCtx.destination); gain.connect(destNode);
@@ -89,7 +135,7 @@ function playSFX(type) {
   }
 }
 
-// Gemini Script Writer (Two-character conversation aware)
+// Gemini Script Writer (With Visual Cutaways & Dramatic Emotions)
 document.getElementById('generateScriptBtn').onclick = async () => {
   const key = apiKeyInput.value.trim();
   const topic = topicInput.value.trim();
@@ -97,18 +143,18 @@ document.getElementById('generateScriptBtn').onclick = async () => {
   if (!topic) return setStatus('Please enter a video topic!');
 
   const prompt = `You are a viral Indian storytime animator like "NOT YOUR TYPE".
-Write a ${lengthSelect.value}-line fast-paced funny Hinglish conversation on topic: "${topic}".
+Write a ${lengthSelect.value}-line fast-paced funny Hinglish story on topic: "${topic}".
 Tone: ${toneSelect.value}.
 Characters: "hero" (Main guy), "bro" (Best friend), "mom" (Strict Indian mom/teacher), "npc" (Savage bystander).
-Emotions: "normal", "shocked", "smug", "angry", "crying", "dead"
-Props: "none", "phone", "chai", "anger", "sweat"
+Emotions: "normal", "shocked", "smug", "angry", "crying", "dead", "shadow" (use "shadow" for scary/roast punchlines).
+Cutaways (visual pop-up cards): "none", "insta", "phone", "money", "chappal", "exam"
 Backgrounds: "white", "dramatic", "red"
 Zooms: "normal", "in", "shake"
 SFX: "none", "boom", "slap", "gasp"
 
 Return ONLY a valid JSON array like:
-[{"char":"hero","other":"bro","emotion":"smug","otherEmotion":"shocked","prop":"chai","bg":"white","zoom":"normal","sfx":"none","text":"Short punchy Hinglish line"}]
-Keep each line 7-13 words max. Spell Hindi words clearly (e.g. "ab" as "ab", "mein" as "mein").`;
+[{"char":"hero","other":"bro","emotion":"smug","otherEmotion":"shocked","cutaway":"insta","bg":"white","zoom":"normal","sfx":"none","text":"Short punchy Hinglish line"}]
+Keep each line 7-13 words max. Make sure dead characters do NOT speak!`;
 
   const models = ['gemini-3.8-flash', 'gemini-3.8-flash-lite', 'gemini-3.5-flash', 'gemini-3.0-flash'];
   let lastErr = 'All models busy';
@@ -159,78 +205,110 @@ function drawBackground(bg) {
     ctx.strokeStyle = 'rgba(0,0,0,0.3)';
     ctx.lineWidth = 8;
     for (let i = 0; i < 24; i++) {
-      const angle = (i / 24) * Math.PI * 2 + frameTick * 0.035;
+      const angle = (i / 24) * Math.PI * 2 + frameTick * 0.04;
       ctx.beginPath();
-      ctx.moveTo(360 + Math.cos(angle) * 200, 620 + Math.sin(angle) * 200);
+      ctx.moveTo(360 + Math.cos(angle) * 190, 620 + Math.sin(angle) * 190);
       ctx.lineTo(360 + Math.cos(angle) * 900, 620 + Math.sin(angle) * 900);
       ctx.stroke();
     }
   } else if (bg === 'dramatic') {
-    ctx.fillStyle = '#111827';
+    ctx.fillStyle = '#090d16';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const grad = ctx.createRadialGradient(360, 620, 60, 360, 620, 440);
-    grad.addColorStop(0, '#374151');
-    grad.addColorStop(1, '#111827');
+    const grad = ctx.createRadialGradient(360, 620, 40, 360, 620, 420);
+    grad.addColorStop(0, '#1e293b');
+    grad.addColorStop(1, '#090d16');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   } else {
     ctx.fillStyle = '#f8fafc';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    // Subtle notebook / sketch lines for authentic NOT YOUR TYPE aesthetic
     ctx.strokeStyle = '#e2e8f0';
     ctx.lineWidth = 2;
-    for (let y = 180; y < 980; y += 48) {
-      ctx.beginPath(); ctx.moveTo(40, y); ctx.lineTo(680, y); ctx.stroke();
+    for (let y = 160; y < 1100; y += 48) {
+      ctx.beginPath(); ctx.moveTo(36, y); ctx.lineTo(684, y); ctx.stroke();
     }
     ctx.strokeStyle = '#cbd5e1';
     ctx.lineWidth = 4;
-    ctx.strokeRect(24, 24, canvas.width - 48, canvas.height - 48);
+    ctx.strokeRect(22, 22, canvas.width - 44, canvas.height - 44);
   }
 }
 
-function drawProps(prop, emotion) {
-  if (prop === 'anger' || emotion === 'angry') {
+// Visual Storytelling Pop-Up Cutaways (Top-Right / Center Comic Card)
+function drawCutaway(type) {
+  if (!type || type === 'none') return;
+  const bob = Math.sin(frameTick * 0.14) * 8;
+  ctx.save();
+  ctx.translate(495, 290 + bob);
+  ctx.rotate(0.06);
+
+  // Comic Card Frame
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.roundRect(-135, -105, 270, 210, 18);
+  ctx.fill();
+  ctx.stroke();
+
+  if (type === 'insta') {
+    // Fake Insta Post Card
+    ctx.fillStyle = '#ec4899';
+    ctx.fillRect(-115, -85, 230, 115);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(0, -28, 26, 0, Math.PI * 2); ctx.fill();
+    // Red Heart
+    ctx.fillStyle = '#ef4444';
+    ctx.font = 'bold 42px sans-serif';
+    ctx.fillText('❤️ 1 LIKE', -95, 78);
+  } else if (type === 'phone') {
+    // Incoming Call / Message Screen
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(-55, -85, 110, 170);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(-45, -70, 90, 130);
+    ctx.fillStyle = '#ef4444';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText('99+ MISSED', -85, 95);
+  } else if (type === 'money') {
+    // Flying Cash / Empty Wallet
+    ctx.fillStyle = '#10b981';
+    ctx.fillRect(-95, -55, 190, 85);
+    ctx.strokeRect(-95, -55, 190, 85);
+    ctx.fillStyle = '#064e3b';
+    ctx.font = 'bold 44px sans-serif';
+    ctx.fillText('₹₹₹', -45, 2);
+    ctx.fillStyle = '#ef4444';
+    ctx.font = 'bold 26px sans-serif';
+    ctx.fillText('KHARCHA ALERT!', -105, 75);
+  } else if (type === 'chappal') {
+    // Flying Chappal Incoming!
     ctx.save();
-    ctx.translate(88, -130);
-    ctx.strokeStyle = '#ef4444';
-    ctx.lineWidth = 7;
+    ctx.rotate(Math.sin(frameTick * 0.4) * 0.45);
+    ctx.fillStyle = '#f97316';
     ctx.beginPath();
-    ctx.moveTo(-16, -6); ctx.quadraticCurveTo(-4, -4, -6, -18);
-    ctx.moveTo(16, -6); ctx.quadraticCurveTo(4, -4, 6, -18);
-    ctx.moveTo(-16, 12); ctx.quadraticCurveTo(-4, 10, -6, 22);
-    ctx.moveTo(16, 12); ctx.quadraticCurveTo(4, 10, 6, 22);
-    ctx.stroke();
-    ctx.restore();
-  }
-  if (prop === 'sweat' || emotion === 'shocked') {
-    const dropY = (frameTick % 35) * 0.65;
-    ctx.fillStyle = '#38bdf8'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(120, -105 + dropY);
-    ctx.quadraticCurveTo(136, -80 + dropY, 120, -70 + dropY);
-    ctx.quadraticCurveTo(104, -80 + dropY, 120, -105 + dropY);
-    ctx.fill(); ctx.stroke();
-  }
-  if (prop === 'phone') {
-    ctx.save(); ctx.translate(-145, 85); ctx.rotate(-0.2);
-    ctx.fillStyle = '#1e293b'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 6;
-    ctx.fillRect(-24, -42, 48, 84); ctx.strokeRect(-24, -42, 48, 84);
-    ctx.fillStyle = '#38bdf8'; ctx.fillRect(-18, -34, 36, 66);
-    ctx.restore();
-  }
-  if (prop === 'chai') {
-    ctx.save(); ctx.translate(-145, 105);
-    ctx.fillStyle = '#d97706'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 6;
-    ctx.beginPath(); ctx.moveTo(-22, -22); ctx.lineTo(22, -22); ctx.lineTo(16, 28); ctx.lineTo(-16, 28); ctx.closePath();
+    ctx.ellipse(0, -10, 38, 78, 0, 0, Math.PI * 2);
     ctx.fill(); ctx.stroke();
     ctx.restore();
+    ctx.fillStyle = '#dc2626';
+    ctx.font = 'bold 26px sans-serif';
+    ctx.fillText('FLYING CHAPPAL!', -112, 88);
+  } else if (type === 'exam') {
+    // Red F Fail Paper
+    ctx.fillStyle = '#dc2626';
+    ctx.font = 'bold 110px sans-serif';
+    ctx.fillText('F-', -45, 25);
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText('0 / 100 MARKS', -82, 78);
   }
+
+  ctx.restore();
 }
 
-function drawSingleCharacter(char, emotion, prop, talkAmt, posX, posY, scaleVal, isSpeaker) {
+function drawSingleCharacter(char, emotion, talkAmt, posX, posY, scaleVal, isSpeaker) {
   const isDarkBg = currentScene.bg === 'dramatic' || currentScene.bg === 'red';
   const ink = isDarkBg ? '#ffffff' : '#0f172a';
-  const bounce = isSpeaker ? talkAmt * 16 : Math.sin(frameTick * 0.06) * 3;
+  const bounce = isSpeaker ? talkAmt * 18 : Math.sin(frameTick * 0.06) * 3;
   const tilt = isSpeaker ? talkAmt * Math.sin(frameTick * 0.3) * 0.07 : 0;
 
   ctx.save();
@@ -248,9 +326,9 @@ function drawSingleCharacter(char, emotion, prop, talkAmt, posX, posY, scaleVal,
   ctx.lineWidth = 10;
   ctx.fillStyle = char === 'hero' ? '#3b82f6' : char === 'bro' ? '#f59e0b' : char === 'mom' ? '#ec4899' : '#475569';
   ctx.beginPath();
-  ctx.moveTo(-120, 330);
+  ctx.moveTo(-120, 340);
   ctx.quadraticCurveTo(-105, 110, 0, 110);
-  ctx.quadraticCurveTo(105, 110, 120, 330);
+  ctx.quadraticCurveTo(105, 110, 120, 340);
   ctx.closePath();
   ctx.fill(); ctx.stroke();
 
@@ -269,6 +347,15 @@ function drawSingleCharacter(char, emotion, prop, talkAmt, posX, posY, scaleVal,
   ctx.fillStyle = '#ffffff';
   ctx.lineWidth = 11;
   ctx.beginPath(); ctx.arc(0, -35, 140, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+  // Anime Dark Shadow Overlay on Upper Face for Scary/Roast Moments
+  if (emotion === 'shadow') {
+    ctx.save();
+    ctx.beginPath(); ctx.arc(0, -35, 136, Math.PI, 0); ctx.clip();
+    ctx.fillStyle = '#1e1b4b';
+    ctx.fillRect(-145, -180, 290, 155);
+    ctx.restore();
+  }
 
   // Hair & Accessories
   ctx.fillStyle = '#0f172a';
@@ -295,7 +382,12 @@ function drawSingleCharacter(char, emotion, prop, talkAmt, posX, posY, scaleVal,
   const isBlinking = (blinkTimer + (isSpeaker ? 0 : 45)) % 150 > 143;
   ctx.strokeStyle = '#0f172a'; ctx.fillStyle = '#0f172a';
   if (char !== 'npc') {
-    if (isBlinking && emotion === 'normal') {
+    if (emotion === 'shadow') {
+      // Glowing white anime eyes in dark shadow
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.ellipse(-48, -42, 18, 9, 0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(48, -42, 18, 9, -0.2, 0, Math.PI * 2); ctx.fill();
+    } else if (isBlinking && emotion === 'normal') {
       ctx.lineWidth = 7;
       ctx.beginPath(); ctx.moveTo(-66, -42); ctx.lineTo(-30, -42); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(30, -42); ctx.lineTo(66, -42); ctx.stroke();
@@ -343,32 +435,24 @@ function drawSingleCharacter(char, emotion, prop, talkAmt, posX, posY, scaleVal,
     ctx.beginPath(); ctx.moveTo(-18, -45); ctx.lineTo(18, -45); ctx.stroke();
   }
 
-  // Multi-Shape Realistic Lip-Sync Mouth (Instead of static O!)
+  // Multi-Shape Lip-Sync Mouth
   ctx.fillStyle = '#991b1b'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 7;
   if (isSpeaker && talkAmt > 0.08) {
     const shapeCycle = Math.floor(frameTick / 4) % 3;
     if (talkAmt > 0.55 && shapeCycle === 0) {
-      // Wide open D-shape with teeth
-      ctx.beginPath();
-      ctx.arc(0, 26, 36, 0, Math.PI, false);
-      ctx.closePath();
+      ctx.beginPath(); ctx.arc(0, 26, 36, 0, Math.PI, false); ctx.closePath();
       ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(-26, 26, 52, 10);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(-26, 26, 52, 10);
     } else if (shapeCycle === 1) {
-      // Medium talking oval
-      ctx.beginPath();
-      ctx.ellipse(0, 38, 28, Math.max(10, talkAmt * 34), 0, 0, Math.PI * 2);
+      ctx.beginPath(); ctx.ellipse(0, 38, 28, Math.max(10, talkAmt * 34), 0, 0, Math.PI * 2);
       ctx.fill(); ctx.stroke();
     } else {
-      // Narrow syllable slit
-      ctx.beginPath();
-      ctx.ellipse(0, 38, 34, 11, 0, 0, Math.PI * 2);
+      ctx.beginPath(); ctx.ellipse(0, 38, 34, 11, 0, 0, Math.PI * 2);
       ctx.fill(); ctx.stroke();
     }
   } else {
     ctx.beginPath();
-    if (emotion === 'smug') {
+    if (emotion === 'smug' || emotion === 'shadow') {
       ctx.arc(0, 26, 34, 0.15 * Math.PI, 0.85 * Math.PI);
     } else if (emotion === 'angry' || emotion === 'crying') {
       ctx.arc(0, 54, 30, 1.15 * Math.PI, 1.85 * Math.PI);
@@ -378,42 +462,58 @@ function drawSingleCharacter(char, emotion, prop, talkAmt, posX, posY, scaleVal,
     ctx.stroke();
   }
 
-  if (isSpeaker) drawProps(prop, emotion);
   ctx.restore();
 }
 
+// Modern Bold Outlined Reels Captions (No Ugly White Box!)
 function drawCaptions(text, char) {
   if (!text) return;
   const names = { hero: 'ME', bro: 'BRO', mom: 'MUMMY', npc: 'RANDOM GUY' };
-  ctx.fillStyle = '#ef4444';
-  ctx.fillRect(45, 75, 185, 44);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 25px sans-serif';
-  ctx.fillText(names[char] || 'ME', 65, 105);
+  const colors = { hero: '#3b82f6', bro: '#f59e0b', mom: '#ec4899', npc: '#ef4444' };
 
-  // Comic Speech Bubble Pointer
-  ctx.fillStyle = '#ffffff';
+  // Speaker Badge
+  ctx.fillStyle = colors[char] || '#ef4444';
   ctx.strokeStyle = '#0f172a';
-  ctx.lineWidth = 7;
-  ctx.fillRect(45, 1015, 630, 205);
-  ctx.strokeRect(45, 1015, 630, 205);
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.roundRect(45, 65, 195, 48, 12);
+  ctx.fill();
+  ctx.stroke();
 
-  ctx.fillStyle = '#0f172a';
-  ctx.font = 'bold 34px sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 26px sans-serif';
+  ctx.fillText(names[char] || 'ME', 68, 98);
+
+  // Word Wrap Outlined Subtitles at Bottom
+  ctx.font = '900 38px sans-serif';
+  ctx.textAlign = 'center';
   const words = text.split(' ');
+  const lines = [];
   let line = '';
-  let y = 1072;
+
   for (let n = 0; n < words.length; n++) {
     const testLine = line + words[n] + ' ';
-    if (ctx.measureText(testLine).width > 580 && n > 0) {
-      ctx.fillText(line, 70, y);
+    if (ctx.measureText(testLine).width > 620 && n > 0) {
+      lines.push(line.trim());
       line = words[n] + ' ';
-      y += 44;
     } else {
       line = testLine;
     }
   }
-  ctx.fillText(line, 70, y);
+  lines.push(line.trim());
+
+  let startY = 1140 - (lines.length - 1) * 46;
+  for (let i = 0; i < lines.length; i++) {
+    const y = startY + i * 48;
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 10;
+    ctx.lineJoin = 'round';
+    ctx.strokeText(lines[i], 360, y);
+
+    ctx.fillStyle = i === lines.length - 1 ? '#facc15' : '#ffffff';
+    ctx.fillText(lines[i], 360, y);
+  }
+  ctx.textAlign = 'left';
 }
 
 function renderLoop() {
@@ -439,32 +539,30 @@ function renderLoop() {
     ctx.scale(1.16, 1.16);
     ctx.translate(-360, -640);
   } else if (currentScene.zoom === 'shake') {
-    ctx.translate((Math.random() - 0.5) * 22, (Math.random() - 0.5) * 22);
+    ctx.translate((Math.random() - 0.5) * 24, (Math.random() - 0.5) * 24);
   }
 
   drawBackground(currentScene.bg || 'white');
 
-  // Dual-Character Stage: Listener in background + Active Speaker in foreground!
   const speaker = currentScene.char || 'hero';
   const listener = currentScene.other || (speaker === 'hero' ? 'bro' : 'hero');
 
   if (currentScene.zoom !== 'in') {
-    // Draw Listener on Right Side
-    drawSingleCharacter(listener, currentScene.otherEmotion || 'normal', 'none', 0, 525, 730, 0.72, false);
-    // Draw Active Speaker on Left Side
-    drawSingleCharacter(speaker, currentScene.emotion || 'normal', currentScene.prop || 'none', mouthOpen, 235, 770, 0.92, true);
+    drawSingleCharacter(listener, currentScene.otherEmotion || 'normal', 0, 525, 760, 0.74, false);
+    drawSingleCharacter(speaker, currentScene.emotion || 'normal', mouthOpen, 235, 810, 0.94, true);
   } else {
-    // Close-up dramatic solo focus on Speaker
-    drawSingleCharacter(speaker, currentScene.emotion || 'normal', currentScene.prop || 'none', mouthOpen, 360, 760, 1.02, true);
+    drawSingleCharacter(speaker, currentScene.emotion || 'normal', mouthOpen, 360, 800, 1.04, true);
   }
 
+  drawCutaway(currentScene.cutaway);
   ctx.restore();
+
   drawCaptions(currentScene.text, speaker);
   requestAnimationFrame(renderLoop);
 }
 renderLoop();
 
-// Gemini Native Multi-Voice TTS (Real Male & Female Human Voices!)
+// Gemini Native Multi-Voice TTS with Safe Spacing & Male Fallback
 function pcmToWavBuffer(base64Pcm, sampleRate = 24000) {
   const binary = atob(base64Pcm);
   const pcmLen = binary.length;
@@ -494,63 +592,85 @@ function pcmToWavBuffer(base64Pcm, sampleRate = 24000) {
 async function fetchGeminiVoice(scene) {
   const key = apiKeyInput.value.trim();
   const voiceMap = {
-    hero: 'Puck',    // Energetic young Indian male vibe
-    bro:  'Fenrir',  // Expressive funny male friend
-    mom:  'Kore',    // Strict Indian mom female voice
-    npc:  'Charon'   // Deep savage male voice
+    hero: 'Puck',
+    bro:  'Fenrir',
+    mom:  'Kore',
+    npc:  'Charon'
   };
   const voiceName = voiceMap[scene.char] || 'Puck';
 
   if (key) {
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(key)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: `Speak this Hinglish dialogue naturally with comedic timing: ${scene.text}` }] }],
-          generationConfig: {
-            responseModalities: ["AUDIO"],
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } }
-          }
-        })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-        if (inlineData?.data) {
-          const wavBuf = pcmToWavBuffer(inlineData.data, 24000);
-          return await audioCtx.decodeAudioData(wavBuf);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(key)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: `Speak this Hinglish dialogue fast and naturally: ${scene.text}` }] }],
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } }
+            }
+          })
+        });
+        if (res.status === 429) {
+          await new Promise((r) => setTimeout(r, 1400));
+          continue;
         }
-      }
-    } catch (e) {}
+        if (res.ok) {
+          const data = await res.json();
+          const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+          if (inlineData?.data) {
+            const wavBuf = pcmToWavBuffer(inlineData.data, 24000);
+            return { buffer: await audioCtx.decodeAudioData(wavBuf), isFallback: false };
+          }
+        }
+      } catch (e) {}
+    }
   }
 
-  // Fallback to proxy TTS if Gemini TTS quota hits limit
+  // Fallback TTS with phonetic fix ("hi" -> "he")
+  const cleanText = scene.text.replace(/\bhi\b/gi, 'he').replace(/\bab\b/gi, 'abb');
   const res = await fetch('/api/tts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: scene.text })
+    body: JSON.stringify({ text: cleanText })
   });
   if (!res.ok) throw new Error('Fallback TTS failed');
   const arr = await res.arrayBuffer();
-  return await audioCtx.decodeAudioData(arr);
+  return { buffer: await audioCtx.decodeAudioData(arr), isFallback: true };
 }
 
-function playAudioBuffer(audioBuffer, rate = 1.06) {
+function playAudioBuffer(audioObj, char) {
   return new Promise((resolve) => {
     let done = false;
-    const finish = () => { if (!done) { done = true; setTimeout(resolve, 60); } }; // Crisp 60ms comic cut!
+    duckBGM(true);
+    const finish = () => {
+      if (!done) {
+        done = true;
+        duckBGM(false);
+        setTimeout(resolve, 60);
+      }
+    };
 
     const source = audioCtx.createBufferSource();
-    source.buffer = audioBuffer;
+    source.buffer = audioObj.buffer;
+
+    // If fallback voice is used, pitch down male characters so they don't sound like a high-pitched lady
+    let rate = 1.08;
+    if (audioObj.isFallback) {
+      source.detune.value = char === 'mom' ? 60 : char === 'npc' ? -450 : -320;
+      rate = 1.12;
+    }
     source.playbackRate.value = rate;
+
     source.connect(analyser);
     analyser.connect(audioCtx.destination);
     analyser.connect(destNode);
 
     source.onended = finish;
     source.start(0);
-    setTimeout(finish, ((audioBuffer.duration / rate) * 1000) + 120);
+    setTimeout(finish, ((audioObj.buffer.duration / rate) * 1000) + 120);
   });
 }
 
@@ -566,14 +686,14 @@ async function runAnimation(recordVideo = false) {
   initAudio();
   downloadLink.classList.add('hidden');
 
-  const audioBuffers = [];
+  const audioList = [];
   for (let i = 0; i < scenes.length; i++) {
-    setStatus(`Generating real human voice ${i + 1}/${scenes.length} (${scenes[i].char.toUpperCase()})...`);
+    setStatus(`Generating voice ${i + 1}/${scenes.length} (${scenes[i].char.toUpperCase()})...`);
     try {
-      const buf = await fetchGeminiVoice(scenes[i]);
-      audioBuffers.push(buf);
+      const obj = await fetchGeminiVoice(scenes[i]);
+      audioList.push(obj);
     } catch {
-      audioBuffers.push(null);
+      audioList.push(null);
     }
   }
 
@@ -603,14 +723,16 @@ async function runAnimation(recordVideo = false) {
     }
   }
 
+  startComedyBGM();
+
   for (let i = 0; i < scenes.length; i++) {
     currentScene = scenes[i];
     scenePop = 0.78;
     playSFX(scenes[i].sfx);
     setStatus(`Playing Scene ${i + 1}/${scenes.length}...`);
 
-    if (audioBuffers[i]) {
-      await playAudioBuffer(audioBuffers[i], 1.06);
+    if (audioList[i]) {
+      await playAudioBuffer(audioList[i], scenes[i].char);
     } else {
       const words = (scenes[i].text || '').split(' ').length;
       fallbackSpeaking = true;
@@ -619,6 +741,7 @@ async function runAnimation(recordVideo = false) {
     }
   }
 
+  stopComedyBGM();
   fallbackSpeaking = false;
   if (recorder && recorder.state !== 'inactive') recorder.stop();
   else setStatus('Playback finished!');
