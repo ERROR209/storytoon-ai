@@ -221,7 +221,7 @@ Zooms: "normal", "in", "shake".
 SFX: "none", "boom", "slap", "gasp".
 Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"smug","otherEmotion":"shocked","cutaway":"insta","bg":"white","zoom":"normal","sfx":"none","text":"7-12 words Hinglish"}]. Dead chars never speak.`;
 
-  const fastModels = ['gemini-3.8-flash', 'gemini-3.8-flash-lite'];
+  const fastModels = ['gemini-3.8-flash', 'gemini-3.8-flash-preview', 'gemini-3.5-flash', 'gemini-3.0-flash'];
   let lastErr = 'API busy';
 
   for (const model of fastModels) {
