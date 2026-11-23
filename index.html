@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>StoryToon AI Studio</title>
-  <link rel="stylesheet" href="style.css?v=12" />
+  <title>StoryToon AI Auto-Studio</title>
+  <link rel="stylesheet" href="style.css?v=14" />
   <script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div class="brand">🎬 <span>StoryToon AI</span></div>
-      <div class="badge">YouTube • Reels • MP4</div>
+      <div class="badge">1-Click Auto MP4</div>
     </header>
 
     <main class="workspace">
@@ -23,7 +23,7 @@
 
         <label class="field">
           <span>Story Topic / Episode Idea</span>
-          <textarea id="topicInput" rows="2" placeholder="e.g., Gaon ke ladke ko super power mil gayi vs Shehar ka villain..."></textarea>
+          <textarea id="topicInput" rows="2" placeholder="e.g., Gaon ke cave ka rahasya vs Shehar ka villain..."></textarea>
         </label>
 
         <div class="row-2">
@@ -36,57 +36,57 @@
             </select>
           </label>
           <label class="field">
-            <span>Story Length</span>
-            <select id="lengthSelect">
-              <option value="6">Quick Short (~25s)</option>
-              <option value="10" selected>Full Scene (~45s)</option>
-              <option value="16">Episode Part 1 (~75s)</option>
-              <option value="22">Long Chapter (~2 Min)</option>
+            <span>Auto-Episode Mode</span>
+            <select id="episodeModeSelect">
+              <option value="1" selected>Single Short (~45s • 1 MP4)</option>
+              <option value="3">Mini Episode (~2.5m • 3 Auto MP4s)</option>
+              <option value="5">Full YouTube Ep (~5m • 5 Auto MP4s)</option>
+              <option value="8">Mega Episode (~8m • 8 Auto MP4s)</option>
             </select>
           </label>
         </div>
 
-        <div class="row-2">
-          <label class="field">
-            <span>Vibe / Genre</span>
-            <select id="toneSelect">
-              <option value="Desi Comedy + Action">Comedy + Superpower</option>
-              <option value="Relatable Desi Story">Relatable Storytime</option>
-              <option value="Hero vs Villain Anime">Hero vs Villain</option>
-              <option value="Savage Dark Humor">Savage / Dark Humor</option>
-            </select>
-          </label>
-          <div class="field" style="justify-content:flex-end;">
-            <button id="nextPartBtn" class="btn secondary" style="height:40px;font-size:0.8rem;">➕ Next Part (5-10m Ep)</button>
-          </div>
-        </div>
+        <label class="field">
+          <span>Vibe / Genre</span>
+          <select id="toneSelect">
+            <option value="Desi Comedy + Superpower">Comedy + Superpower</option>
+            <option value="Mystery + Adventure">Mystery + Adventure</option>
+            <option value="Hero vs Villain Anime">Hero vs Villain</option>
+            <option value="Relatable Desi Storytime">Relatable Storytime</option>
+          </select>
+        </label>
 
-        <div class="btn-row">
-          <button id="generateScriptBtn" class="btn primary">1. Write Story</button>
-          <button id="playRecordBtn" class="btn accent">2. Render Real MP4</button>
+        <!-- TRUE 1-CLICK AUTO-PILOT BUTTON -->
+        <button id="oneClickAutoBtn" class="btn accent" style="width:100%;padding:14px;font-size:1rem;font-weight:800;margin-top:4px;">
+          🚀 1-Click Auto-Create & Download MP4
+        </button>
+
+        <div class="btn-row" style="margin-top:6px;">
+          <button id="generateScriptBtn" class="btn secondary" style="font-size:0.78rem;">Write Script Only</button>
+          <button id="playRecordBtn" class="btn primary" style="font-size:0.78rem;">Render Current Script</button>
         </div>
-        <div id="statusBar" class="status-bar">Ready! Select YouTube (16:9) or Reels (9:16) & write story.</div>
+        <div id="statusBar" class="status-bar">Topic likho aur "🚀 1-Click Auto-Create" dabao — baaki sab automatic hoga!</div>
       </section>
 
       <section class="card stage-card">
-        <div class="canvas-wrap" id="canvasWrap" style="aspect-ratio:9/16;max-width:340px;">
+        <div class="canvas-wrap" id="canvasWrap" style="aspect-ratio:9/16;max-width:330px;">
           <canvas id="stageCanvas" width="720" height="1280"></canvas>
         </div>
         <div class="stage-actions">
           <button id="previewOnlyBtn" class="btn secondary">▶ Preview</button>
-          <a id="downloadLink" class="btn success hidden" download="storytoon_episode.mp4">⬇ Save Real MP4</a>
+          <a id="downloadLink" class="btn success hidden" download="storytoon_episode.mp4">⬇ Download Again</a>
         </div>
       </section>
 
       <section class="card script-card">
         <div class="script-header">
-          <span>Story Scenes (Auto-Generated)</span>
+          <span>Active Chapter Script (JSON)</span>
           <button id="loadDemoBtn" class="btn tiny">Load Action Demo</button>
         </div>
-        <textarea id="scriptEditor" rows="8"></textarea>
+        <textarea id="scriptEditor" rows="7"></textarea>
       </section>
     </main>
   </div>
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>
