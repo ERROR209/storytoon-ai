@@ -940,7 +940,51 @@ async function runAnimation(recordVideo = false) {
   }
 
   let recorder = null;
+  let recordStartTime = 0;
   const recordedChunks = [];
+
+  // Helper to patch missing duration metadata in WebM header so WhatsApp/Gallery shows real seconds!
+  async function patchWebmDuration(blob, durationMs) {
+    const buf = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    // Search for WebM Segment Info (0x15 0x49 0xA9 0x66) and inject Duration element (0x44 0x89)
+    for (let i = 0; i < Math.min(bytes.length - 20, 4096); i++) {
+      if (bytes[i] === 0x15 && bytes[i+1] === 0x49 && bytes[i+2] === 0xA9 && bytes[i+3] === 0x66) {
+        // Check if Duration ID (0x44 0x89) already exists nearby
+        let hasDur = false;
+        for (let j = i; j < i + 60 && j < bytes.length - 10; j++) {
+          if (bytes[j] === 0x44 && bytes[j+1] === 0x89) {
+            // Overwrite existing 8-byte float duration
+            const view = new DataView(buf);
+            if (bytes[j+2] === 0x88) view.setFloat64(j + 3, durationMs, false);
+            else if (bytes[j+2] === 0x84) view.setFloat32(j + 3, durationMs, false);
+            hasDur = true;
+            break;
+          }
+        }
+        if (!hasDur) {
+          // Insert TimecodeScale (1ms) + Duration (float64) right after Info size byte
+          const insertPos = i + 5;
+          const extra = new Uint8Array(14);
+          // TimecodeScale: 2A D7 B1 83 0F 42 40 (1,000,000 ns = 1ms)
+          extra.set([0x2A, 0xD7, 0xB1, 0x83, 0x0F, 0x42, 0x40], 0);
+          // Duration ID (44 89) + size 8 (88) + float64 ms
+          extra[7] = 0x44; extra[8] = 0x89; extra[9] = 0x88;
+          // Increase Info VINT size by 14
+          if ((bytes[i+4] & 0x80) === 0x80) bytes[i+4] = Math.min(0xFE, bytes[i+4] + 14);
+          const out = new Uint8Array(bytes.length + 14);
+          out.set(bytes.slice(0, insertPos), 0);
+          out.set(extra, insertPos);
+          out.set(bytes.slice(insertPos), insertPos + 14);
+          new DataView(out.buffer).setFloat64(insertPos + 10, durationMs, false);
+          return new Blob([out], { type: blob.type });
+        }
+        break;
+      }
+    }
+    return new Blob([buf], { type: blob.type });
+  }
+
   if (recordVideo) {
     try {
       const canvasStream = canvas.captureStream(30);
@@ -948,16 +992,32 @@ async function runAnimation(recordVideo = false) {
       const combinedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioTracks]);
 
       let options = {};
-      if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) options = { mimeType: 'video/webm;codecs=vp8,opus' };
-      else if (MediaRecorder.isTypeSupported('video/webm')) options = { mimeType: 'video/webm' };
+      let isNativeMp4 = false;
+      if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1,mp4a.40.2')) {
+        options = { mimeType: 'video/mp4;codecs=avc1,mp4a.40.2', videoBitsPerSecond: 2500000 };
+        isNativeMp4 = true;
+      } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+        options = { mimeType: 'video/mp4', videoBitsPerSecond: 2500000 };
+        isNativeMp4 = true;
+      } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
+        options = { mimeType: 'video/webm;codecs=vp8,opus', videoBitsPerSecond: 2500000 };
+      } else if (MediaRecorder.isTypeSupported('video/webm')) {
+        options = { mimeType: 'video/webm' };
+      }
 
       recorder = new MediaRecorder(combinedStream, options);
+      recordStartTime = Date.now();
       recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
-      recorder.onstop = () => {
-        const videoBlob = new Blob(recordedChunks, { type: 'video/webm' });
-        downloadLink.href = URL.createObjectURL(videoBlob);
+      recorder.onstop = async () => {
+        const elapsedMs = Math.max(1000, Date.now() - recordStartTime);
+        let rawBlob = new Blob(recordedChunks, { type: isNativeMp4 ? 'video/mp4' : 'video/webm' });
+        if (!isNativeMp4) {
+          rawBlob = await patchWebmDuration(rawBlob, elapsedMs);
+        }
+        downloadLink.href = URL.createObjectURL(rawBlob);
+        downloadLink.download = isNativeMp4 ? 'storytoon_short.mp4' : 'storytoon_short.webm';
         downloadLink.classList.remove('hidden');
-        setStatus('✅ Done! Tap "⬇ Save Video" below.');
+        setStatus(`✅ Ready (${Math.round(elapsedMs/1000)}s)! Tap "⬇ Save Video" below.`);
       };
       recorder.start(200);
     } catch (recErr) {
