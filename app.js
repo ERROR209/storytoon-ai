@@ -664,66 +664,130 @@ function pcmToWavBuffer(base64Pcm, sampleRate = 24000) {
   return wavBuffer;
 }
 
-async function fetchHumanActingVoice(scene, sceneIdx) {
-  // 1. Priority: User's own recorded mic voice!
-  if (customMicBuffers[sceneIdx]) {
-    return customMicBuffers[sceneIdx];
-  }
-
+// Single-Call Multi-Speaker Gemini Human Acting Engine (1 API Call for ALL Scenes = Zero Rate Limit!)
+async function fetchAllHumanVoicesInOneCall(scenes) {
   const key = apiKeyInput.value.trim();
   if (!key) throw new Error('Gemini API Key needed for real human voice acting!');
 
-  const voiceMap = {
-    hero: 'Puck',    // Young expressive Indian male
-    bro:  'Fenrir',  // Energetic funny male friend
-    mom:  'Kore',    // Strict Indian mom female
-    npc:  'Charon'   // Deep savage male
-  };
-  const emotionStyle = {
-    angry:   'Speak loudly and angrily like an Indian parent scolding:',
-    shocked: 'Speak in a shocked, panicked voice:',
-    crying:  'Speak in a dramatic crying, whining comedic tone:',
-    smug:    'Speak in a confident, sarcastic, funny tone:',
-    shadow:  'Speak in a dark, dramatic anime villain tone:',
-    normal:  'Speak naturally like an Indian YouTuber telling a funny story:'
+  // Build multi-speaker script transcript
+  const speakerNames = {
+    hero: 'Hero',
+    bro:  'Bro',
+    mom:  'Mummy',
+    npc:  'RandomGuy'
   };
 
-  const voiceName = voiceMap[scene.char] || 'Puck';
-  const stylePrompt = emotionStyle[scene.emotion] || emotionStyle.normal;
+  const emotionCue = {
+    angry:   '(angrily)',
+    shocked: '(shocked)',
+    crying:  '(crying dramatically)',
+    smug:    '(sarcastically)',
+    shadow:  '(in a dark villain tone)',
+    normal:  '(naturally)'
+  };
 
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(key)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: `${stylePrompt} "${scene.text}"` }] }],
-        generationConfig: {
-          responseModalities: ["AUDIO"],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } }
+  const dialogueLines = scenes.map((sc) => {
+    const spk = speakerNames[sc.char] || 'Hero';
+    const cue = emotionCue[sc.emotion] || '';
+    return `${spk}: ${cue} ${sc.text}`;
+  }).join('\n');
+
+  const promptText = `Perform this funny Hinglish storytime conversation with expressive Indian YouTuber voice acting, natural comedic pauses between speakers, and realistic emotions:\n\n${dialogueLines}`;
+
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: promptText }] }],
+      generationConfig: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+          multiSpeakerVoiceConfig: {
+            speakerVoiceConfigs: [
+              { speaker: 'Hero',      voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
+              { speaker: 'Bro',       voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Fenrir' } } },
+              { speaker: 'Mummy',     voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
+              { speaker: 'RandomGuy', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Charon' } } }
+            ]
+          }
         }
-      })
-    });
+      }
+    })
+  });
 
-    if (res.status === 429) {
-      // Wait smoothly for rate limit reset instead of falling back to robotic lady voice!
-      setStatus(`Rate limit pause (waiting 3s for real human voice ${sceneIdx + 1})...`);
-      await new Promise((r) => setTimeout(r, 3200));
-      continue;
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error?.message || `Voice HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+  if (!inlineData?.data) throw new Error('No audio returned from Gemini');
+
+  const wavBuf = pcmToWavBuffer(inlineData.data, 24000);
+  return await audioCtx.decodeAudioData(wavBuf);
+}
+
+// Slice full multi-speaker AudioBuffer into exact scene chunks using silence detection + word weights
+function splitAudioBufferByScenes(fullBuffer, scenes) {
+  const sampleRate = fullBuffer.sampleRate;
+  const channelData = fullBuffer.getChannelData(0);
+  const totalSamples = channelData.length;
+
+  // Compute expected split points based on word/char length
+  const weights = scenes.map(s => Math.max(4, (s.text || '').length));
+  const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+  const slices = [];
+  let cursorSample = 0;
+
+  for (let i = 0; i < scenes.length; i++) {
+    if (i === scenes.length - 1) {
+      slices.push(extractSubBuffer(fullBuffer, cursorSample, totalSamples));
+      break;
     }
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error?.message || `Voice HTTP ${res.status}`);
+    const ratio = weights[i] / totalWeight;
+    const idealEnd = Math.min(totalSamples - 1, cursorSample + Math.floor(ratio * totalSamples));
+
+    // Search within +/- 0.65 seconds of idealEnd for the quietest pause (silence valley)
+    const searchRadius = Math.floor(sampleRate * 0.65);
+    const minSearch = Math.max(cursorSample + Math.floor(sampleRate * 0.4), idealEnd - searchRadius);
+    const maxSearch = Math.min(totalSamples - Math.floor(sampleRate * 0.4), idealEnd + searchRadius);
+
+    let bestSample = idealEnd;
+    let lowestEnergy = Infinity;
+    const windowSize = Math.floor(sampleRate * 0.04); // 40ms window
+
+    for (let pos = minSearch; pos < maxSearch; pos += windowSize) {
+      let energy = 0;
+      for (let j = 0; j < windowSize && pos + j < totalSamples; j++) {
+        energy += Math.abs(channelData[pos + j]);
+      }
+      if (energy < lowestEnergy) {
+        lowestEnergy = energy;
+        bestSample = pos + Math.floor(windowSize / 2);
+      }
     }
 
-    const data = await res.json();
-    const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-    if (inlineData?.data) {
-      const wavBuf = pcmToWavBuffer(inlineData.data, 24000);
-      return await audioCtx.decodeAudioData(wavBuf);
+    slices.push(extractSubBuffer(fullBuffer, cursorSample, bestSample));
+    cursorSample = bestSample;
+  }
+
+  return slices;
+}
+
+function extractSubBuffer(srcBuffer, startSample, endSample) {
+  const len = Math.max(100, endSample - startSample);
+  const sub = audioCtx.createBuffer(srcBuffer.numberOfChannels, len, srcBuffer.sampleRate);
+  for (let ch = 0; ch < srcBuffer.numberOfChannels; ch++) {
+    const srcData = srcBuffer.getChannelData(ch);
+    const dstData = sub.getChannelData(ch);
+    for (let i = 0; i < len; i++) {
+      dstData[i] = srcData[startSample + i] || 0;
     }
   }
-  throw new Error('Could not fetch human voice after retries');
+  return sub;
 }
 
 function playAudioOnce(audioBuffer) {
@@ -741,7 +805,7 @@ function playAudioOnce(audioBuffer) {
       if (!resolved) {
         resolved = true;
         duckBGM(false);
-        setTimeout(resolve, 60);
+        setTimeout(resolve, 40);
       }
     };
 
@@ -763,15 +827,20 @@ async function runAnimation(recordVideo = false) {
   initAudio();
   downloadLink.classList.add('hidden');
 
-  const audioList = [];
-  for (let i = 0; i < scenes.length; i++) {
-    setStatus(`Generating human acting voice ${i + 1}/${scenes.length} (${scenes[i].char.toUpperCase()})...`);
+  let audioList = [];
+  const allRecordedByMic = scenes.every((_, idx) => !!customMicBuffers[idx]);
+
+  if (allRecordedByMic) {
+    audioList = scenes.map((_, idx) => customMicBuffers[idx]);
+  } else {
+    setStatus('Generating ALL human acting voices in 1 fast call...');
     try {
-      const buf = await fetchHumanActingVoice(scenes[i], i);
-      audioList.push(buf);
+      const fullAudio = await fetchAllHumanVoicesInOneCall(scenes);
+      const sliced = splitAudioBufferByScenes(fullAudio, scenes);
+      audioList = scenes.map((_, idx) => customMicBuffers[idx] || sliced[idx]);
     } catch (err) {
       isPlayingSequence = false;
-      return setStatus(`Voice Error on Scene ${i + 1}: ${err.message}`);
+      return setStatus(`Voice Error: ${err.message}`);
     }
   }
 
