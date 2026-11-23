@@ -230,14 +230,17 @@ document.getElementById('generateScriptBtn').onclick = async () => {
   if (!key) return setStatus('Enter your Google AI Studio API Key first!');
   if (!topic) return setStatus('Enter a video topic!');
 
-  const prompt = `Viral Indian storytime animator ("NOT YOUR TYPE" style). Write a ${lengthSelect.value}-line funny Hinglish script on: "${topic}". Tone: ${toneSelect.value}.
-Characters: "hero", "bro", "mom", "npc".
+  const prompt = `Viral Indian storytime animator ("NOT YOUR TYPE" style). Write a ${lengthSelect.value}-line funny Hinglish script on ANY random topic: "${topic}". Tone: ${toneSelect.value}.
+Characters: "hero" (main guy), "bro" (friend), "npc" (stranger/boss/shopkeeper/etc), "mom" (ONLY if topic involves home/parents).
 Emotions: "normal", "shocked", "smug", "angry", "crying", "dead", "shadow".
-Cutaways: "none", "insta", "phone", "money", "chappal", "exam".
-Backgrounds: "white", "dramatic", "red".
+Locations: "room", "street", "cafe", "gym", "office", "night", "dramatic", "red".
+Card (optional visual pop-up): null for most scenes, OR {"icon":"single relevant emoji","label":"2-3 WORD PUNCHY TEXT"} ONLY when a visual prop adds comedy to that specific line!
 Zooms: "normal", "in", "shake".
 SFX: "none", "boom", "slap", "gasp".
-Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"smug","otherEmotion":"shocked","cutaway":"insta","bg":"white","zoom":"normal","sfx":"none","text":"7-12 words Hinglish"}]. Dead chars never speak.`;
+Rules:
+1. Tailor characters, location, and optional card strictly to "${topic}". Never add unrelated items.
+2. Dead characters ("dead") must NEVER be the speaker ("char").
+Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"smug","otherEmotion":"normal","location":"street","card":null,"zoom":"normal","sfx":"none","text":"7-12 words Hinglish"}].`;
 
   setStatus('🔍 Checking active Gemini model...');
   const models = await getAvailableTextModels(key);
@@ -335,66 +338,34 @@ function drawBackground(bg) {
   ctx.stroke();
 }
 
-function drawCutaway(type) {
-  if (!type || type === 'none') return;
+function drawCutaway(scene) {
+  const card = scene.card;
+  if (!card || !card.icon) return;
   const bob = Math.sin(frameTick * 0.14) * 8;
   ctx.save();
   ctx.translate(495, 250 + bob);
-  ctx.rotate(0.05);
+  ctx.rotate(0.04);
 
   ctx.fillStyle = '#ffffff';
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 7;
   ctx.beginPath();
-  ctx.roundRect(-130, -95, 260, 190, 18);
+  ctx.roundRect(-135, -95, 270, 190, 20);
   ctx.fill();
   ctx.stroke();
 
-  if (type === 'insta') {
-    ctx.fillStyle = '#ec4899';
-    ctx.fillRect(-110, -78, 220, 105);
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.arc(0, -25, 24, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#ef4444';
-    ctx.font = 'bold 38px sans-serif';
-    ctx.fillText('❤️ 1 LIKE', -90, 72);
-  } else if (type === 'phone') {
-    ctx.fillStyle = '#1e293b';
-    ctx.fillRect(-50, -78, 100, 155);
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(-40, -64, 80, 118);
-    ctx.fillStyle = '#ef4444';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.fillText('99+ MISSED', -80, 88);
-  } else if (type === 'money') {
-    ctx.fillStyle = '#10b981';
-    ctx.fillRect(-90, -50, 180, 78);
-    ctx.strokeRect(-90, -50, 180, 78);
-    ctx.fillStyle = '#064e3b';
-    ctx.font = 'bold 40px sans-serif';
-    ctx.fillText('₹₹₹', -42, 2);
-    ctx.fillStyle = '#ef4444';
-    ctx.font = 'bold 24px sans-serif';
-    ctx.fillText('KHARCHA ALERT!', -100, 70);
-  } else if (type === 'chappal') {
-    ctx.save();
-    ctx.rotate(Math.sin(frameTick * 0.4) * 0.45);
-    ctx.fillStyle = '#f97316';
-    ctx.beginPath();
-    ctx.ellipse(0, -10, 34, 70, 0, 0, Math.PI * 2);
-    ctx.fill(); ctx.stroke();
-    ctx.restore();
-    ctx.fillStyle = '#dc2626';
-    ctx.font = 'bold 24px sans-serif';
-    ctx.fillText('FLYING CHAPPAL!', -106, 80);
-  } else if (type === 'exam') {
-    ctx.fillStyle = '#dc2626';
-    ctx.font = 'bold 100px sans-serif';
-    ctx.fillText('F-', -42, 22);
+  // Dynamic Emoji Icon from Script
+  ctx.font = '86px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(card.icon, 0, 12);
+
+  // Dynamic Short Label from Script
+  if (card.label) {
     ctx.fillStyle = '#0f172a';
-    ctx.font = 'bold 22px sans-serif';
-    ctx.fillText('0 / 100 MARKS', -78, 72);
+    ctx.font = '900 24px sans-serif';
+    ctx.fillText(String(card.label).toUpperCase().slice(0, 18), 0, 72);
   }
+  ctx.textAlign = 'left';
   ctx.restore();
 }
 
@@ -431,7 +402,7 @@ function drawHand(x, y, radius = 19) {
 
 // Full-Body Expressive Cartoon Character (Head + Torso/Hoodie + Legs + Sneakers + Dynamic Poses)
 function drawFullBodyCharacter(char, emotion, talkAmt, footX, groundY, scaleVal, isSpeaker) {
-  const isDarkBg = currentScene.bg === 'dramatic' || currentScene.bg === 'red';
+  const locNow = currentScene.location || currentScene.bg; const isDarkBg = locNow === 'dramatic' || locNow === 'night' || locNow === 'red';
   const ink = isDarkBg ? '#ffffff' : '#0f172a';
 
   // Ground Shadow
@@ -757,7 +728,7 @@ function renderLoop() {
     ctx.translate((Math.random() - 0.5) * 24, (Math.random() - 0.5) * 24);
   }
 
-  drawBackground(currentScene.bg || 'white');
+  drawBackground(currentScene.location || currentScene.bg || 'room');
 
   const speaker = currentScene.char || 'hero';
   const listener = currentScene.other || (speaker === 'hero' ? 'bro' : 'hero');
@@ -770,7 +741,7 @@ function renderLoop() {
     drawFullBodyCharacter(speaker, currentScene.emotion || 'normal', mouthOpen, 350, groundY, 1.08, true);
   }
 
-  drawCutaway(currentScene.cutaway);
+  drawCutaway(currentScene);
   ctx.restore();
 
   drawCaptions(currentScene.text, speaker);
