@@ -205,7 +205,25 @@ function playSFX(type) {
   }
 }
 
-// Fast Gemini Script Writer (Hits fastest flash models directly)
+// Auto-Detect Live Gemini Model + 8s Timeout (Zero Hanging!)
+async function getAvailableTextModels(key) {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) return ['gemini-3.8-flash', 'gemini-3.0-flash', 'gemini-2.0-flash'];
+    const data = await res.json();
+    const live = (data.models || [])
+      .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+      .map(m => m.name.replace('models/', ''))
+      .filter(name => name.includes('flash') && !name.includes('tts') && !name.includes('image') && !name.includes('audio'));
+    return live.length > 0 ? live : ['gemini-3.8-flash', 'gemini-3.0-flash'];
+  } catch {
+    return ['gemini-3.8-flash', 'gemini-3.0-flash', 'gemini-2.0-flash'];
+  }
+}
+
 document.getElementById('generateScriptBtn').onclick = async () => {
   const key = apiKeyInput.value.trim();
   const topic = topicInput.value.trim();
@@ -221,20 +239,26 @@ Zooms: "normal", "in", "shake".
 SFX: "none", "boom", "slap", "gasp".
 Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"smug","otherEmotion":"shocked","cutaway":"insta","bg":"white","zoom":"normal","sfx":"none","text":"7-12 words Hinglish"}]. Dead chars never speak.`;
 
-  const fastModels = ['gemini-3.8-flash', 'gemini-3.8-flash-preview', 'gemini-3.5-flash', 'gemini-3.0-flash'];
-  let lastErr = 'API busy';
+  setStatus('🔍 Checking active Gemini model...');
+  const models = await getAvailableTextModels(key);
+  let lastErr = 'Request timed out';
 
-  for (const model of fastModels) {
+  for (const model of models.slice(0, 3)) {
     try {
-      setStatus(`⚡ Fast-writing script (${model})...`);
+      setStatus(`⚡ Writing script with ${model}...`);
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 9000);
+
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: ctrl.signal,
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: { responseMimeType: "application/json", temperature: 0.9 }
         })
       });
+      clearTimeout(timer);
 
       const data = await res.json();
       if (!res.ok) { lastErr = data.error?.message || `HTTP ${res.status}`; continue; }
@@ -252,7 +276,7 @@ Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"smug","otherEmo
       setStatus(`✅ Script ready (${parsed.length} scenes)! Tap "2. Play & Save Video".`);
       return;
     } catch (err) {
-      lastErr = err.message;
+      lastErr = err.name === 'AbortError' ? `${model} timed out (9s)` : err.message;
     }
   }
   setStatus(`Error: ${lastErr}`);
@@ -300,7 +324,7 @@ function drawBackground(bg) {
   }
 
   // Stage Ground Floor Line (So full-body characters stand solidly on ground!)
-  const floorY = 985;
+  const floorY = 910;
   ctx.fillStyle = bg === 'dramatic' ? '#1e293b' : bg === 'red' ? '#991b1b' : '#e2e8f0';
   ctx.fillRect(24, floorY, canvas.width - 48, 120);
   ctx.strokeStyle = bg === 'dramatic' || bg === 'red' ? '#ffffff' : '#0f172a';
@@ -737,7 +761,7 @@ function renderLoop() {
 
   const speaker = currentScene.char || 'hero';
   const listener = currentScene.other || (speaker === 'hero' ? 'bro' : 'hero');
-  const groundY = 985;
+  const groundY = 910;
 
   if (currentScene.zoom !== 'in') {
     drawFullBodyCharacter(listener, currentScene.otherEmotion || 'normal', 0, 520, groundY, 0.86, false);
