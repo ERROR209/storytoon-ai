@@ -3,69 +3,90 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>StoryToon AI — Local Reels Animator</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>StoryToon AI Studio</title>
+  <link rel="stylesheet" href="style.css?v=12" />
+  <script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
-    <header>
-      <h1>🎬 StoryToon AI</h1>
-      <span class="badge">Local Download Edition</span>
+    <header class="topbar">
+      <div class="brand">🎬 <span>StoryToon AI</span></div>
+      <div class="badge">YouTube • Reels • MP4</div>
     </header>
 
-    <div class="controls-card">
-      <div class="input-group">
-        <label>Google AI Studio (Gemini) API Key</label>
-        <input type="password" id="apiKeyInput" placeholder="AIzaSy... (Saved in Chrome)" />
-      </div>
+    <main class="workspace">
+      <section class="card control-card">
+        <label class="field">
+          <span>Google AI Studio (Gemini) API Key</span>
+          <input type="password" id="apiKeyInput" placeholder="Paste AIzaSy... key here" />
+        </label>
 
-      <div class="input-group">
-        <label>Video Topic / Story Idea</label>
-        <textarea id="topicInput" rows="2" placeholder="e.g., Jab exam hall mein dost ne galat answer bata diya..."></textarea>
-      </div>
+        <label class="field">
+          <span>Story Topic / Episode Idea</span>
+          <textarea id="topicInput" rows="2" placeholder="e.g., Gaon ke ladke ko super power mil gayi vs Shehar ka villain..."></textarea>
+        </label>
 
-      <div class="row-2">
-        <div class="input-group">
-          <label>Vibe / Tone</label>
-          <select id="toneSelect">
-            <option value="relatable Indian comedy storytime">Relatable Comedy</option>
-            <option value="overdramatic anime roast">Overdramatic Anime</option>
-            <option value="savage dark humor">Savage / Dark Humor</option>
-          </select>
+        <div class="row-2">
+          <label class="field">
+            <span>Platform Format</span>
+            <select id="formatSelect">
+              <option value="9:16" selected>Shorts / Reels (9:16)</option>
+              <option value="16:9">YouTube Video (16:9)</option>
+              <option value="1:1">Insta / FB Post (1:1)</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Story Length</span>
+            <select id="lengthSelect">
+              <option value="6">Quick Short (~25s)</option>
+              <option value="10" selected>Full Scene (~45s)</option>
+              <option value="16">Episode Part 1 (~75s)</option>
+              <option value="22">Long Chapter (~2 Min)</option>
+            </select>
+          </label>
         </div>
-        <div class="input-group">
-          <label>Duration</label>
-          <select id="lengthSelect">
-            <option value="5">Short Reel (~20s)</option>
-            <option value="8" selected>Full Reel (~35s)</option>
-            <option value="11">Long Story (~50s)</option>
-          </select>
+
+        <div class="row-2">
+          <label class="field">
+            <span>Vibe / Genre</span>
+            <select id="toneSelect">
+              <option value="Desi Comedy + Action">Comedy + Superpower</option>
+              <option value="Relatable Desi Story">Relatable Storytime</option>
+              <option value="Hero vs Villain Anime">Hero vs Villain</option>
+              <option value="Savage Dark Humor">Savage / Dark Humor</option>
+            </select>
+          </label>
+          <div class="field" style="justify-content:flex-end;">
+            <button id="nextPartBtn" class="btn secondary" style="height:40px;font-size:0.8rem;">➕ Next Part (5-10m Ep)</button>
+          </div>
         </div>
-      </div>
 
-      <div class="btn-row">
-        <button id="generateScriptBtn" class="btn secondary">1. Write Script</button>
-        <button id="playRecordBtn" class="btn primary">2. Play & Save Video</button>
-      </div>
-      <div id="statusBar" class="status">Ready! Enter topic & click Write Script.</div>
-    </div>
+        <div class="btn-row">
+          <button id="generateScriptBtn" class="btn primary">1. Write Story</button>
+          <button id="playRecordBtn" class="btn accent">2. Render Real MP4</button>
+        </div>
+        <div id="statusBar" class="status-bar">Ready! Select YouTube (16:9) or Reels (9:16) & write story.</div>
+      </section>
 
-    <div class="stage-wrapper">
-      <canvas id="stageCanvas" width="720" height="1280"></canvas>
-      <div class="stage-controls">
-        <button id="previewOnlyBtn" class="btn small">▶ Preview Only</button>
-        <a id="downloadLink" class="btn small success hidden" download="storytoon-reel.webm">⬇ Save Video</a>
-      </div>
-    </div>
+      <section class="card stage-card">
+        <div class="canvas-wrap" id="canvasWrap" style="aspect-ratio:9/16;max-width:340px;">
+          <canvas id="stageCanvas" width="720" height="1280"></canvas>
+        </div>
+        <div class="stage-actions">
+          <button id="previewOnlyBtn" class="btn secondary">▶ Preview</button>
+          <a id="downloadLink" class="btn success hidden" download="storytoon_episode.mp4">⬇ Save Real MP4</a>
+        </div>
+      </section>
 
-    <div class="script-card">
-      <div class="script-header">
-        <h3>Scene Script (Editable JSON)</h3>
-        <button id="loadDemoBtn" class="btn tiny">Load Demo</button>
-      </div>
-      <textarea id="scriptEditor" rows="8"></textarea>
-    </div>
+      <section class="card script-card">
+        <div class="script-header">
+          <span>Story Scenes (Auto-Generated)</span>
+          <button id="loadDemoBtn" class="btn tiny">Load Action Demo</button>
+        </div>
+        <textarea id="scriptEditor" rows="8"></textarea>
+      </section>
+    </main>
   </div>
-  <script src="app.js?v=11"></script>
+  <script src="app.js?v=12"></script>
 </body>
 </html>
