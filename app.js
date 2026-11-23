@@ -664,35 +664,28 @@ function pcmToWavBuffer(base64Pcm, sampleRate = 24000) {
   return wavBuffer;
 }
 
-// Single-Call Multi-Speaker Gemini Human Acting Engine (1 API Call for ALL Scenes = Zero Rate Limit!)
+// Single-Call 2-Speaker Gemini Human Acting Engine (1 API Call = 10 Full Videos/Day Free!)
 async function fetchAllHumanVoicesInOneCall(scenes) {
   const key = apiKeyInput.value.trim();
   if (!key) throw new Error('Gemini API Key needed for real human voice acting!');
 
-  // Build multi-speaker script transcript
-  const speakerNames = {
-    hero: 'Hero',
-    bro:  'Bro',
-    mom:  'Mummy',
-    npc:  'RandomGuy'
-  };
-
+  // Gemini Multi-Speaker strictly requires EXACTLY 2 speakers
   const emotionCue = {
-    angry:   '(angrily)',
-    shocked: '(shocked)',
+    angry:   '(angrily shouting)',
+    shocked: '(shocked and panicked)',
     crying:  '(crying dramatically)',
     smug:    '(sarcastically)',
-    shadow:  '(in a dark villain tone)',
+    shadow:  '(in a deep dark villain voice)',
     normal:  '(naturally)'
   };
 
   const dialogueLines = scenes.map((sc) => {
-    const spk = speakerNames[sc.char] || 'Hero';
+    const spk = sc.char === 'mom' ? 'FemaleVoice' : 'MaleVoice';
     const cue = emotionCue[sc.emotion] || '';
     return `${spk}: ${cue} ${sc.text}`;
   }).join('\n');
 
-  const promptText = `Perform this funny Hinglish storytime conversation with expressive Indian YouTuber voice acting, natural comedic pauses between speakers, and realistic emotions:\n\n${dialogueLines}`;
+  const promptText = `Perform this funny Hinglish storytime conversation with expressive Indian YouTuber voice acting and clear pauses between lines:\n\n${dialogueLines}`;
 
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(key)}`, {
     method: 'POST',
@@ -704,10 +697,8 @@ async function fetchAllHumanVoicesInOneCall(scenes) {
         speechConfig: {
           multiSpeakerVoiceConfig: {
             speakerVoiceConfigs: [
-              { speaker: 'Hero',      voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
-              { speaker: 'Bro',       voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Fenrir' } } },
-              { speaker: 'Mummy',     voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
-              { speaker: 'RandomGuy', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Charon' } } }
+              { speaker: 'MaleVoice',   voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
+              { speaker: 'FemaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
             ]
           }
         }
@@ -790,13 +781,15 @@ function extractSubBuffer(srcBuffer, startSample, endSample) {
   return sub;
 }
 
-function playAudioOnce(audioBuffer) {
+function playAudioOnce(audioBuffer, char = "hero") {
   return new Promise((resolve) => {
     let resolved = false;
     duckBGM(true);
 
     const source = audioCtx.createBufferSource();
     source.buffer = audioBuffer;
+    if (char === 'bro') { source.detune.value = 140; source.playbackRate.value = 1.04; }
+    else if (char === 'npc') { source.detune.value = -180; source.playbackRate.value = 0.98; }
     source.connect(analyser);
     analyser.connect(audioCtx.destination);
     analyser.connect(destNode);
@@ -877,7 +870,7 @@ async function runAnimation(recordVideo = false) {
     scenePop = 0.78;
     playSFX(scenes[i].sfx);
     setStatus(`Playing Scene ${i + 1}/${scenes.length}...`);
-    await playAudioOnce(audioList[i]);
+    await playAudioOnce(audioList[i], scenes[i].char);
   }
 
   stopComedyBGM();
