@@ -213,6 +213,7 @@ async function getAvailableTextModels(key) {
       .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
       .map(m => m.name.replace('models/', ''))
       .filter(name => name.includes('flash') && !name.includes('tts') && !name.includes('image') && !name.includes('audio'));
+    live.sort((a, b) => (b.includes('lite') ? 1 : 0) - (a.includes('lite') ? 1 : 0));
     return live.length > 0 ? live : ['gemini-3.8-flash', 'gemini-3.0-flash'];
   } catch {
     return ['gemini-3.8-flash', 'gemini-3.0-flash'];
@@ -250,7 +251,7 @@ Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"smug","otherEmo
   const models = await getAvailableTextModels(key);
   let lastErr = 'Timed out';
 
-  for (const model of models.slice(0, 3)) {
+  for (const model of models.slice(0, 8)) {
     try {
       setStatus(`⚡ Writing Part ${episodePartNum} with ${model}...`);
       const ctrl = new AbortController();
