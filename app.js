@@ -820,7 +820,14 @@ async function createBulletproofRecorder(audioList) {
       });
 
       const videoEncoder = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: (e) => console.error(e) });
-      videoEncoder.configure({ codec: 'avc1.42001f', width: W, height: H, bitrate: 2_200_000, framerate: 30 });
+      videoEncoder.configure({
+        codec: 'avc1.42001f',
+        width: W,
+        height: H,
+        bitrate: 2_500_000,
+        framerate: 30,
+        hardwareAcceleration: 'prefer-software'
+      });
 
       const audioEncoder = new AudioEncoder({ output: (c, m) => muxer.addAudioChunk(c, m), error: (e) => console.error(e) });
       audioEncoder.configure({ codec: 'mp4a.40.2', numberOfChannels: 1, sampleRate: sr, bitrate: 128_000 });
@@ -853,7 +860,10 @@ async function createBulletproofRecorder(audioList) {
       const frameTimer = setInterval(() => {
         if (videoEncoder.state !== 'configured') return;
         const timestampUs = Math.round((performance.now() - startTime) * 1000);
-        const frame = new VideoFrame(canvas, { timestamp: timestampUs });
+        const snap = document.createElement('canvas');
+        snap.width = W; snap.height = H;
+        snap.getContext('2d').drawImage(canvas, 0, 0, W, H);
+        const frame = new VideoFrame(snap, { timestamp: timestampUs });
         videoEncoder.encode(frame, { keyFrame: frameIdx % 60 === 0 });
         frame.close();
         frameIdx++;
@@ -876,6 +886,8 @@ async function createBulletproofRecorder(audioList) {
 
   // Fallback: MediaRecorder with proper stream
   const canvasStream = canvas.captureStream(30);
+  const vTrack = canvasStream.getVideoTracks()[0];
+  if (vTrack && vTrack.requestFrame) vTrack.requestFrame();
   const audioTracks = destNode ? destNode.stream.getAudioTracks() : [];
   const combined = new MediaStream([...canvasStream.getVideoTracks(), ...audioTracks]);
   const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus') ? 'video/webm;codecs=vp8,opus' : 'video/webm';
