@@ -10,10 +10,11 @@ export default async function handler(req, res) {
     if (!text) return res.status(400).json({ error: 'Text is required' });
 
     const profiles = {
-      hero: { voice: 'hi-IN-MadhurNeural', rate: '+12%', pitch: '+4Hz' },
-      bro:  { voice: 'hi-IN-MadhurNeural', rate: '+18%', pitch: '+28Hz' },
-      mom:  { voice: 'hi-IN-SwaraNeural',  rate: '+6%',  pitch: '-2Hz' },
-      npc:  { voice: 'en-IN-PrabhatNeural', rate: '-2%', pitch: '-18Hz' }
+      hero:   { voice: 'hi-IN-MadhurNeural', rate: '+12%', pitch: '+4Hz' },
+      bro:    { voice: 'hi-IN-MadhurNeural', rate: '+18%', pitch: '+28Hz' },
+      mom:    { voice: 'hi-IN-SwaraNeural',  rate: '+6%',  pitch: '-2Hz' },
+      bhabhi: { voice: 'hi-IN-SwaraNeural',  rate: '+10%', pitch: '+10Hz' },
+      npc:    { voice: 'en-IN-PrabhatNeural', rate: '-2%', pitch: '-18Hz' }
     };
 
     const profile = profiles[char] || profiles.hero;
@@ -37,7 +38,6 @@ export default async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-store');
     return res.status(200).send(audioBuffer);
   } catch (err) {
-    // Fallback to Google Translate TTS only if Edge TTS fails
     try {
       const cleanText = req.body.text.replace(/[\r\n]+/g, ' ').trim();
       const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=hi&client=tw-ob`;
