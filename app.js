@@ -34,11 +34,11 @@ formatSelect.addEventListener('change', applyFormat);
 applyFormat();
 
 const DEMO_SCRIPT = [
-  { char: "hero", other: "bro", emotion: "smug", otherEmotion: "normal", pose: "lean", action: "walk", location: "street", camera: "normal", gag: "none", prop: "none", power: "none", sfx: "vine", text: "Bhai aaj local train aur patli gali ka asli dard dikhata hoon!" },
-  { char: "bro", other: "hero", emotion: "sweat", otherEmotion: "cursed", pose: "normal", action: "idle", location: "street", camera: "normal", gag: "train_crowd", prop: "none", power: "none", sfx: "gasp", text: "Train mein itni bheed thi ki uncle ka paseena mere muh mein gaya!" },
-  { char: "hero", other: "bro", emotion: "cursed", otherEmotion: "shocked", pose: "normal", action: "idle", location: "street", camera: "top", gag: "gali_alto", prop: "car", power: "none", sfx: "bonk", text: "Upar se dekh, itni patli gali mein kisi ne Alto phansa di!" },
-  { char: "villain", other: "hero", emotion: "angry", otherEmotion: "sweat", pose: "fly", action: "run", location: "park", camera: "in", gag: "tyre_run", prop: "tyre", power: "fire", sfx: "boom", text: "Bachpan mein chakka chalate the, aaj tera chakka jaam karunga!" },
-  { char: "hero", other: "villain", emotion: "sweat", otherEmotion: "angry", pose: "bonk", action: "idle", location: "park", camera: "zoomout", gag: "lagg_gaye", prop: "none", power: "none", sfx: "sting", text: "Ab toh sach mein lagg gaye guru, bhaago yahan se!" }
+  { char: "hero", other: "bro", emotion: "normal", otherEmotion: "normal", pose: "normal", action: "idle", location: "room", camera: "normal", gag: "none", prop: "none", power: "none", sfx: "none", text: "Bhai kal exam hai aur maine abhi tak kitaab kholi bhi nahi!" },
+  { char: "bro", other: "hero", emotion: "smug", otherEmotion: "sweat", pose: "lean", action: "idle", location: "room", camera: "in", gag: "none", prop: "none", power: "none", sfx: "vine", text: "Chinta mat kar bhai, raat bhar mein poora syllabus khatam kar denge!" },
+  { char: "hero", other: "bro", emotion: "cursed", otherEmotion: "shocked", pose: "normal", action: "idle", location: "room", camera: "normal", gag: "none", prop: "phone", power: "none", sfx: "bonk", text: "Par pehle bas 5 minute phone pe ek short dekh leta hoon!" },
+  { char: "mom", other: "hero", emotion: "angry", otherEmotion: "sweat", pose: "normal", action: "walk", location: "room", camera: "in", gag: "none", prop: "none", power: "aura", sfx: "boom", text: "Subah ke 4 baj gaye aur tum dono abhi tak phone chala rahe ho?!" },
+  { char: "hero", other: "mom", emotion: "sweat", otherEmotion: "angry", pose: "bonk", action: "idle", location: "room", camera: "zoomout", gag: "lagg_gaye", prop: "none", power: "none", sfx: "sting", text: "Ab toh sach mein lagg gaye guru, exam hall mein kya likhenge!" }
 ];
 scriptEditor.value = JSON.stringify(DEMO_SCRIPT, null, 2);
 
@@ -49,7 +49,7 @@ let cachedScriptHash = '';
 let cachedAudioSlices = [];
 const customMicBuffers = {};
 
-// Per-Scene Mic Recorder (Preserved)
+// Per-Scene Mic Recorder
 const scriptCard = document.querySelector('.script-card');
 const micPanel = document.createElement('div');
 micPanel.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-top:6px;';
@@ -108,10 +108,10 @@ document.getElementById('loadDemoBtn').onclick = () => {
   scriptEditor.value = JSON.stringify(DEMO_SCRIPT, null, 2);
   cachedScriptHash = '';
   renderMicControls();
-  setStatus('NOT YOUR TYPE v19 Visual Gag + Smear + Top-Down Demo loaded!');
+  setStatus('Clean Exam Story Demo loaded!');
 };
 
-// Web Audio Engine + Snappy Comedy SFX (bonk, vine, sting, boom, slap, gasp)
+// Web Audio Engine
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null, destNode = null, analyser = null, dataArray = null, bgmGain = null, bgmInterval = null;
 let isPlayingSequence = false;
@@ -182,7 +182,6 @@ function playSFX(type) {
     osc.connect(gain); gain.connect(audioCtx.destination); gain.connect(destNode);
     osc.start(now); osc.stop(now + 0.18);
   } else if (type === 'sting') {
-    // Dramatic "Lagg Gaye" dissonant sting
     [220, 233.08, 311.13].forEach(freq => {
       const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
       osc.type = 'sawtooth';
@@ -210,7 +209,55 @@ function playSFX(type) {
   }
 }
 
-// Resilient Gemini Script Generator (Full Visual Gag + Smear Pose + Top-Down Prompt)
+// =========================================================================
+// SMART CONTEXT SANITIZER (Prevents random irrelevant trains, cars, or angles!)
+// =========================================================================
+function sanitizeSceneVisuals(scenes) {
+  let topCount = 0;
+  return scenes.map((sc) => {
+    const txt = (sc.text || '').toLowerCase();
+    const cleaned = { ...sc };
+
+    // 1. Only allow special visual gags if the dialogue actually mentions them!
+    if (cleaned.gag === 'train_crowd' && !/train|station|metro|local|dabba|bheed/.test(txt)) {
+      cleaned.gag = 'none';
+    }
+    if (cleaned.gag === 'gali_alto' && !/car|alto|gaadi|gali|traffic|jam/.test(txt)) {
+      cleaned.gag = 'none';
+    }
+    if (cleaned.gag === 'tyre_run' && !/tyre|chakka|bachpan|cycle/.test(txt)) {
+      cleaned.gag = 'none';
+    }
+    if (cleaned.gag === 'chai_kaand' && !/chai|rasgulla|mithai|dukaan|samosa|khana/.test(txt)) {
+      cleaned.gag = 'none';
+    }
+    if (cleaned.gag === 'lagg_gaye' && !/lagg|gaye|phas|pakda|mummy|papa|teacher|fail|kaand|katam|khatam/.test(txt)) {
+      cleaned.gag = 'none';
+    }
+
+    // 2. Only allow props if dialogue mentions them!
+    if (cleaned.prop === 'car' && !/car|alto|gaadi|drive/.test(txt)) cleaned.prop = 'none';
+    if (cleaned.prop === 'train' && !/train|station|metro/.test(txt)) cleaned.prop = 'none';
+    if (cleaned.prop === 'chai' && !/chai|tea|rasgulla|dukaan/.test(txt)) cleaned.prop = 'none';
+    if (cleaned.prop === 'tyre' && !/tyre|chakka|wheel/.test(txt)) cleaned.prop = 'none';
+    if (cleaned.prop === 'phone' && !/phone|mobile|reel|video|game|call|message/.test(txt)) cleaned.prop = 'none';
+
+    // 3. Only allow "top" (bird's-eye) camera outdoors when running/chasing/street chaos, max 1-2 times!
+    const isOutdoor = ['street', 'shehar', 'park', 'gaon', 'jungle'].includes(cleaned.location);
+    const hasTopContext = /bhaag|daud|gali|road|sadak|upar|traffic|chase|piche/.test(txt);
+    if (cleaned.camera === 'top') {
+      if (!isOutdoor || !hasTopContext || topCount >= 2) {
+        cleaned.camera = 'normal';
+      } else {
+        topCount++;
+      }
+    }
+
+    return cleaned;
+  });
+}
+
+// Resilient Gemini Script Generator (Strictly Context-Driven Visuals)
 async function getAvailableTextModels(key) {
   try {
     const ctrl = new AbortController();
@@ -235,25 +282,22 @@ async function fetchPartScriptFromGemini(key, topic, partNum, totalParts, prevEn
     ? `Part ${partNum} of ${totalParts}. Continue seamlessly from: "${prevEnding}".`
     : (totalParts > 1 ? `Part 1 of ${totalParts}-part story. End on a funny cliffhanger!` : `Complete funny story with punchy ending.`);
 
-  const prompt = `Viral Indian animated story creator ("NOT YOUR TYPE" style). Write a 9-line fast-paced Hinglish script on: "${topic}". Genre: ${toneSelect.value}. ${continuationNote}
-NEVER keep 2 static puppets talking for more than 2 lines! Illustrate the joke visually every 2 lines!
-Characters: "hero", "bro", "villain", "npc", "mom".
-Emotions: "normal", "shocked", "smug", "angry", "crying", "dead", "shadow", "cursed" (derpy meme face), "sweat" (nervous sweat).
-Poses (snappy keyframe cuts): "normal", "lean" (face jumps right up to camera!), "fly" (flying/flailing arms in air), "bonk" (squashed flat!).
-Actions: "idle", "walk", "run".
-Locations: "park", "room", "street", "gaon", "jungle", "dramatic", "red".
-Camera Angles: "normal", "in" (close-up), "top" (bird's-eye top-down view), "zoomout" (dramatic lonely zoom-out), "shake".
-Full-Screen Visual Gags ("gag" — replaces stage with custom comedy illustration matching the dialogue!):
-- "none" (standard character scene)
-- "train_crowd" (packed local train coach squishing people)
-- "gali_alto" (Alto car wedged tight between narrow gali walls)
-- "tyre_run" (kid running fast hitting a rolling tyre with a stick)
-- "lagg_gaye" (spotlight from above on tiny shocked hero surrounded by shadows)
-- "chai_kaand" (chaotic roadside chai & rasgulla stall)
-Props: "none", "car", "train", "chai", "tyre", "phone".
-Superpowers: "none", "energy", "fire", "lightning", "aura".
-SFX: "none", "bonk", "vine", "sting", "boom", "slap", "gasp".
-Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"cursed","otherEmotion":"sweat","pose":"lean","action":"walk","location":"street","camera":"normal","gag":"none","prop":"none","power":"none","sfx":"vine","text":"8-13 words punchy Hinglish"}].`;
+  const prompt = `Viral Indian animated story creator ("NOT YOUR TYPE" style). Write a 9-line Hinglish script strictly about: "${topic}". Genre: ${toneSelect.value}. ${continuationNote}
+
+STRICT VISUAL RULES (DO NOT ADD RANDOM UNRELATED OBJECTS!):
+1. Keep 80% of scenes simple and clean with camera="normal" or "in" (close-up), gag="none", and prop="none".
+2. NEVER force trains, cars, tyres, or top-down angles unless the dialogue line ACTUALLY talks about them!
+3. Characters: "hero", "bro", "villain", "npc", "mom" (only if home/family).
+4. Emotions: "normal", "shocked", "smug", "angry", "crying", "dead", "shadow", "cursed" (funny derpy meme face), "sweat".
+5. Poses: "normal" (default), "lean" (punchline close lean), "fly" (only if knocked back/flying), "bonk" (only if hit/defeated).
+6. Locations: "room", "park", "street", "gaon", "jungle", "dramatic", "red" (keep location consistent with the story!).
+7. Camera: "normal" (default), "in" (dramatic close-up), "zoomout" (only for "lagg gaye" / trapped moment), "top" (ONLY if outdoor street/park chase or traffic), "shake" (only on impact).
+8. Gag: "none" (default). ONLY use "train_crowd", "gali_alto", "tyre_run", "chai_kaand", or "lagg_gaye" if the dialogue line literally describes that exact situation!
+9. Prop: "none" (default). ONLY use "phone", "chai", "car", "train", or "tyre" if mentioned in that line.
+10. Superpowers: "none" (default unless action/anime fight topic: "energy", "fire", "lightning", "aura").
+11. SFX: "none", "bonk", "vine", "sting", "boom", "slap", "gasp" (use sparingly for punchlines).
+
+Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"normal","otherEmotion":"normal","pose":"normal","action":"idle","location":"room","camera":"normal","gag":"none","prop":"none","power":"none","sfx":"none","text":"8-13 words natural Hinglish"}].`;
 
   const models = await getAvailableTextModels(key);
   let lastErr = 'Server busy';
@@ -270,7 +314,7 @@ Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"cursed","otherE
           signal: ctrl.signal,
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json", temperature: 0.92 }
+            generationConfig: { responseMimeType: "application/json", temperature: 0.82 }
           })
         });
         clearTimeout(timer);
@@ -279,7 +323,8 @@ Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"cursed","otherE
         let raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
         const sIdx = raw.indexOf('['), eIdx = raw.lastIndexOf(']');
         if (sIdx === -1 || eIdx === -1) { lastErr = 'Invalid JSON'; continue; }
-        return JSON.parse(raw.slice(sIdx, eIdx + 1));
+        const parsed = JSON.parse(raw.slice(sIdx, eIdx + 1));
+        return sanitizeSceneVisuals(parsed);
       } catch (err) {
         lastErr = err.name === 'AbortError' ? `${model} timed out` : err.message;
         await sleep(800);
@@ -291,29 +336,19 @@ Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"cursed","otherE
 }
 
 // =========================================================================
-// NOT YOUR TYPE v19 RENDERER:
-// 1. Sketchbook Paper Grain & Cross-Hatch Texture Overlay
-// 2. Full-Screen Custom Visual Gags (train_crowd, gali_alto, tyre_run, lagg_gaye, chai_kaand)
-// 3. Smear Frames & Snappy 3-Keypose Cuts (lean, fly, bonk)
-// 4. Bird's-Eye Top-Down & Dramatic Zoom-Out Camera Angles
+// STAGE RENDERER
 // =========================================================================
 let currentScene = DEMO_SCRIPT[0];
 let mouthOpen = 0, frameTick = 0, smearTimer = 0, blinkTimer = 0;
 
-// Pre-baked offscreen sketchbook paper texture for fast 30fps rendering
 const paperPatternCanvas = document.createElement('canvas');
 paperPatternCanvas.width = 160; paperPatternCanvas.height = 160;
 const pCtx = paperPatternCanvas.getContext('2d');
 pCtx.fillStyle = 'rgba(0,0,0,0)';
 pCtx.fillRect(0, 0, 160, 160);
-for (let i = 0; i < 420; i++) {
-  pCtx.fillStyle = i % 2 === 0 ? 'rgba(15,23,42,0.035)' : 'rgba(255,255,255,0.05)';
+for (let i = 0; i < 320; i++) {
+  pCtx.fillStyle = i % 2 === 0 ? 'rgba(15,23,42,0.025)' : 'rgba(255,255,255,0.04)';
   pCtx.fillRect(Math.random() * 160, Math.random() * 160, 2, 2);
-}
-pCtx.strokeStyle = 'rgba(15,23,42,0.03)';
-pCtx.lineWidth = 1;
-for (let y = 0; y < 160; y += 14) {
-  pCtx.beginPath(); pCtx.moveTo(0, y); pCtx.lineTo(160, y + 6); pCtx.stroke();
 }
 const paperPattern = ctx.createPattern(paperPatternCanvas, 'repeat');
 
@@ -325,60 +360,49 @@ function applySketchTexture() {
   ctx.restore();
 }
 
-// Smear Frame Motion Lines when snapping between poses/scenes!
 function drawSmearLines() {
   if (smearTimer <= 0) return;
   const W = canvas.width, H = canvas.height;
   ctx.save();
-  ctx.strokeStyle = 'rgba(15, 23, 42, 0.45)';
-  ctx.lineWidth = 6;
-  for (let i = 0; i < 14; i++) {
-    const y = (H / 14) * i + 20;
+  ctx.strokeStyle = 'rgba(15, 23, 42, 0.32)';
+  ctx.lineWidth = 5;
+  for (let i = 0; i < 10; i++) {
+    const y = (H / 10) * i + 25;
     const x1 = (i % 2 === 0 ? 40 : 120) + Math.random() * 80;
-    ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x1 + W * 0.45, y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x1 + W * 0.4, y); ctx.stroke();
   }
   ctx.restore();
 }
 
-// =========================================================================
-// FULL-SCREEN VISUAL GAGS (Dialogue ko directly illustrate karne wale scenes!)
-// =========================================================================
 function drawFullScreenVisualGag(gag, talkAmt) {
   const W = canvas.width, H = canvas.height;
   const shake = Math.sin(frameTick * 0.8) * 6;
 
   if (gag === 'train_crowd') {
-    // Packed Indian Local Train Coach with Squished Faces & Sweat Drops!
     ctx.fillStyle = '#fef08a'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#1d4ed8'; ctx.fillRect(0, 0, W, H * 0.16);
     ctx.fillStyle = '#1e293b'; ctx.fillRect(0, H * 0.84, W, H * 0.16);
 
-    // Hanging overhead straps
     ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 6;
     for (let sx = W * 0.2; sx <= W * 0.8; sx += W * 0.2) {
       ctx.beginPath(); ctx.moveTo(sx, H * 0.16); ctx.lineTo(sx + shake, H * 0.28); ctx.stroke();
       ctx.beginPath(); ctx.arc(sx + shake, H * 0.30, 14, 0, Math.PI * 2); ctx.stroke();
     }
 
-    // 7 Squished Cartoon Heads Packed Shoulder-to-Shoulder!
     const crowdColors = ['#94a3b8', '#fde68a', '#ffffff', '#fecaca', '#e2e8f0', '#fed7aa', '#ffffff'];
     for (let i = 0; i < 7; i++) {
       const cx = (W * 0.14) + i * (W * 0.12) + Math.sin(frameTick * 0.4 + i) * 7;
       const cy = H * 0.56 + (i % 2 === 0 ? -25 : 25);
-      // Squished torso
       ctx.fillStyle = i === 3 ? '#3b82f6' : i % 2 === 0 ? '#64748b' : '#f59e0b';
       ctx.beginPath(); ctx.roundRect(cx - 48, cy + 45, 96, 170, 20); ctx.fill(); ctx.stroke();
-      // Squished oval face
       ctx.fillStyle = crowdColors[i];
       ctx.beginPath(); ctx.ellipse(cx, cy, 46, 62, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      // Conjoined stressed eyes
       ctx.fillStyle = '#ffffff';
       ctx.beginPath(); ctx.arc(cx - 12, cy - 8, 13, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.arc(cx + 12, cy - 8, 13, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#0f172a';
       ctx.beginPath(); ctx.arc(cx - 10, cy - 8, 4, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(cx + 14, cy - 8, 4, 0, Math.PI * 2); ctx.fill();
-      // Sweat drops flying!
       ctx.fillStyle = '#38bdf8';
       ctx.beginPath(); ctx.arc(cx + 28, cy - 35 - ((frameTick * 3 + i * 10) % 30), 6, 0, Math.PI * 2); ctx.fill();
     }
@@ -386,14 +410,12 @@ function drawFullScreenVisualGag(gag, talkAmt) {
   }
 
   if (gag === 'gali_alto') {
-    // Top-Down Narrow Gali with Alto Car Wedged Tight Between Brick Walls!
     ctx.fillStyle = '#475569'; ctx.fillRect(0, 0, W, H);
     const wallW = W * 0.27;
     ctx.fillStyle = '#b91c1c'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 7;
     ctx.fillRect(0, 0, wallW, H); ctx.strokeRect(-5, -5, wallW + 5, H + 10);
     ctx.fillRect(W - wallW, 0, wallW, H); ctx.strokeRect(W - wallW, -5, wallW + 5, H + 10);
 
-    // Wedged Alto Car scraping walls with sparks!
     const carW = W - wallW * 2 + 12;
     const carX = W * 0.5 + Math.sin(frameTick * 0.9) * 4;
     const carY = H * 0.48;
@@ -401,19 +423,10 @@ function drawFullScreenVisualGag(gag, talkAmt) {
     ctx.beginPath(); ctx.roundRect(carX - carW * 0.5, carY - 135, carW, 270, 26); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#bae6fd';
     ctx.beginPath(); ctx.roundRect(carX - carW * 0.38, carY - 75, carW * 0.76, 52, 10); ctx.fill(); ctx.stroke();
-
-    // Sparks at wall contact points!
-    ctx.strokeStyle = '#facc15'; ctx.lineWidth = 5;
-    for (let s = 0; s < 6; s++) {
-      const sy = carY - 80 + s * 32;
-      ctx.beginPath(); ctx.moveTo(wallW, sy); ctx.lineTo(wallW + 24, sy - 14); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(W - wallW, sy); ctx.lineTo(W - wallW - 24, sy + 14); ctx.stroke();
-    }
     return true;
   }
 
   if (gag === 'tyre_run') {
-    // Kid Running Fast Hitting a Rolling Rubber Tyre with a Wooden Stick!
     const sky = ctx.createLinearGradient(0, 0, 0, H * 0.76);
     sky.addColorStop(0, '#38bdf8'); sky.addColorStop(1, '#fef08a');
     ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
@@ -422,15 +435,6 @@ function drawFullScreenVisualGag(gag, talkAmt) {
     ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 7;
     ctx.beginPath(); ctx.moveTo(0, floorY); ctx.lineTo(W, floorY); ctx.stroke();
 
-    // Speed lines
-    ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 5;
-    for (let i = 0; i < 8; i++) {
-      const lx = W - ((frameTick * 18 + i * 140) % (W + 200));
-      const ly = 120 + i * 65;
-      ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx + 110, ly); ctx.stroke();
-    }
-
-    // Rolling Tyre on right
     const tyreX = W * 0.68, tyreY = floorY - 58;
     ctx.save(); ctx.translate(tyreX, tyreY); ctx.rotate(frameTick * 0.35);
     ctx.fillStyle = '#1e293b'; ctx.lineWidth = 8;
@@ -439,7 +443,6 @@ function drawFullScreenVisualGag(gag, talkAmt) {
     ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.restore();
 
-    // Kid running & hitting tyre with stick
     drawFullBodyCharacter('hero', 'cursed', 'run', 'none', talkAmt, W * 0.36, floorY, H < 800 ? 0.72 : 0.90, true, 1);
     ctx.strokeStyle = '#78350f'; ctx.lineWidth = 10;
     ctx.beginPath(); ctx.moveTo(W * 0.42, floorY - 165); ctx.lineTo(tyreX - 42, tyreY - 12); ctx.stroke();
@@ -447,23 +450,19 @@ function drawFullScreenVisualGag(gag, talkAmt) {
   }
 
   if (gag === 'lagg_gaye') {
-    // Dramatic Lonely Zoom-Out Spotlight ("Ab Toh Lagg Gaye!")
     ctx.fillStyle = '#090d16'; ctx.fillRect(0, 0, W, H);
     const floorY = H * 0.80;
-    // Cone of spotlight from top
     const grad = ctx.createLinearGradient(W * 0.5, 0, W * 0.5, floorY);
     grad.addColorStop(0, 'rgba(250, 204, 21, 0.55)');
     grad.addColorStop(1, 'rgba(250, 204, 21, 0.08)');
     ctx.fillStyle = grad;
     ctx.beginPath(); ctx.moveTo(W * 0.44, 0); ctx.lineTo(W * 0.56, 0); ctx.lineTo(W * 0.76, floorY); ctx.lineTo(W * 0.24, floorY); ctx.closePath(); ctx.fill();
 
-    // Tiny lonely hero in center of spotlight!
     drawFullBodyCharacter(currentScene.char || 'hero', 'sweat', 'idle', 'none', talkAmt, W * 0.5, floorY, H < 800 ? 0.44 : 0.56, true, 0);
     return true;
   }
 
   if (gag === 'chai_kaand') {
-    // Roadside Chai & Rasgulla Stall
     ctx.fillStyle = '#bae6fd'; ctx.fillRect(0, 0, W, H);
     const floorY = H * 0.78;
     ctx.fillStyle = '#64748b'; ctx.fillRect(0, floorY, W, H - floorY);
@@ -527,7 +526,7 @@ function drawSceneProp(prop, x, y, scale = 1, isTopDown = false) {
     ctx.fillStyle = '#facc15';
     ctx.fillRect(-85, -128, 170, 32); ctx.strokeRect(-85, -128, 170, 32);
     ctx.fillStyle = '#0f172a'; ctx.font = '900 18px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('CHAI & RASGULLA', 0, -106); ctx.textAlign = 'left';
+    ctx.fillText('CHAI & SWEETS', 0, -106); ctx.textAlign = 'left';
   } else if (prop === 'tyre') {
     const spin = frameTick * 0.25;
     ctx.save(); ctx.translate(0, -34); ctx.rotate(spin);
@@ -670,7 +669,7 @@ function drawEnvironment(loc, isMoving) {
       { x: 0.35, w: 165, h: 330, c: '#cbd5e1' },
       { x: 0.70, w: 150, h: 290, c: '#94a3b8' }
     ];
-    buildings.forEach((b, idx) => {
+    buildings.forEach((b) => {
       const bx = ((W * b.x - scrollX) + W) % W;
       ctx.fillStyle = b.c; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 5;
       ctx.fillRect(bx, floorY - b.h, b.w, b.h); ctx.strokeRect(bx, floorY - b.h, b.w, b.h);
@@ -679,14 +678,8 @@ function drawEnvironment(loc, isMoving) {
         ctx.fillRect(bx + 22, wy, 24, 26); ctx.strokeRect(bx + 22, wy, 24, 26);
         ctx.fillRect(bx + b.w - 46, wy, 24, 26); ctx.strokeRect(bx + b.w - 46, wy, 24, 26);
       }
-      // Desi Wall Poster detail on middle building
-      if (idx === 1) {
-        ctx.fillStyle = '#facc15'; ctx.fillRect(bx + 35, floorY - 95, 95, 42); ctx.strokeRect(bx + 35, floorY - 95, 95, 42);
-        ctx.fillStyle = '#0f172a'; ctx.font = '900 13px sans-serif'; ctx.fillText('BENGALI SIKHO', bx + 40, floorY - 70);
-      }
     });
 
-    // Electric Pole + Hanging Wires + Tangled Kite!
     const poleX = ((W * 0.56 - scrollX) + W) % W;
     ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 8;
     ctx.beginPath(); ctx.moveTo(poleX, floorY); ctx.lineTo(poleX, floorY - 340); ctx.stroke();
@@ -695,11 +688,6 @@ function drawEnvironment(loc, isMoving) {
     ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(0, floorY - 300); ctx.quadraticCurveTo(poleX * 0.5, floorY - 260, poleX, floorY - 320); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(poleX, floorY - 320); ctx.quadraticCurveTo((poleX + W) * 0.5, floorY - 260, W, floorY - 300); ctx.stroke();
-
-    // Tangled Patang (Kite) on wire
-    ctx.fillStyle = '#ef4444'; ctx.beginPath();
-    ctx.moveTo(poleX + 35, floorY - 310); ctx.lineTo(poleX + 52, floorY - 294);
-    ctx.lineTo(poleX + 35, floorY - 278); ctx.lineTo(poleX + 18, floorY - 294); ctx.closePath(); ctx.fill();
   } else if (loc === 'jungle' || loc === 'night') {
     ctx.fillStyle = '#1e1b4b'; ctx.fillRect(0, 0, W, floorY);
     ctx.fillStyle = '#fef9c3'; ctx.beginPath(); ctx.arc(W * 0.80, H * 0.16, 42, 0, Math.PI * 2); ctx.fill();
@@ -748,11 +736,9 @@ function drawSuperpowerVFX(power, x, y) {
   ctx.restore();
 }
 
-// Snappy Keypose Character Renderer (Supports lean, fly, bonk, cursed, sweat!)
 function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, groundY, scaleVal, isSpeaker, lookDir = 1, pose = 'normal') {
   const isWalking = action === 'walk' || action === 'run';
   const walkSpeed = action === 'run' ? 0.38 : 0.22;
-  // Snappy 3-step pose snap instead of smooth floaty wave!
   const rawSin = Math.sin(frameTick * walkSpeed);
   const snappyStep = Math.sign(rawSin) * (Math.abs(rawSin) > 0.4 ? 1 : 0);
   const legSwing = isWalking ? snappyStep * 26 : 0;
@@ -771,15 +757,14 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
   ctx.save();
   ctx.translate(footX, groundY - jumpY);
 
-  // Snappy Keypose Transforms!
   let sx = scaleVal, sy = scaleVal;
   if (isSpeaker && pose === 'lean') {
-    sx *= 1.28; sy *= 1.28;
-    ctx.rotate(0.14);
+    sx *= 1.24; sy *= 1.24;
+    ctx.rotate(0.12);
   } else if (isSpeaker && pose === 'bonk') {
-    sx *= 1.32; sy *= 0.62; // Squashed flat on impact!
+    sx *= 1.28; sy *= 0.65;
   } else if (isSpeaker && pose === 'fly') {
-    ctx.rotate(-0.28);
+    ctx.rotate(-0.25);
   }
   ctx.scale(sx, sy);
 
@@ -1002,7 +987,6 @@ function renderLoop() {
     ctx.translate((Math.random() - 0.5) * 24, (Math.random() - 0.5) * 24);
   }
 
-  // 1. Check Full-Screen Visual Gag First!
   const drewGag = gag !== 'none' && drawFullScreenVisualGag(gag, mouthOpen);
 
   if (!drewGag) {
@@ -1044,7 +1028,7 @@ function renderLoop() {
 }
 renderLoop();
 
-// Audio & Voice Helpers (Zero-Pause Snappy Comedy Timing + Multi-Mode TTS)
+// Audio & Voice Helpers
 function pcmToWavBuffer(base64Pcm, sampleRate = 24000) {
   const binary = atob(base64Pcm), pcmLen = binary.length, wavBuffer = new ArrayBuffer(44 + pcmLen), view = new DataView(wavBuffer);
   const writeStr = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
@@ -1105,7 +1089,7 @@ async function fetchAllHumanVoicesInOneCall(scenes, partLabel = '') {
 
   for (let i = 0; i < configs.length; i++) {
     const cfg = configs[i];
-    setStatus(`🎙️ Generating Fast Comedy Voices ${partLabel} (mode ${i + 1}/${configs.length})...`);
+    setStatus(`🎙️ Generating Human Voices ${partLabel} (mode ${i + 1}/${configs.length})...`);
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 45000);
     try {
@@ -1134,7 +1118,6 @@ async function fetchAllHumanVoicesInOneCall(scenes, partLabel = '') {
   return createSilentBuffer(estSeconds);
 }
 
-// Trims leading/trailing dead air from each slice so punchlines hit with 0.0s gap!
 function trimDeadSilence(buf) {
   if (!buf || !buf.sampleRate) return buf;
   const sr = buf.sampleRate;
@@ -1195,19 +1178,16 @@ function playAudioOnce(audioBuffer, char = "hero") {
     let resolved = false; duckBGM(true);
     const source = audioCtx.createBufferSource();
     source.buffer = safeBuf;
-    // Snappy slightly faster pacing (1.06x) like NOT YOUR TYPE!
     if (char === 'bro') { source.detune.value = 150; source.playbackRate.value = 1.08; }
     else if (char === 'villain') { source.detune.value = -240; source.playbackRate.value = 0.98; }
     else if (char === 'npc') { source.detune.value = -120; source.playbackRate.value = 1.05; }
     else { source.playbackRate.value = 1.06; }
     source.connect(analyser); analyser.connect(audioCtx.destination); analyser.connect(destNode);
-    // 0.0s hard cut to next punchline!
     source.onended = () => { if (!resolved) { resolved = true; duckBGM(false); resolve(); } };
     source.start(0);
   });
 }
 
-// Bulletproof Software H.264 MP4 Recorder (No Black Screen on Android Chrome!)
 async function createBulletproofRecorder(audioList) {
   const W = canvas.width, H = canvas.height;
   const sr = (audioCtx && audioCtx.sampleRate) ? audioCtx.sampleRate : 44100;
@@ -1321,29 +1301,30 @@ function triggerAutoDownload(blob, filename) {
 }
 
 async function renderSinglePart(scenes, partNum, totalParts, recordVideo = true, autoSave = false) {
+  const cleanScenes = sanitizeSceneVisuals(scenes);
   const partLabel = totalParts > 1 ? `[Part ${partNum}/${totalParts}]` : '';
-  const currentHash = JSON.stringify(scenes.map(s => `${s.char}:${s.text}`));
+  const currentHash = JSON.stringify(cleanScenes.map(s => `${s.char}:${s.text}`));
   let audioList = [];
-  const allMic = scenes.every((_, idx) => !!customMicBuffers[idx]);
+  const allMic = cleanScenes.every((_, idx) => !!customMicBuffers[idx]);
 
-  if (allMic) audioList = scenes.map((_, idx) => customMicBuffers[idx]);
-  else if (cachedScriptHash === currentHash && cachedAudioSlices.length === scenes.length) {
-    audioList = scenes.map((_, idx) => customMicBuffers[idx] || cachedAudioSlices[idx]);
+  if (allMic) audioList = cleanScenes.map((_, idx) => customMicBuffers[idx]);
+  else if (cachedScriptHash === currentHash && cachedAudioSlices.length === cleanScenes.length) {
+    audioList = cleanScenes.map((_, idx) => customMicBuffers[idx] || cachedAudioSlices[idx]);
   } else {
-    const fullAudio = await fetchAllHumanVoicesInOneCall(scenes, partLabel);
-    cachedAudioSlices = splitAudioBufferByScenes(fullAudio, scenes);
+    const fullAudio = await fetchAllHumanVoicesInOneCall(cleanScenes, partLabel);
+    cachedAudioSlices = splitAudioBufferByScenes(fullAudio, cleanScenes);
     cachedScriptHash = currentHash;
-    audioList = scenes.map((_, idx) => customMicBuffers[idx] || cachedAudioSlices[idx]);
+    audioList = cleanScenes.map((_, idx) => customMicBuffers[idx] || cachedAudioSlices[idx]);
   }
 
   let recorderSession = recordVideo ? await createBulletproofRecorder(audioList) : null;
   startComedyBGM();
-  for (let i = 0; i < scenes.length; i++) {
-    currentScene = scenes[i];
-    smearTimer = 4; // Trigger 4-frame snappy smear cut on every scene switch!
-    playSFX(scenes[i].sfx);
-    setStatus(`🎬 ${partLabel} Rendering Scene ${i + 1}/${scenes.length}...`);
-    await playAudioOnce(audioList[i], scenes[i].char);
+  for (let i = 0; i < cleanScenes.length; i++) {
+    currentScene = cleanScenes[i];
+    smearTimer = 3;
+    playSFX(cleanScenes[i].sfx);
+    setStatus(`🎬 ${partLabel} Rendering Scene ${i + 1}/${cleanScenes.length}...`);
+    await playAudioOnce(audioList[i], cleanScenes[i].char);
   }
   stopComedyBGM();
 
@@ -1362,7 +1343,6 @@ async function renderSinglePart(scenes, partNum, totalParts, recordVideo = true,
   return { secs: 0, sizeKB: 0 };
 }
 
-// 🚀 1-CLICK AUTO-PILOT
 document.getElementById('oneClickAutoBtn').onclick = async () => {
   if (isPlayingSequence) return;
   const key = apiKeyInput.value.trim();
@@ -1397,7 +1377,6 @@ document.getElementById('oneClickAutoBtn').onclick = async () => {
   }
 };
 
-// Manual Buttons
 document.getElementById('generateScriptBtn').onclick = async () => {
   if (isPlayingSequence) return;
   const key = apiKeyInput.value.trim();
@@ -1408,7 +1387,7 @@ document.getElementById('generateScriptBtn').onclick = async () => {
     scriptEditor.value = JSON.stringify(scenes, null, 2);
     cachedScriptHash = '';
     renderMicControls();
-    setStatus(`✅ Script ready (${scenes.length} scenes)!`);
+    setStatus(`✅ Clean script ready (${scenes.length} scenes)!`);
   } catch (err) { setStatus(`Error: ${err.message}`); }
 };
 
