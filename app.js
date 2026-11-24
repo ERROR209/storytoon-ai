@@ -16,6 +16,8 @@ apiKeyInput.addEventListener('change', () => {
 });
 
 function applyFormat() {
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
   const fmt = formatSelect.value;
   if (fmt === '16:9') {
     canvas.width = 1280; canvas.height = 720;
@@ -676,46 +678,78 @@ async function fetchAllHumanVoicesInOneCall(scenes, partLabel = '') {
   const key = apiKeyInput.value.trim();
   if (!key) throw new Error('Gemini API Key required!');
   const dialogueLines = scenes.map((sc) => `${sc.char === 'mom' ? 'FemaleVoice' : 'MaleVoice'}: ${sc.text}`).join('\n');
-  const promptText = `Act out this funny Indian Hinglish story with expressive emotions and brief pauses:\n${dialogueLines}`;
+  const plainLines = scenes.map((sc) => sc.text).join(' ... ');
 
-  for (let attempt = 0; attempt < 3; attempt++) {
-    setStatus(`🎙️ Generating Human Voices ${partLabel} (attempt ${attempt + 1})...`);
+  const configs = [
+    {
+      model: 'gemini-2.5-flash-preview-tts',
+      body: {
+        contents: [{ parts: [{ text: 'Act out this funny Indian Hinglish story with expressive emotions:\n' + dialogueLines }] }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            multiSpeakerVoiceConfig: {
+              speakerVoiceConfigs: [
+                { speaker: 'MaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
+                { speaker: 'FemaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      model: 'gemini-2.5-flash-preview-tts',
+      body: {
+        contents: [{ parts: [{ text: 'Speak this funny Indian Hinglish story with energetic expression:\n' + plainLines }] }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } }
+        }
+      }
+    },
+    {
+      model: 'gemini-2.5-pro-preview-tts',
+      body: {
+        contents: [{ parts: [{ text: 'Speak this funny Indian Hinglish story:\n' + plainLines }] }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } }
+        }
+      }
+    }
+  ];
+
+  for (let i = 0; i < configs.length; i++) {
+    const cfg = configs[i];
+    setStatus(`🎙️ Generating Human Voices ${partLabel} (mode ${i + 1}/${configs.length})...`);
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 45000);
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(key)}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${cfg.model}:generateContent?key=${encodeURIComponent(key)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: ctrl.signal,
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: promptText }] }],
-          generationConfig: {
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-              multiSpeakerVoiceConfig: {
-                speakerVoiceConfigs: [
-                  { speaker: 'MaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
-                  { speaker: 'FemaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
-                ]
-              }
-            }
-          }
-        })
+        body: JSON.stringify(cfg.body)
       });
       clearTimeout(timer);
-      if (res.status === 503 || res.status === 429) { await sleep(3500); continue; }
-      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error?.message || `HTTP ${res.status}`); }
+      if (!res.ok) { await sleep(1500); continue; }
       const data = await res.json();
       const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-      if (!inlineData?.data) throw new Error('No audio returned');
-      return await audioCtx.decodeAudioData(pcmToWavBuffer(inlineData.data, 24000));
-    } catch (err) {
+      if (inlineData?.data) {
+        return await audioCtx.decodeAudioData(pcmToWavBuffer(inlineData.data, 24000));
+      }
+    } catch {
       clearTimeout(timer);
-      if (attempt === 2) throw err;
-      await sleep(2500);
+      await sleep(1500);
     }
   }
-  throw new Error('Could not generate audio');
+
+  // Non-crashing fallback buffer (timed to word count) so video ALWAYS renders & saves!
+  setStatus(`⚠️ TTS busy, rendering ${partLabel} with BGM + SFX + Captions...`);
+  const totalWords = scenes.reduce((acc, s) => acc + (s.text || '').split(' ').length, 0);
+  const estSeconds = Math.max(8, Math.round(totalWords * 0.42));
+  return createSilentBuffer(estSeconds);
 }
 
 function splitAudioBufferByScenes(fullBuffer, scenes) {
