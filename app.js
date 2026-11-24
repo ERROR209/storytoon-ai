@@ -1,5 +1,5 @@
 const canvas = document.getElementById('stageCanvas');
-const ctx = canvas.getContext('2d', { willReadFrequently: true });
+const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
 const apiKeyInput = document.getElementById('apiKeyInput');
 const topicInput = document.getElementById('topicInput');
@@ -243,7 +243,7 @@ async function getBestGeminiModel(key) {
   }
 }
 
-async function callGeminiAgent(key, models, prompt, temp = 0.8) {
+async function callGeminiAgent(key, models, prompt, temp = 0.85) {
   let lastErr = 'Server busy';
   for (const model of models.slice(0, 6)) {
     try {
@@ -273,17 +273,28 @@ async function callGeminiAgent(key, models, prompt, temp = 0.8) {
   throw new Error(lastErr);
 }
 
-// AGENT 1: SCRIPTWRITER
+// AGENT 1: SCRIPTWRITER (With Savage, Dark & Double Meaning Style Guides!)
 async function runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding) {
   setCrewState('writer', 'active');
-  setStatus(`✍️ [1/3 Scriptwriter] Writing funny Hinglish dialogues (Part ${partNum}/${totalParts})...`);
+  setStatus(`✍️ [1/3 Scriptwriter] Writing ${toneSelect.value} script (Part ${partNum}/${totalParts})...`);
   const cont = partNum > 1
     ? `Continue seamlessly from: "${prevEnding}".`
-    : (totalParts > 1 ? `Part 1 of ${totalParts}. End on a funny cliffhanger!` : `Complete story with a punchy ending.`);
+    : (totalParts > 1 ? `Part 1 of ${totalParts}. End on a crazy cliffhanger!` : `Complete story with a mind-blowing ending.`);
 
-  const prompt = `You are a Bollywood & YouTube comedy Scriptwriter ("NOT YOUR TYPE" style).
-Write an 8-line funny Hinglish script about: "${topic}". Genre: ${toneSelect.value}. ${cont}
-Focus ONLY on natural comedy dialogues, pacing, and character emotions.
+  const genre = toneSelect.value;
+  let styleDirection = 'Relatable, fast-paced Indian Hinglish comedy like NOT YOUR TYPE.';
+  if (genre.includes('Savage')) {
+    styleDirection = 'ULTRA SAVAGE & BRUTAL ROAST style! Characters drop ruthless, unfiltered Desi roasts, ego-destroying comebacks, and cold-blooded one-liners. Use "smug" and "dead" emotions heavily.';
+  } else if (genre.includes('Dark')) {
+    styleDirection = 'DARK COMEDY & SHOCKING PLOT TWIST style! Start innocent, build tension, and drop a twisted, morbid, or spine-chilling dark humor twist at the end. Use "cursed", "shocked", and "dead" emotions.';
+  } else if (genre.includes('Double Meaning')) {
+    styleDirection = 'CLEVER DOUBLE MEANING (NAUGHTY DESI) comedy! Write innocent-sounding Hinglish dialogues with hilarious, spicy double-meaning innuendos and naughty misunderstandings (like CarryMinati / adult Desi comedy skits), keeping words clever without explicit slurs. Use "smug", "cursed", and "shocked" emotions.';
+  }
+
+  const prompt = `You are a viral Indian YouTube comedy Scriptwriter ("NOT YOUR TYPE" style).
+Write an 8-line Hinglish script about: "${topic}".
+STYLE & VIBE: ${styleDirection}
+${cont}
 Characters (ONLY use these exact IDs):
 - "hero": main boy
 - "bro": best friend boy
@@ -293,9 +304,9 @@ Characters (ONLY use these exact IDs):
 - "npc": random male bystander/shopkeeper
 Emotions: "normal", "shocked", "smug", "angry", "crying", "cursed" (derpy meme face), "sweat", "dead".
 Location: pick ONE primary setting ("room", "park", "street", "gaon", "jungle").
-Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"normal","otherEmotion":"normal","location":"room","text":"8-13 words natural Hinglish"}]`;
+Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"normal","otherEmotion":"normal","location":"room","text":"8-13 words punchy Hinglish"}]`;
 
-  const draft = await callGeminiAgent(key, models, prompt, 0.88);
+  const draft = await callGeminiAgent(key, models, prompt, 0.92);
   setCrewState('writer', 'done');
   return draft;
 }
@@ -332,6 +343,7 @@ function runLightmanAgent(directedScenes) {
   setStatus(`💡 [3/3 Lightman] Setting scene lighting & atmosphere...`);
 
   let topCount = 0;
+  const isDarkMode = toneSelect.value.includes('Dark');
   const litScenes = directedScenes.map((sc) => {
     const txt = (sc.text || '').toLowerCase();
     const s = { ...sc };
@@ -359,7 +371,7 @@ function runLightmanAgent(directedScenes) {
 
     if (s.gag === 'lagg_gaye' || s.camera === 'zoomout') {
       s.lighting = 'spotlight';
-    } else if (/raat|night|4 baj|2 baj|andhera|soja/.test(txt) || s.location === 'jungle') {
+    } else if (isDarkMode || /raat|night|4 baj|2 baj|andhera|soja|bhoot|khoon/.test(txt) || s.location === 'jungle') {
       s.lighting = 'night';
     } else if (s.emotion === 'angry' || s.char === 'villain' || s.power !== 'none') {
       s.lighting = 'dramatic';
@@ -917,11 +929,15 @@ function drawCaptions(text, char) {
   ctx.textAlign = 'left';
 }
 
-function drawCurrentFrameToCanvas() {
+function renderLoop() {
   frameTick++; blinkTimer++;
   if (smearTimer > 0) smearTimer--;
 
   const W = canvas.width, H = canvas.height, groundY = Math.round(H * 0.77);
+  // Guarantee solid base fill so stream never has transparent/black alpha frames
+  ctx.fillStyle = '#fef3c7';
+  ctx.fillRect(0, 0, W, H);
+
   const charScale = H < 800 ? 0.74 : 0.96;
   const cam = currentScene.camera || 'normal';
   const gag = currentScene.gag || 'none';
@@ -972,12 +988,6 @@ function drawCurrentFrameToCanvas() {
   drawSmearLines();
   ctx.restore();
   drawCaptions(currentScene.text, currentScene.char || 'hero');
-}
-
-let activeRecorderFrameHook = null;
-function renderLoop() {
-  drawCurrentFrameToCanvas();
-  if (activeRecorderFrameHook) activeRecorderFrameHook();
   requestAnimationFrame(renderLoop);
 }
 renderLoop();
@@ -1146,120 +1156,57 @@ function playAudioOnce(audioBuffer, char = "hero") {
 }
 
 // =========================================================================
-// AGENT 5: EDITOR & H.264 MP4 EXPORTER (RAW RGBA VIDEOFRAME FIX)
+// AGENT 5: EDITOR & NATIVE COMPOSITOR VIDEO RECORDER (100% BLACK-SCREEN FREE)
 // =========================================================================
-async function createBulletproofRecorder(audioList) {
-  const W = canvas.width, H = canvas.height;
-  const sr = (audioCtx && audioCtx.sampleRate) ? audioCtx.sampleRate : 44100;
+async function createBulletproofRecorder() {
+  const canvasStream = canvas.captureStream(30);
+  const videoTrack = canvasStream.getVideoTracks()[0];
+  const audioTracks = destNode ? destNode.stream.getAudioTracks() : [];
+  const combined = new MediaStream([videoTrack, ...audioTracks]);
 
-  if (typeof Mp4Muxer !== 'undefined' && typeof VideoEncoder !== 'undefined' && typeof AudioEncoder !== 'undefined') {
-    try {
-      const muxer = new Mp4Muxer.Muxer({
-        target: new Mp4Muxer.ArrayBufferTarget(),
-        video: { codec: 'avc', width: W, height: H },
-        audio: { codec: 'aac', numberOfChannels: 1, sampleRate: sr },
-        fastStart: 'in-memory'
-      });
+  const candidates = [
+    { mime: 'video/mp4;codecs=avc1,mp4a.40.2', ext: 'mp4' },
+    { mime: 'video/mp4', ext: 'mp4' },
+    { mime: 'video/webm;codecs=vp8,opus', ext: 'webm' },
+    { mime: 'video/webm', ext: 'webm' }
+  ];
 
-      const videoEncoder = new VideoEncoder({
-        output: (c, m) => muxer.addVideoChunk(c, m),
-        error: (e) => console.error('VideoEncoder error:', e)
-      });
-      videoEncoder.configure({
-        codec: 'avc1.42001f',
-        width: W,
-        height: H,
-        bitrate: 2_500_000,
-        framerate: 30,
-        avc: { format: 'avc' }
-      });
-
-      const audioEncoder = new AudioEncoder({
-        output: (c, m) => muxer.addAudioChunk(c, m),
-        error: (e) => console.error('AudioEncoder error:', e)
-      });
-      audioEncoder.configure({ codec: 'mp4a.40.2', numberOfChannels: 1, sampleRate: sr, bitrate: 128_000 });
-
-      let audioTimestampUs = 0;
-      for (const buf of audioList) {
-        const safeBuf = (buf && buf.sampleRate) ? buf : createSilentBuffer(2.0);
-        const pcm = safeBuf.getChannelData(0);
-        const chunkSize = 1024;
-        for (let offset = 0; offset < pcm.length; offset += chunkSize) {
-          const len = Math.min(chunkSize, pcm.length - offset);
-          const slice = pcm.subarray(offset, offset + len);
-          const audioData = new AudioData({
-            format: 'f32',
-            sampleRate: safeBuf.sampleRate,
-            numberOfFrames: len,
-            numberOfChannels: 1,
-            timestamp: audioTimestampUs,
-            data: slice
-          });
-          audioEncoder.encode(audioData);
-          audioData.close();
-          audioTimestampUs += Math.round((len / safeBuf.sampleRate) * 1_000_000);
-        }
-      }
-
-      const startTime = performance.now();
-      let frameIdx = 0;
-      let lastCaptureTime = 0;
-      let isRecording = true;
-
-      activeRecorderFrameHook = () => {
-        if (!isRecording || videoEncoder.state !== 'configured') return;
-        const now = performance.now();
-        if (now - lastCaptureTime < 32) return;
-        lastCaptureTime = now;
-
-        if (videoEncoder.encodeQueueSize > 8) return;
-
-        const imgData = ctx.getImageData(0, 0, W, H);
-        const timestampUs = Math.round((now - startTime) * 1000);
-        const frame = new VideoFrame(imgData.data, {
-          format: 'RGBA',
-          codedWidth: W,
-          codedHeight: H,
-          timestamp: timestampUs
-        });
-        videoEncoder.encode(frame, { keyFrame: frameIdx % 60 === 0 });
-        frame.close();
-        frameIdx++;
-      };
-
-      return {
-        stop: async () => {
-          isRecording = false;
-          activeRecorderFrameHook = null;
-          await videoEncoder.flush();
-          await audioEncoder.flush();
-          muxer.finalize();
-          const secs = Math.max(1, Math.round((performance.now() - startTime) / 1000));
-          return { blob: new Blob([muxer.target.buffer], { type: 'video/mp4' }), ext: 'mp4', secs };
-        }
-      };
-    } catch (e) {
-      activeRecorderFrameHook = null;
-      console.warn('MP4 WebCodecs fallback:', e);
+  let chosen = { mime: '', ext: 'webm' };
+  for (const c of candidates) {
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(c.mime)) {
+      chosen = c;
+      break;
     }
   }
 
-  const canvasStream = canvas.captureStream(30);
-  const audioTracks = destNode ? destNode.stream.getAudioTracks() : [];
-  const combined = new MediaStream([...canvasStream.getVideoTracks(), ...audioTracks]);
-  const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus') ? 'video/webm;codecs=vp8,opus' : 'video/webm';
-  const rec = new MediaRecorder(combined, { mimeType: mime });
+  const options = chosen.mime
+    ? { mimeType: chosen.mime, videoBitsPerSecond: 3_000_000 }
+    : { videoBitsPerSecond: 3_000_000 };
+
+  const rec = new MediaRecorder(combined, options);
   const chunks = [];
   const startTime = performance.now();
-  rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-  rec.start(200);
+
+  rec.ondataavailable = (e) => {
+    if (e.data && e.data.size > 0) chunks.push(e.data);
+  };
+
+  // Push frame tick explicitly every 33ms so Android stream never stalls
+  const pump = setInterval(() => {
+    if (videoTrack && typeof videoTrack.requestFrame === 'function') {
+      videoTrack.requestFrame();
+    }
+  }, 33);
+
+  rec.start(250);
 
   return {
     stop: () => new Promise((resolve) => {
+      clearInterval(pump);
       rec.onstop = () => {
         const secs = Math.max(1, Math.round((performance.now() - startTime) / 1000));
-        resolve({ blob: new Blob(chunks, { type: 'video/webm' }), ext: 'webm', secs });
+        const finalType = chosen.ext === 'mp4' ? 'video/mp4' : 'video/webm';
+        resolve({ blob: new Blob(chunks, { type: finalType }), ext: chosen.ext, secs });
       };
       rec.stop();
     })
@@ -1298,7 +1245,7 @@ async function renderSinglePart(scenes, partNum, totalParts, recordVideo = true,
   }
 
   setCrewState('editor', 'active');
-  let recorderSession = recordVideo ? await createBulletproofRecorder(audioList) : null;
+  let recorderSession = recordVideo ? await createBulletproofRecorder() : null;
   startComedyBGM();
   for (let i = 0; i < litScenes.length; i++) {
     currentScene = litScenes[i];
@@ -1310,7 +1257,7 @@ async function renderSinglePart(scenes, partNum, totalParts, recordVideo = true,
   stopComedyBGM();
 
   if (recorderSession) {
-    setStatus(`📦 [Editor] Rendering Final MP4 ${partLabel}...`);
+    setStatus(`📦 [Editor] Saving Final Video ${partLabel}...`);
     const { blob, ext, secs } = await recorderSession.stop();
     setCrewState('editor', 'done');
     const fname = `storytoon_part${partNum}of${totalParts}_${secs}s.${ext}`;
@@ -1320,10 +1267,10 @@ async function renderSinglePart(scenes, partNum, totalParts, recordVideo = true,
       downloadLink.download = fname;
       downloadLink.classList.remove('hidden');
     }
-    return { secs, sizeKB: Math.round(blob.size / 1024) };
+    return { secs, sizeKB: Math.round(blob.size / 1024), ext };
   }
   setCrewState('editor', 'done');
-  return { secs: 0, sizeKB: 0 };
+  return { secs: 0, sizeKB: 0, ext: 'mp4' };
 }
 
 // 🎬 ACTION!
@@ -1349,8 +1296,8 @@ document.getElementById('oneClickAutoBtn').onclick = async () => {
       renderMicControls();
       prevEnding = scenes.slice(-2).map(s => s.text).join(' ');
 
-      const { secs, sizeKB } = await renderSinglePart(scenes, part, totalParts, true, true);
-      setStatus(`✅ Part ${part}/${totalParts} Wrapped! (${secs}s • ${sizeKB} KB MP4)`);
+      const { secs, sizeKB, ext } = await renderSinglePart(scenes, part, totalParts, true, true);
+      setStatus(`✅ Part ${part}/${totalParts} Wrapped! (${secs}s • ${sizeKB} KB ${ext.toUpperCase()})`);
       if (part < totalParts) await sleep(1500);
     }
     setStatus(`🎉 IT'S A WRAP! All ${totalParts} Episode(s) produced & saved in Downloads!`);
@@ -1381,8 +1328,8 @@ document.getElementById('playRecordBtn').onclick = async () => {
   try { scenes = JSON.parse(scriptEditor.value); } catch { return setStatus('Invalid JSON script!'); }
   isPlayingSequence = true; initAudio();
   try {
-    const { secs, sizeKB } = await renderSinglePart(scenes, 1, 1, true, true);
-    setStatus(`✅ Exported MP4 (${secs}s • ${sizeKB} KB)!`);
+    const { secs, sizeKB, ext } = await renderSinglePart(scenes, 1, 1, true, true);
+    setStatus(`✅ Exported ${ext.toUpperCase()} (${secs}s • ${sizeKB} KB)!`);
   } catch (err) { setStatus(`Error: ${err.message}`); }
   finally { isPlayingSequence = false; }
 };
