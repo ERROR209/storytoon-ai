@@ -6,6 +6,7 @@ const topicInput = document.getElementById('topicInput');
 const formatSelect = document.getElementById('formatSelect');
 const episodeModeSelect = document.getElementById('episodeModeSelect');
 const toneSelect = document.getElementById('toneSelect');
+const voiceEngineSelect = document.getElementById('voiceEngineSelect');
 const scriptEditor = document.getElementById('scriptEditor');
 const statusBar = document.getElementById('statusBar');
 const downloadLink = document.getElementById('downloadLink');
@@ -14,6 +15,19 @@ apiKeyInput.value = localStorage.getItem('gemini_api_key') || '';
 apiKeyInput.addEventListener('change', () => {
   localStorage.setItem('gemini_api_key', apiKeyInput.value.trim());
 });
+
+function setCrewState(role, state) {
+  const roles = ['writer', 'director', 'light', 'sound', 'editor'];
+  if (role === 'reset') {
+    roles.forEach(r => {
+      const el = document.getElementById(`crew-${r}`);
+      if (el) el.className = 'crew-chip';
+    });
+    return;
+  }
+  const el = document.getElementById(`crew-${role}`);
+  if (el) el.className = `crew-chip ${state}`;
+}
 
 function applyFormat() {
   canvas.style.width = '100%';
@@ -34,11 +48,11 @@ formatSelect.addEventListener('change', applyFormat);
 applyFormat();
 
 const DEMO_SCRIPT = [
-  { char: "hero", other: "bro", emotion: "normal", otherEmotion: "normal", pose: "normal", action: "idle", location: "room", camera: "normal", gag: "none", prop: "none", power: "none", sfx: "none", text: "Bhai kal exam hai aur maine abhi tak kitaab kholi bhi nahi!" },
-  { char: "bro", other: "hero", emotion: "smug", otherEmotion: "sweat", pose: "lean", action: "idle", location: "room", camera: "in", gag: "none", prop: "none", power: "none", sfx: "vine", text: "Chinta mat kar bhai, raat bhar mein poora syllabus khatam kar denge!" },
-  { char: "hero", other: "bro", emotion: "cursed", otherEmotion: "shocked", pose: "normal", action: "idle", location: "room", camera: "normal", gag: "none", prop: "phone", power: "none", sfx: "bonk", text: "Par pehle bas 5 minute phone pe ek short dekh leta hoon!" },
-  { char: "mom", other: "hero", emotion: "angry", otherEmotion: "sweat", pose: "normal", action: "walk", location: "room", camera: "in", gag: "none", prop: "none", power: "aura", sfx: "boom", text: "Subah ke 4 baj gaye aur tum dono abhi tak phone chala rahe ho?!" },
-  { char: "hero", other: "mom", emotion: "sweat", otherEmotion: "angry", pose: "bonk", action: "idle", location: "room", camera: "zoomout", gag: "lagg_gaye", prop: "none", power: "none", sfx: "sting", text: "Ab toh sach mein lagg gaye guru, exam hall mein kya likhenge!" }
+  { char: "hero", other: "bro", emotion: "normal", otherEmotion: "normal", pose: "normal", action: "idle", location: "room", lighting: "warm", camera: "normal", gag: "none", prop: "none", power: "none", sfx: "none", text: "Bhai kal exam hai aur maine abhi tak kitaab kholi bhi nahi!" },
+  { char: "bro", other: "hero", emotion: "smug", otherEmotion: "sweat", pose: "lean", action: "idle", location: "room", lighting: "warm", camera: "in", gag: "none", prop: "none", power: "none", sfx: "vine", text: "Chinta mat kar bhai, raat bhar mein poora syllabus khatam kar denge!" },
+  { char: "hero", other: "bro", emotion: "cursed", otherEmotion: "shocked", pose: "normal", action: "idle", location: "room", lighting: "night", camera: "normal", gag: "none", prop: "phone", power: "none", sfx: "bonk", text: "Par pehle bas 5 minute phone pe ek short dekh leta hoon!" },
+  { char: "mom", other: "hero", emotion: "angry", otherEmotion: "sweat", pose: "normal", action: "walk", location: "room", lighting: "dramatic", camera: "in", gag: "none", prop: "none", power: "aura", sfx: "boom", text: "Subah ke 4 baj gaye aur tum dono abhi tak phone chala rahe ho?!" },
+  { char: "hero", other: "mom", emotion: "sweat", otherEmotion: "angry", pose: "bonk", action: "idle", location: "room", lighting: "spotlight", camera: "zoomout", gag: "lagg_gaye", prop: "none", power: "none", sfx: "sting", text: "Ab toh sach mein lagg gaye guru, exam hall mein kya likhenge!" }
 ];
 scriptEditor.value = JSON.stringify(DEMO_SCRIPT, null, 2);
 
@@ -59,17 +73,16 @@ let activeMediaRecorder = null;
 let recordingSceneIdx = -1;
 
 function renderMicControls() {
-  micPanel.innerHTML = '<div style="font-size:0.75rem;color:#94a3b8;font-weight:700;margin-top:4px;">🎙️ Optional: Apni Real Voice Record Karo</div>';
+  micPanel.innerHTML = '<div style="font-size:0.74rem;color:#94a3b8;font-weight:700;margin-top:4px;">🎙️ Dubbing Booth: Apni Voice Record Karo (Optional)</div>';
   let scenes = [];
   try { scenes = JSON.parse(scriptEditor.value); } catch { return; }
 
   scenes.forEach((sc, idx) => {
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:#0f1117;padding:6px 8px;border-radius:8px;border:1px solid #2a2f3d;gap:6px;';
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:#0b0e14;padding:6px 8px;border-radius:8px;border:1px solid #262c3d;gap:6px;';
     const label = document.createElement('span');
-    label.style.cssText = 'font-size:0.72rem;color:#e2e8f0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
-    const tag = sc.gag && sc.gag !== 'none' ? `GAG:${sc.gag}` : (sc.camera || 'normal');
-    label.textContent = `${idx + 1}. [${sc.char.toUpperCase()}] (${tag}) ${sc.text}`;
+    label.style.cssText = 'font-size:0.71rem;color:#e2e8f0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    label.textContent = `${idx + 1}. [${sc.char.toUpperCase()} • ${sc.camera || 'normal'}/${sc.lighting || 'day'}] ${sc.text}`;
 
     const btn = document.createElement('button');
     btn.className = 'btn tiny';
@@ -86,7 +99,7 @@ function renderMicControls() {
         activeMediaRecorder = new MediaRecorder(stream);
         recordingSceneIdx = idx;
         renderMicControls();
-        setStatus(`🎙️ Recording Scene ${idx + 1}...`);
+        setStatus(`🎙️ Dubbing Scene ${idx + 1}...`);
         activeMediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
         activeMediaRecorder.onstop = async () => {
           stream.getTracks().forEach(t => t.stop());
@@ -108,10 +121,10 @@ document.getElementById('loadDemoBtn').onclick = () => {
   scriptEditor.value = JSON.stringify(DEMO_SCRIPT, null, 2);
   cachedScriptHash = '';
   renderMicControls();
-  setStatus('Clean Exam Story Demo loaded!');
+  setStatus('Film Crew Demo loaded!');
 };
 
-// Web Audio Engine
+// Web Audio Engine + Foley SFX
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null, destNode = null, analyser = null, dataArray = null, bgmGain = null, bgmInterval = null;
 let isPlayingSequence = false;
@@ -210,58 +223,13 @@ function playSFX(type) {
 }
 
 // =========================================================================
-// SMART CONTEXT SANITIZER (Prevents random irrelevant trains, cars, or angles!)
+// VIRTUAL FILM CREW PIPELINE (Multi-Agent Pre-Production!)
+// Agent 1: Scriptwriter -> Agent 2: Director & DOP -> Agent 3: Lightman
 // =========================================================================
-function sanitizeSceneVisuals(scenes) {
-  let topCount = 0;
-  return scenes.map((sc) => {
-    const txt = (sc.text || '').toLowerCase();
-    const cleaned = { ...sc };
-
-    // 1. Only allow special visual gags if the dialogue actually mentions them!
-    if (cleaned.gag === 'train_crowd' && !/train|station|metro|local|dabba|bheed/.test(txt)) {
-      cleaned.gag = 'none';
-    }
-    if (cleaned.gag === 'gali_alto' && !/car|alto|gaadi|gali|traffic|jam/.test(txt)) {
-      cleaned.gag = 'none';
-    }
-    if (cleaned.gag === 'tyre_run' && !/tyre|chakka|bachpan|cycle/.test(txt)) {
-      cleaned.gag = 'none';
-    }
-    if (cleaned.gag === 'chai_kaand' && !/chai|rasgulla|mithai|dukaan|samosa|khana/.test(txt)) {
-      cleaned.gag = 'none';
-    }
-    if (cleaned.gag === 'lagg_gaye' && !/lagg|gaye|phas|pakda|mummy|papa|teacher|fail|kaand|katam|khatam/.test(txt)) {
-      cleaned.gag = 'none';
-    }
-
-    // 2. Only allow props if dialogue mentions them!
-    if (cleaned.prop === 'car' && !/car|alto|gaadi|drive/.test(txt)) cleaned.prop = 'none';
-    if (cleaned.prop === 'train' && !/train|station|metro/.test(txt)) cleaned.prop = 'none';
-    if (cleaned.prop === 'chai' && !/chai|tea|rasgulla|dukaan/.test(txt)) cleaned.prop = 'none';
-    if (cleaned.prop === 'tyre' && !/tyre|chakka|wheel/.test(txt)) cleaned.prop = 'none';
-    if (cleaned.prop === 'phone' && !/phone|mobile|reel|video|game|call|message/.test(txt)) cleaned.prop = 'none';
-
-    // 3. Only allow "top" (bird's-eye) camera outdoors when running/chasing/street chaos, max 1-2 times!
-    const isOutdoor = ['street', 'shehar', 'park', 'gaon', 'jungle'].includes(cleaned.location);
-    const hasTopContext = /bhaag|daud|gali|road|sadak|upar|traffic|chase|piche/.test(txt);
-    if (cleaned.camera === 'top') {
-      if (!isOutdoor || !hasTopContext || topCount >= 2) {
-        cleaned.camera = 'normal';
-      } else {
-        topCount++;
-      }
-    }
-
-    return cleaned;
-  });
-}
-
-// Resilient Gemini Script Generator (Strictly Context-Driven Visuals)
-async function getAvailableTextModels(key) {
+async function getBestGeminiModel(key) {
   try {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 10000);
+    const timer = setTimeout(() => ctrl.abort(), 8000);
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`, { signal: ctrl.signal });
     clearTimeout(timer);
     if (!res.ok) return ['gemini-3.8-flash', 'gemini-3.0-flash', 'gemini-2.0-flash'];
@@ -270,73 +238,151 @@ async function getAvailableTextModels(key) {
       .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
       .map(m => m.name.replace('models/', ''))
       .filter(name => name.includes('flash') && !name.includes('tts') && !name.includes('image') && !name.includes('audio'));
-    live.sort((a, b) => (b.includes('lite') ? 1 : 0) - (a.includes('lite') ? 1 : 0));
     return live.length > 0 ? live : ['gemini-3.8-flash', 'gemini-3.0-flash'];
   } catch {
     return ['gemini-3.8-flash', 'gemini-3.0-flash', 'gemini-2.0-flash'];
   }
 }
 
-async function fetchPartScriptFromGemini(key, topic, partNum, totalParts, prevEnding) {
-  const continuationNote = partNum > 1
-    ? `Part ${partNum} of ${totalParts}. Continue seamlessly from: "${prevEnding}".`
-    : (totalParts > 1 ? `Part 1 of ${totalParts}-part story. End on a funny cliffhanger!` : `Complete funny story with punchy ending.`);
-
-  const prompt = `Viral Indian animated story creator ("NOT YOUR TYPE" style). Write a 9-line Hinglish script strictly about: "${topic}". Genre: ${toneSelect.value}. ${continuationNote}
-
-STRICT VISUAL RULES (DO NOT ADD RANDOM UNRELATED OBJECTS!):
-1. Keep 80% of scenes simple and clean with camera="normal" or "in" (close-up), gag="none", and prop="none".
-2. NEVER force trains, cars, tyres, or top-down angles unless the dialogue line ACTUALLY talks about them!
-3. Characters: "hero", "bro", "villain", "npc", "mom" (only if home/family).
-4. Emotions: "normal", "shocked", "smug", "angry", "crying", "dead", "shadow", "cursed" (funny derpy meme face), "sweat".
-5. Poses: "normal" (default), "lean" (punchline close lean), "fly" (only if knocked back/flying), "bonk" (only if hit/defeated).
-6. Locations: "room", "park", "street", "gaon", "jungle", "dramatic", "red" (keep location consistent with the story!).
-7. Camera: "normal" (default), "in" (dramatic close-up), "zoomout" (only for "lagg gaye" / trapped moment), "top" (ONLY if outdoor street/park chase or traffic), "shake" (only on impact).
-8. Gag: "none" (default). ONLY use "train_crowd", "gali_alto", "tyre_run", "chai_kaand", or "lagg_gaye" if the dialogue line literally describes that exact situation!
-9. Prop: "none" (default). ONLY use "phone", "chai", "car", "train", or "tyre" if mentioned in that line.
-10. Superpowers: "none" (default unless action/anime fight topic: "energy", "fire", "lightning", "aura").
-11. SFX: "none", "bonk", "vine", "sting", "boom", "slap", "gasp" (use sparingly for punchlines).
-
-Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"normal","otherEmotion":"normal","pose":"normal","action":"idle","location":"room","camera":"normal","gag":"none","prop":"none","power":"none","sfx":"none","text":"8-13 words natural Hinglish"}].`;
-
-  const models = await getAvailableTextModels(key);
+async function callGeminiAgent(key, models, prompt, temp = 0.8) {
   let lastErr = 'Server busy';
-
-  for (let attempt = 0; attempt < 2; attempt++) {
-    for (const model of models.slice(0, 8)) {
-      try {
-        setStatus(`⚡ Writing Part ${partNum}/${totalParts} (${model})...`);
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 45000);
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: ctrl.signal,
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json", temperature: 0.82 }
-          })
-        });
-        clearTimeout(timer);
-        const data = await res.json();
-        if (!res.ok) { lastErr = data.error?.message || `HTTP ${res.status}`; await sleep(800); continue; }
-        let raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        const sIdx = raw.indexOf('['), eIdx = raw.lastIndexOf(']');
-        if (sIdx === -1 || eIdx === -1) { lastErr = 'Invalid JSON'; continue; }
-        const parsed = JSON.parse(raw.slice(sIdx, eIdx + 1));
-        return sanitizeSceneVisuals(parsed);
-      } catch (err) {
-        lastErr = err.name === 'AbortError' ? `${model} timed out` : err.message;
-        await sleep(800);
-      }
+  for (const model of models.slice(0, 6)) {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 40000);
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: "application/json", temperature: temp }
+        })
+      });
+      clearTimeout(timer);
+      const data = await res.json();
+      if (!res.ok) { lastErr = data.error?.message || `HTTP ${res.status}`; await sleep(600); continue; }
+      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const sIdx = raw.indexOf('['), eIdx = raw.lastIndexOf(']');
+      if (sIdx === -1 || eIdx === -1) { lastErr = 'Invalid JSON'; continue; }
+      return JSON.parse(raw.slice(sIdx, eIdx + 1));
+    } catch (err) {
+      lastErr = err.name === 'AbortError' ? `${model} timed out` : err.message;
+      await sleep(600);
     }
-    await sleep(2000);
   }
   throw new Error(lastErr);
 }
 
+// AGENT 1: SCRIPTWRITER (Writes pure story + dialogue, NO camera/props noise)
+async function runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding) {
+  setCrewState('writer', 'active');
+  setStatus(`✍️ [1/3 Scriptwriter] Writing funny Hinglish dialogues (Part ${partNum}/${totalParts})...`);
+  const cont = partNum > 1
+    ? `Continue seamlessly from: "${prevEnding}".`
+    : (totalParts > 1 ? `Part 1 of ${totalParts}. End on a funny cliffhanger!` : `Complete story with a punchy ending.`);
+
+  const prompt = `You are a Bollywood & YouTube comedy Scriptwriter ("NOT YOUR TYPE" style).
+Write an 8-line funny Hinglish script about: "${topic}". Genre: ${toneSelect.value}. ${cont}
+Focus ONLY on natural comedy dialogues, pacing, and character emotions—DO NOT add random trains or cars unless the topic is about them.
+Characters: "hero", "bro", "mom" (only if family/home), "villain" (only if rival/antagonist), "npc".
+Emotions: "normal", "shocked", "smug", "angry", "crying", "cursed" (derpy meme face), "sweat", "dead".
+Location: pick ONE primary setting ("room", "park", "street", "gaon", "jungle").
+Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"normal","otherEmotion":"normal","location":"room","text":"8-13 words natural Hinglish"}]`;
+
+  const draft = await callGeminiAgent(key, models, prompt, 0.88);
+  setCrewState('writer', 'done');
+  return draft;
+}
+
+// AGENT 2: DIRECTOR & CAMERAMAN (DOP) (Adds camera shots, poses & context-matched props)
+async function runDirectorDOPAgent(key, models, draftScript) {
+  setCrewState('director', 'active');
+  setStatus(`🎥 [2/3 Director & Cameraman] Planning camera angles, poses & props...`);
+
+  const prompt = `You are the Film Director & Cameraman (DOP). Take this dialogue script and add camera shots, character poses, props, and SFX.
+STRICT RULE: Keep 75% of shots clean ("camera":"normal" or "in", "gag":"none", "prop":"none").
+ONLY use a special "gag" or "prop" or "top" camera if the dialogue line LITERALLY talks about it!
+- camera: "normal" (eye-level), "in" (dramatic close-up on punchline), "zoomout" (lonely "lagg gaye" moment), "top" (bird's-eye view ONLY if outdoor street/park chase/traffic), "shake" (impact).
+- pose: "normal", "lean" (punchline close lean), "fly" (knocked in air), "bonk" (hit/defeated).
+- action: "idle", "walk", "run".
+- gag: "none" (default), "train_crowd" (ONLY if dialogue mentions train/crowd), "gali_alto" (ONLY if car stuck in gali), "tyre_run" (ONLY if rolling tyre), "chai_kaand" (ONLY if chai/rasgulla), "lagg_gaye" (ONLY if trapped/caught/doomed).
+- prop: "none" (default), "phone", "chai", "car", "train", "tyre" (ONLY if mentioned in that dialogue line).
+- power: "none" (default, or "energy", "fire", "lightning", "aura" if superpower/anger).
+- sfx: "none", "bonk", "vine", "sting", "boom", "slap", "gasp".
+
+Script to direct:
+${JSON.stringify(draftScript)}
+
+Return the SAME array with these fields added to every object. JSON ONLY.`;
+
+  const directed = await callGeminiAgent(key, models, prompt, 0.55);
+  setCrewState('director', 'done');
+  return directed;
+}
+
+// AGENT 3: LIGHTMAN / GAFFER (Sets mood lighting for every shot!)
+function runLightmanAgent(directedScenes) {
+  setCrewState('light', 'active');
+  setStatus(`💡 [3/3 Lightman] Setting scene lighting & atmosphere...`);
+
+  let topCount = 0;
+  const litScenes = directedScenes.map((sc) => {
+    const txt = (sc.text || '').toLowerCase();
+    const s = { ...sc };
+
+    // Hard safety guard against off-topic gags/props
+    if (s.gag === 'train_crowd' && !/train|station|metro|local|dabba|bheed/.test(txt)) s.gag = 'none';
+    if (s.gag === 'gali_alto' && !/car|alto|gaadi|gali|traffic|jam/.test(txt)) s.gag = 'none';
+    if (s.gag === 'tyre_run' && !/tyre|chakka|bachpan|cycle/.test(txt)) s.gag = 'none';
+    if (s.gag === 'chai_kaand' && !/chai|rasgulla|mithai|dukaan|samosa/.test(txt)) s.gag = 'none';
+    if (s.gag === 'lagg_gaye' && !/lagg|gaye|phas|pakda|mummy|papa|teacher|fail|kaand|khatam/.test(txt)) s.gag = 'none';
+
+    if (s.prop === 'car' && !/car|alto|gaadi|drive/.test(txt)) s.prop = 'none';
+    if (s.prop === 'train' && !/train|station|metro/.test(txt)) s.prop = 'none';
+    if (s.prop === 'chai' && !/chai|tea|rasgulla|dukaan/.test(txt)) s.prop = 'none';
+    if (s.prop === 'tyre' && !/tyre|chakka|wheel/.test(txt)) s.prop = 'none';
+    if (s.prop === 'phone' && !/phone|mobile|reel|video|game|call/.test(txt)) s.prop = 'none';
+
+    const isOutdoor = ['street', 'shehar', 'park', 'gaon', 'jungle'].includes(s.location);
+    if (s.camera === 'top') {
+      if (!isOutdoor || !/bhaag|daud|gali|road|sadak|upar|traffic|chase/.test(txt) || topCount >= 2) {
+        s.camera = 'normal';
+      } else {
+        topCount++;
+      }
+    }
+
+    // Lightman assigns mood lighting based on time/emotion/location
+    if (s.gag === 'lagg_gaye' || s.camera === 'zoomout') {
+      s.lighting = 'spotlight';
+    } else if (/raat|night|4 baj|2 baj|andhera|soja/.test(txt) || s.location === 'jungle') {
+      s.lighting = 'night';
+    } else if (s.emotion === 'angry' || s.char === 'villain' || s.power !== 'none') {
+      s.lighting = 'dramatic';
+    } else if (s.location === 'room') {
+      s.lighting = 'warm';
+    } else {
+      s.lighting = 'daylight';
+    }
+    return s;
+  });
+
+  setCrewState('light', 'done');
+  return litScenes;
+}
+
+async function runPreProductionCrew(key, topic, partNum, totalParts, prevEnding) {
+  setCrewState('reset');
+  const models = await getBestGeminiModel(key);
+  const draft = await runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding);
+  const directed = await runDirectorDOPAgent(key, models, draft);
+  const finalShotList = runLightmanAgent(directed);
+  return finalShotList;
+}
+
 // =========================================================================
-// STAGE RENDERER
+// STAGE RENDERER (With Lightman Mood Lighting Overlay + Visual Gags)
 // =========================================================================
 let currentScene = DEMO_SCRIPT[0];
 let mouthOpen = 0, frameTick = 0, smearTimer = 0, blinkTimer = 0;
@@ -344,9 +390,7 @@ let mouthOpen = 0, frameTick = 0, smearTimer = 0, blinkTimer = 0;
 const paperPatternCanvas = document.createElement('canvas');
 paperPatternCanvas.width = 160; paperPatternCanvas.height = 160;
 const pCtx = paperPatternCanvas.getContext('2d');
-pCtx.fillStyle = 'rgba(0,0,0,0)';
-pCtx.fillRect(0, 0, 160, 160);
-for (let i = 0; i < 320; i++) {
+for (let i = 0; i < 300; i++) {
   pCtx.fillStyle = i % 2 === 0 ? 'rgba(15,23,42,0.025)' : 'rgba(255,255,255,0.04)';
   pCtx.fillRect(Math.random() * 160, Math.random() * 160, 2, 2);
 }
@@ -360,11 +404,37 @@ function applySketchTexture() {
   ctx.restore();
 }
 
+// Lightman Stage Lighting Pass!
+function applyLightmanMood(lighting) {
+  const W = canvas.width, H = canvas.height;
+  ctx.save();
+  if (lighting === 'night') {
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.34)';
+    ctx.fillRect(0, 0, W, H);
+    // Warm lamp/phone glow in center
+    const g = ctx.createRadialGradient(W * 0.45, H * 0.55, 30, W * 0.45, H * 0.55, W * 0.65);
+    g.addColorStop(0, 'rgba(56, 189, 248, 0.14)');
+    g.addColorStop(1, 'rgba(2, 6, 23, 0.45)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  } else if (lighting === 'dramatic') {
+    const g = ctx.createRadialGradient(W * 0.5, H * 0.45, W * 0.15, W * 0.5, H * 0.45, W * 0.75);
+    g.addColorStop(0, 'rgba(239, 68, 68, 0.08)');
+    g.addColorStop(1, 'rgba(15, 23, 42, 0.48)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  } else if (lighting === 'warm') {
+    ctx.fillStyle = 'rgba(251, 191, 36, 0.08)';
+    ctx.fillRect(0, 0, W, H);
+  }
+  ctx.restore();
+}
+
 function drawSmearLines() {
   if (smearTimer <= 0) return;
   const W = canvas.width, H = canvas.height;
   ctx.save();
-  ctx.strokeStyle = 'rgba(15, 23, 42, 0.32)';
+  ctx.strokeStyle = 'rgba(15, 23, 42, 0.3)';
   ctx.lineWidth = 5;
   for (let i = 0; i < 10; i++) {
     const y = (H / 10) * i + 25;
@@ -382,13 +452,11 @@ function drawFullScreenVisualGag(gag, talkAmt) {
     ctx.fillStyle = '#fef08a'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#1d4ed8'; ctx.fillRect(0, 0, W, H * 0.16);
     ctx.fillStyle = '#1e293b'; ctx.fillRect(0, H * 0.84, W, H * 0.16);
-
     ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 6;
     for (let sx = W * 0.2; sx <= W * 0.8; sx += W * 0.2) {
       ctx.beginPath(); ctx.moveTo(sx, H * 0.16); ctx.lineTo(sx + shake, H * 0.28); ctx.stroke();
       ctx.beginPath(); ctx.arc(sx + shake, H * 0.30, 14, 0, Math.PI * 2); ctx.stroke();
     }
-
     const crowdColors = ['#94a3b8', '#fde68a', '#ffffff', '#fecaca', '#e2e8f0', '#fed7aa', '#ffffff'];
     for (let i = 0; i < 7; i++) {
       const cx = (W * 0.14) + i * (W * 0.12) + Math.sin(frameTick * 0.4 + i) * 7;
@@ -403,8 +471,6 @@ function drawFullScreenVisualGag(gag, talkAmt) {
       ctx.fillStyle = '#0f172a';
       ctx.beginPath(); ctx.arc(cx - 10, cy - 8, 4, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(cx + 14, cy - 8, 4, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#38bdf8';
-      ctx.beginPath(); ctx.arc(cx + 28, cy - 35 - ((frameTick * 3 + i * 10) % 30), 6, 0, Math.PI * 2); ctx.fill();
     }
     return true;
   }
@@ -415,14 +481,10 @@ function drawFullScreenVisualGag(gag, talkAmt) {
     ctx.fillStyle = '#b91c1c'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 7;
     ctx.fillRect(0, 0, wallW, H); ctx.strokeRect(-5, -5, wallW + 5, H + 10);
     ctx.fillRect(W - wallW, 0, wallW, H); ctx.strokeRect(W - wallW, -5, wallW + 5, H + 10);
-
     const carW = W - wallW * 2 + 12;
     const carX = W * 0.5 + Math.sin(frameTick * 0.9) * 4;
-    const carY = H * 0.48;
     ctx.fillStyle = '#ef4444';
-    ctx.beginPath(); ctx.roundRect(carX - carW * 0.5, carY - 135, carW, 270, 26); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#bae6fd';
-    ctx.beginPath(); ctx.roundRect(carX - carW * 0.38, carY - 75, carW * 0.76, 52, 10); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(carX - carW * 0.5, H * 0.48 - 135, carW, 270, 26); ctx.fill(); ctx.stroke();
     return true;
   }
 
@@ -432,17 +494,11 @@ function drawFullScreenVisualGag(gag, talkAmt) {
     ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
     const floorY = H * 0.76;
     ctx.fillStyle = '#d97706'; ctx.fillRect(0, floorY, W, H - floorY);
-    ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 7;
-    ctx.beginPath(); ctx.moveTo(0, floorY); ctx.lineTo(W, floorY); ctx.stroke();
-
     const tyreX = W * 0.68, tyreY = floorY - 58;
     ctx.save(); ctx.translate(tyreX, tyreY); ctx.rotate(frameTick * 0.35);
-    ctx.fillStyle = '#1e293b'; ctx.lineWidth = 8;
+    ctx.fillStyle = '#1e293b'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 8;
     ctx.beginPath(); ctx.arc(0, 0, 58, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#94a3b8';
-    ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.restore();
-
     drawFullBodyCharacter('hero', 'cursed', 'run', 'none', talkAmt, W * 0.36, floorY, H < 800 ? 0.72 : 0.90, true, 1);
     ctx.strokeStyle = '#78350f'; ctx.lineWidth = 10;
     ctx.beginPath(); ctx.moveTo(W * 0.42, floorY - 165); ctx.lineTo(tyreX - 42, tyreY - 12); ctx.stroke();
@@ -457,7 +513,6 @@ function drawFullScreenVisualGag(gag, talkAmt) {
     grad.addColorStop(1, 'rgba(250, 204, 21, 0.08)');
     ctx.fillStyle = grad;
     ctx.beginPath(); ctx.moveTo(W * 0.44, 0); ctx.lineTo(W * 0.56, 0); ctx.lineTo(W * 0.76, floorY); ctx.lineTo(W * 0.24, floorY); ctx.closePath(); ctx.fill();
-
     drawFullBodyCharacter(currentScene.char || 'hero', 'sweat', 'idle', 'none', talkAmt, W * 0.5, floorY, H < 800 ? 0.44 : 0.56, true, 0);
     return true;
   }
@@ -493,20 +548,12 @@ function drawSceneProp(prop, x, y, scale = 1, isTopDown = false) {
 
   if (prop === 'car') {
     if (isTopDown) {
-      ctx.fillStyle = 'rgba(0,0,0,0.25)';
-      ctx.beginPath(); ctx.roundRect(-52, -88, 114, 186, 24); ctx.fill();
       ctx.fillStyle = '#ef4444';
       ctx.beginPath(); ctx.roundRect(-55, -92, 110, 184, 22); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#bae6fd';
-      ctx.beginPath(); ctx.roundRect(-42, -52, 84, 34, 8); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.roundRect(-40, 32, 80, 26, 8); ctx.fill(); ctx.stroke();
     } else {
       ctx.fillStyle = '#ef4444';
       ctx.beginPath(); ctx.roundRect(-110, -75, 220, 55, 14); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.roundRect(-70, -120, 130, 50, 16); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#bae6fd';
-      ctx.fillRect(-55, -110, 45, 34); ctx.strokeRect(-55, -110, 45, 34);
-      ctx.fillRect(5, -110, 42, 34); ctx.strokeRect(5, -110, 42, 34);
       ctx.fillStyle = '#1e293b';
       ctx.beginPath(); ctx.arc(-65, -18, 22, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.arc(65, -18, 22, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -514,27 +561,14 @@ function drawSceneProp(prop, x, y, scale = 1, isTopDown = false) {
   } else if (prop === 'train') {
     ctx.fillStyle = '#eab308';
     ctx.fillRect(-150, -170, 300, 150); ctx.strokeRect(-150, -170, 300, 150);
-    ctx.fillStyle = '#1d4ed8';
-    ctx.fillRect(-150, -110, 300, 32); ctx.strokeRect(-150, -110, 300, 32);
-    ctx.fillStyle = '#bae6fd';
-    for (let wx = -125; wx <= 75; wx += 65) {
-      ctx.fillRect(wx, -152, 44, 32); ctx.strokeRect(wx, -152, 44, 32);
-    }
   } else if (prop === 'chai') {
     ctx.fillStyle = '#b45309';
     ctx.fillRect(-75, -95, 150, 95); ctx.strokeRect(-75, -95, 150, 95);
     ctx.fillStyle = '#facc15';
     ctx.fillRect(-85, -128, 170, 32); ctx.strokeRect(-85, -128, 170, 32);
-    ctx.fillStyle = '#0f172a'; ctx.font = '900 18px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('CHAI & SWEETS', 0, -106); ctx.textAlign = 'left';
   } else if (prop === 'tyre') {
-    const spin = frameTick * 0.25;
-    ctx.save(); ctx.translate(0, -34); ctx.rotate(spin);
     ctx.fillStyle = '#1e293b';
-    ctx.beginPath(); ctx.arc(0, 0, 34, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#94a3b8';
-    ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.restore();
+    ctx.beginPath(); ctx.arc(0, -34, 34, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   } else if (prop === 'phone') {
     ctx.fillStyle = '#1e293b';
     ctx.beginPath(); ctx.roundRect(-28, -95, 56, 95, 10); ctx.fill(); ctx.stroke();
@@ -554,29 +588,16 @@ function drawTopDownScene(scene) {
     ctx.fillStyle = '#22c55e'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#fde68a'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 6;
     ctx.fillRect(W * 0.25, 0, W * 0.5, H); ctx.strokeRect(W * 0.25, -10, W * 0.5, H + 20);
-    for (let ty = -80 + scrollY; ty < H + 100; ty += 220) {
-      ctx.fillStyle = '#15803d';
-      ctx.beginPath(); ctx.arc(W * 0.12, ty, 56, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.arc(W * 0.88, ty + 90, 62, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    }
-  } else if (loc === 'jungle' || loc === 'night') {
-    ctx.fillStyle = '#1e1b4b'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#312e81'; ctx.fillRect(W * 0.28, 0, W * 0.44, H);
   } else {
     ctx.fillStyle = '#475569'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#cbd5e1'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 7;
     ctx.fillRect(-10, -10, W * 0.22 + 10, H + 20); ctx.strokeRect(-10, -10, W * 0.22 + 10, H + 20);
     ctx.fillRect(W * 0.78, -10, W * 0.22 + 10, H + 20); ctx.strokeRect(W * 0.78, -10, W * 0.22 + 10, H + 20);
     ctx.fillStyle = '#facc15';
-    for (let dy = -120 + scrollY; dy < H + 120; dy += 160) {
-      ctx.fillRect(W * 0.5 - 8, dy, 16, 75);
-    }
+    for (let dy = -120 + scrollY; dy < H + 120; dy += 160) ctx.fillRect(W * 0.5 - 8, dy, 16, 75);
   }
 
-  if (scene.prop && scene.prop !== 'none') {
-    drawSceneProp(scene.prop, W * 0.5, H * 0.34, 1.15, true);
-  }
-
+  if (scene.prop && scene.prop !== 'none') drawSceneProp(scene.prop, W * 0.5, H * 0.34, 1.15, true);
   const speaker = scene.char || 'hero';
   const listener = scene.other || (speaker === 'hero' ? 'bro' : 'hero');
   drawTopDownCharacter(listener, W * 0.62, H * 0.64, false, false);
@@ -586,27 +607,15 @@ function drawTopDownScene(scene) {
 function drawTopDownCharacter(char, x, y, isSpeaker, isMoving) {
   const bob = isMoving ? Math.sin(frameTick * 0.35) * 10 : (isSpeaker ? mouthOpen * 6 : 0);
   const colors = { hero: '#3b82f6', bro: '#f59e0b', villain: '#1e293b', mom: '#ec4899', npc: '#10b981' };
-
-  ctx.save();
-  ctx.translate(x, y + bob);
-
+  ctx.save(); ctx.translate(x, y + bob);
   ctx.fillStyle = 'rgba(0,0,0,0.28)';
   ctx.beginPath(); ctx.ellipse(26, 22, 52, 34, 0.35, 0, Math.PI * 2); ctx.fill();
-
-  ctx.fillStyle = colors[char] || '#3b82f6';
-  ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 7;
+  ctx.fillStyle = colors[char] || '#3b82f6'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 7;
   ctx.beginPath(); ctx.ellipse(0, 0, 56, 34, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
   ctx.fillStyle = char === 'bro' ? '#ef4444' : '#0f172a';
   ctx.beginPath(); ctx.arc(0, -4, 34, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
   ctx.fillStyle = '#ffffff';
   ctx.beginPath(); ctx.arc(0, -34, 14, Math.PI, 0); ctx.fill(); ctx.stroke();
-
-  if (isSpeaker) {
-    ctx.strokeStyle = '#facc15'; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.arc(0, 0, 68 + Math.sin(frameTick * 0.3) * 5, 0, Math.PI * 2); ctx.stroke();
-  }
   ctx.restore();
 }
 
@@ -632,38 +641,21 @@ function drawEnvironment(loc, isMoving) {
     const sky = ctx.createLinearGradient(0, 0, 0, floorY);
     sky.addColorStop(0, '#38bdf8'); sky.addColorStop(1, '#bae6fd');
     ctx.fillStyle = sky; ctx.fillRect(0, 0, W, floorY);
-
     drawCloud(((W * 0.2 - scrollX * 0.3) + W) % W, H * 0.14, 1.1);
     drawCloud(((W * 0.72 - scrollX * 0.3) + W) % W, H * 0.20, 0.9);
-
     ctx.fillStyle = '#4ade80';
     ctx.beginPath(); ctx.arc(W * 0.28, floorY + 20, W * 0.5, Math.PI, 0); ctx.fill();
     ctx.fillStyle = '#22c55e';
     ctx.beginPath(); ctx.arc(W * 0.78, floorY + 20, W * 0.55, Math.PI, 0); ctx.fill();
-
     const treeX = ((W * 0.80 - scrollX) + W) % W;
     ctx.fillStyle = '#78350f'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 5;
     ctx.fillRect(treeX - 14, floorY - 150, 28, 150); ctx.strokeRect(treeX - 14, floorY - 150, 28, 150);
     ctx.fillStyle = '#16a34a';
     ctx.beginPath(); ctx.arc(treeX, floorY - 175, 64, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
-    if (loc === 'gaon') {
-      const hutX = ((W * 0.18 - scrollX) + W) % W;
-      ctx.fillStyle = '#fde68a';
-      ctx.fillRect(hutX, floorY - 105, 115, 105); ctx.strokeRect(hutX, floorY - 105, 115, 105);
-      ctx.fillStyle = '#b45309';
-      ctx.beginPath(); ctx.moveTo(hutX - 16, floorY - 105); ctx.lineTo(hutX + 58, floorY - 168); ctx.lineTo(hutX + 132, floorY - 105); ctx.closePath(); ctx.fill(); ctx.stroke();
-    } else {
-      const benchX = ((W * 0.20 - scrollX) + W) % W;
-      ctx.fillStyle = '#b45309';
-      ctx.fillRect(benchX, floorY - 52, 110, 14); ctx.strokeRect(benchX, floorY - 52, 110, 14);
-      ctx.fillRect(benchX + 12, floorY - 38, 10, 38); ctx.fillRect(benchX + 88, floorY - 38, 10, 38);
-    }
   } else if (loc === 'street' || loc === 'shehar') {
     const sky = ctx.createLinearGradient(0, 0, 0, floorY);
     sky.addColorStop(0, '#60a5fa'); sky.addColorStop(1, '#fed7aa');
     ctx.fillStyle = sky; ctx.fillRect(0, 0, W, floorY);
-
     const buildings = [
       { x: 0.05, w: 145, h: 270, c: '#94a3b8' },
       { x: 0.35, w: 165, h: 330, c: '#cbd5e1' },
@@ -679,23 +671,9 @@ function drawEnvironment(loc, isMoving) {
         ctx.fillRect(bx + b.w - 46, wy, 24, 26); ctx.strokeRect(bx + b.w - 46, wy, 24, 26);
       }
     });
-
-    const poleX = ((W * 0.56 - scrollX) + W) % W;
-    ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 8;
-    ctx.beginPath(); ctx.moveTo(poleX, floorY); ctx.lineTo(poleX, floorY - 340); ctx.stroke();
-    ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.moveTo(poleX - 35, floorY - 320); ctx.lineTo(poleX + 35, floorY - 320); ctx.stroke();
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(0, floorY - 300); ctx.quadraticCurveTo(poleX * 0.5, floorY - 260, poleX, floorY - 320); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(poleX, floorY - 320); ctx.quadraticCurveTo((poleX + W) * 0.5, floorY - 260, W, floorY - 300); ctx.stroke();
   } else if (loc === 'jungle' || loc === 'night') {
     ctx.fillStyle = '#1e1b4b'; ctx.fillRect(0, 0, W, floorY);
     ctx.fillStyle = '#fef9c3'; ctx.beginPath(); ctx.arc(W * 0.80, H * 0.16, 42, 0, Math.PI * 2); ctx.fill();
-    for (let i = 0; i < 5; i++) {
-      const tx = ((W * (i * 0.23) - scrollX) + W) % W;
-      ctx.fillStyle = '#312e81'; ctx.fillRect(tx, floorY - 260, 30, 260);
-      ctx.fillStyle = '#1e1b4b'; ctx.beginPath(); ctx.arc(tx + 15, floorY - 270, 82, 0, Math.PI * 2); ctx.fill();
-    }
   } else {
     ctx.fillStyle = '#fef3c7'; ctx.fillRect(0, 0, W, floorY);
     ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 4;
@@ -758,22 +736,15 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
   ctx.translate(footX, groundY - jumpY);
 
   let sx = scaleVal, sy = scaleVal;
-  if (isSpeaker && pose === 'lean') {
-    sx *= 1.24; sy *= 1.24;
-    ctx.rotate(0.12);
-  } else if (isSpeaker && pose === 'bonk') {
-    sx *= 1.28; sy *= 0.65;
-  } else if (isSpeaker && pose === 'fly') {
-    ctx.rotate(-0.25);
-  }
+  if (isSpeaker && pose === 'lean') { sx *= 1.24; sy *= 1.24; ctx.rotate(0.12); }
+  else if (isSpeaker && pose === 'bonk') { sx *= 1.28; sy *= 0.65; }
+  else if (isSpeaker && pose === 'fly') { ctx.rotate(-0.25); }
   ctx.scale(sx, sy);
 
   if (power === 'aura' && isSpeaker) drawSuperpowerVFX('aura', 0, -30);
   if (emotion === 'dead') { ctx.translate(0, -35); ctx.rotate(Math.PI / 2); }
 
   ctx.strokeStyle = '#0f172a'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-
-  // Noodle Legs + Shoes
   ctx.lineWidth = 8;
   ctx.beginPath(); ctx.moveTo(-18, -125); ctx.quadraticCurveTo(-24 - legSwing * 0.5, -70, -24 - legSwing, -12); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(18, -125); ctx.quadraticCurveTo(24 + legSwing * 0.5, -70, 24 + legSwing, -12); ctx.stroke();
@@ -781,18 +752,14 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
   ctx.beginPath(); ctx.ellipse(-20 - legSwing, -8, 22, 10, 0, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.ellipse(28 + legSwing, -8, 22, 10, 0, 0, Math.PI * 2); ctx.fill();
 
-  // Bean Torso
-  ctx.lineWidth = 8;
   if (char === 'villain') {
     const capeWave = Math.sin(frameTick * 0.16) * 14;
     ctx.fillStyle = '#7f1d1d';
     ctx.beginPath(); ctx.moveTo(-40, -255); ctx.lineTo(40, -255); ctx.lineTo(88 + capeWave, -40); ctx.lineTo(-80 + capeWave, -40); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#1e293b';
-  } else if (char === 'mom') {
-    ctx.fillStyle = '#ec4899';
-  } else {
-    ctx.fillStyle = char === 'hero' ? '#3b82f6' : char === 'bro' ? '#f59e0b' : '#10b981';
-  }
+  } else if (char === 'mom') ctx.fillStyle = '#ec4899';
+  else ctx.fillStyle = char === 'hero' ? '#3b82f6' : char === 'bro' ? '#f59e0b' : '#10b981';
+
   ctx.beginPath();
   ctx.moveTo(-42, -125);
   ctx.quadraticCurveTo(-52, -200, -36, -262);
@@ -801,8 +768,6 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
   ctx.closePath();
   ctx.fill(); ctx.stroke();
 
-  // Noodle Arms
-  ctx.lineWidth = 8;
   if (power && power !== 'none' && power !== 'aura' && isSpeaker) {
     ctx.beginPath(); ctx.moveTo(-42, -235); ctx.quadraticCurveTo(-75, -205, -65, -165); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(42, -238); ctx.quadraticCurveTo(95, -245, 138, -238); ctx.stroke();
@@ -816,16 +781,9 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
     ctx.beginPath(); ctx.moveTo(42, -235); ctx.quadraticCurveTo(86, -210 - wave, 76, -165 - wave * 1.4); ctx.stroke();
   }
 
-  // Head
   const headY = -362;
   ctx.fillStyle = char === 'villain' ? '#e2e8f0' : '#ffffff';
-  ctx.lineWidth = 8;
   ctx.beginPath(); ctx.ellipse(0, headY, 102, 96, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
-  if (emotion === 'shadow' || emotion === 'angry' || char === 'villain') {
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.16)';
-    ctx.beginPath(); ctx.ellipse(0, headY - 22, 85, 36, 0, 0, Math.PI * 2); ctx.fill();
-  }
 
   if (emotion === 'sweat') {
     ctx.fillStyle = '#38bdf8';
@@ -833,7 +791,6 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
     ctx.beginPath(); ctx.arc(82, headY - 12, 7, 0, Math.PI * 2); ctx.fill();
   }
 
-  // Hair / Cap
   ctx.fillStyle = '#0f172a';
   if (char === 'villain') {
     ctx.fillStyle = '#991b1b';
@@ -853,7 +810,6 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
     ctx.beginPath(); ctx.arc(0, headY - 32, 100, Math.PI, 0); ctx.fill();
   }
 
-  // Conjoined Oversized Eyes + Cursed Meme Face
   const eyeY = headY - 6;
   const pupilShift = lookDir * 6;
   const isBlinking = (blinkTimer + (isSpeaker ? 0 : 45)) % 150 > 143;
@@ -895,7 +851,6 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
     }
   }
 
-  // Dynamic Lip-Sync Mouths
   const mouthY = headY + 46;
   ctx.lineWidth = 6;
   if (isSpeaker && talkAmt > 0.08) {
@@ -910,31 +865,13 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
     }
   } else {
     ctx.beginPath();
-    if (emotion === 'cursed') {
-      ctx.moveTo(-24, mouthY + 6); ctx.quadraticCurveTo(0, mouthY - 12, 26, mouthY + 8);
-    } else if (emotion === 'smug' || char === 'villain') {
-      ctx.arc(0, mouthY - 6, 24, 0.1 * Math.PI, 0.85 * Math.PI);
-    } else if (emotion === 'shocked') {
-      ctx.fillStyle = '#7f1d1d'; ctx.arc(0, mouthY + 4, 14, 0, Math.PI * 2); ctx.fill();
-    } else {
-      ctx.moveTo(-18, mouthY); ctx.lineTo(18, mouthY);
-    }
+    if (emotion === 'cursed') { ctx.moveTo(-24, mouthY + 6); ctx.quadraticCurveTo(0, mouthY - 12, 26, mouthY + 8); }
+    else if (emotion === 'smug' || char === 'villain') { ctx.arc(0, mouthY - 6, 24, 0.1 * Math.PI, 0.85 * Math.PI); }
+    else if (emotion === 'shocked') { ctx.fillStyle = '#7f1d1d'; ctx.arc(0, mouthY + 4, 14, 0, Math.PI * 2); ctx.fill(); }
+    else { ctx.moveTo(-18, mouthY); ctx.lineTo(18, mouthY); }
     ctx.stroke();
   }
-
   ctx.restore();
-}
-
-function drawCutaway(scene) {
-  const card = scene.card;
-  if (!card || !card.icon) return;
-  const W = canvas.width, bob = Math.sin(frameTick * 0.14) * 8;
-  ctx.save(); ctx.translate(W * 0.78, 175 + bob);
-  ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 6;
-  ctx.beginPath(); ctx.roundRect(-110, -75, 220, 150, 18); ctx.fill(); ctx.stroke();
-  ctx.font = '68px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(card.icon, 0, 10);
-  if (card.label) { ctx.fillStyle = '#0f172a'; ctx.font = '900 20px sans-serif'; ctx.fillText(String(card.label).toUpperCase().slice(0, 18), 0, 58); }
-  ctx.textAlign = 'left'; ctx.restore();
 }
 
 function drawCaptions(text, char) {
@@ -983,9 +920,7 @@ function renderLoop() {
   } else mouthOpen = 0;
 
   ctx.save();
-  if (cam === 'shake') {
-    ctx.translate((Math.random() - 0.5) * 24, (Math.random() - 0.5) * 24);
-  }
+  if (cam === 'shake') ctx.translate((Math.random() - 0.5) * 24, (Math.random() - 0.5) * 24);
 
   const drewGag = gag !== 'none' && drawFullScreenVisualGag(gag, mouthOpen);
 
@@ -1000,7 +935,7 @@ function renderLoop() {
       }
 
       const isMoving = currentScene.action === 'walk' || currentScene.action === 'run';
-      drawEnvironment(currentScene.location || 'park', isMoving);
+      drawEnvironment(currentScene.location || 'room', isMoving);
 
       if (currentScene.prop && currentScene.prop !== 'none') {
         drawSceneProp(currentScene.prop, W * 0.52, groundY, H < 800 ? 0.78 : 0.95, false);
@@ -1019,7 +954,7 @@ function renderLoop() {
     }
   }
 
-  drawCutaway(currentScene);
+  applyLightmanMood(currentScene.lighting || 'daylight');
   applySketchTexture();
   drawSmearLines();
   ctx.restore();
@@ -1028,7 +963,9 @@ function renderLoop() {
 }
 renderLoop();
 
-// Audio & Voice Helpers
+// =========================================================================
+// AGENT 4: SOUND & VOICE ARTIST (Edge Neural Hindi /api/tts + Gemini TTS!)
+// =========================================================================
 function pcmToWavBuffer(base64Pcm, sampleRate = 24000) {
   const binary = atob(base64Pcm), pcmLen = binary.length, wavBuffer = new ArrayBuffer(44 + pcmLen), view = new DataView(wavBuffer);
   const writeStr = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
@@ -1039,83 +976,6 @@ function pcmToWavBuffer(base64Pcm, sampleRate = 24000) {
   const bytes = new Uint8Array(wavBuffer, 44);
   for (let i = 0; i < pcmLen; i++) bytes[i] = binary.charCodeAt(i);
   return wavBuffer;
-}
-
-async function fetchAllHumanVoicesInOneCall(scenes, partLabel = '') {
-  const key = apiKeyInput.value.trim();
-  if (!key) throw new Error('Gemini API Key required!');
-  const dialogueLines = scenes.map((sc) => `${sc.char === 'mom' ? 'FemaleVoice' : 'MaleVoice'}: ${sc.text}`).join('\n');
-  const plainLines = scenes.map((sc) => sc.text).join('! ');
-
-  const configs = [
-    {
-      model: 'gemini-2.5-flash-preview-tts',
-      body: {
-        contents: [{ parts: [{ text: 'Act out this fast-paced, energetic Indian Hinglish comedy story with zero long pauses and expressive reactions:\n' + dialogueLines }] }],
-        generationConfig: {
-          responseModalities: ["AUDIO"],
-          speechConfig: {
-            multiSpeakerVoiceConfig: {
-              speakerVoiceConfigs: [
-                { speaker: 'MaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
-                { speaker: 'FemaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
-              ]
-            }
-          }
-        }
-      }
-    },
-    {
-      model: 'gemini-2.5-flash-preview-tts',
-      body: {
-        contents: [{ parts: [{ text: 'Speak this funny Indian Hinglish story rapidly with high energy:\n' + plainLines }] }],
-        generationConfig: {
-          responseModalities: ["AUDIO"],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } }
-        }
-      }
-    },
-    {
-      model: 'gemini-2.5-pro-preview-tts',
-      body: {
-        contents: [{ parts: [{ text: 'Speak this funny Indian Hinglish story rapidly:\n' + plainLines }] }],
-        generationConfig: {
-          responseModalities: ["AUDIO"],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } }
-        }
-      }
-    }
-  ];
-
-  for (let i = 0; i < configs.length; i++) {
-    const cfg = configs[i];
-    setStatus(`🎙️ Generating Human Voices ${partLabel} (mode ${i + 1}/${configs.length})...`);
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 45000);
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${cfg.model}:generateContent?key=${encodeURIComponent(key)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: ctrl.signal,
-        body: JSON.stringify(cfg.body)
-      });
-      clearTimeout(timer);
-      if (!res.ok) { await sleep(1500); continue; }
-      const data = await res.json();
-      const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-      if (inlineData?.data) {
-        return await audioCtx.decodeAudioData(pcmToWavBuffer(inlineData.data, 24000));
-      }
-    } catch {
-      clearTimeout(timer);
-      await sleep(1500);
-    }
-  }
-
-  setStatus(`⚠️ TTS busy, rendering ${partLabel} with BGM + SFX + Captions...`);
-  const totalWords = scenes.reduce((acc, s) => acc + (s.text || '').split(' ').length, 0);
-  const estSeconds = Math.max(8, Math.round(totalWords * 0.36));
-  return createSilentBuffer(estSeconds);
 }
 
 function trimDeadSilence(buf) {
@@ -1135,10 +995,89 @@ function trimDeadSilence(buf) {
   return out;
 }
 
-function splitAudioBufferByScenes(fullBuffer, scenes) {
-  if (!fullBuffer || !fullBuffer.sampleRate) {
-    return scenes.map(() => createSilentBuffer(2.2));
+async function fetchEdgeTTSPerScene(scenes, partLabel = '') {
+  const buffers = [];
+  for (let i = 0; i < scenes.length; i++) {
+    setStatus(`🎙️ [Sound Artist] Recording Edge Hindi Voice ${partLabel} (${i + 1}/${scenes.length})...`);
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: scenes[i].text, char: scenes[i].char })
+    });
+    if (!res.ok) throw new Error(`Edge TTS HTTP ${res.status}`);
+    const arr = await res.arrayBuffer();
+    const decoded = await audioCtx.decodeAudioData(arr);
+    buffers.push(trimDeadSilence(decoded));
   }
+  return buffers;
+}
+
+async function fetchGeminiMultiSpeakerVoices(scenes, partLabel = '') {
+  const key = apiKeyInput.value.trim();
+  if (!key) throw new Error('Gemini API Key missing');
+  const dialogueLines = scenes.map((sc) => `${sc.char === 'mom' ? 'FemaleVoice' : 'MaleVoice'}: ${sc.text}`).join('\n');
+
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: 'Act out this fast-paced Indian Hinglish comedy story with expressive reactions:\n' + dialogueLines }] }],
+      generationConfig: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+          multiSpeakerVoiceConfig: {
+            speakerVoiceConfigs: [
+              { speaker: 'MaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
+              { speaker: 'FemaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
+            ]
+          }
+        }
+      }
+    })
+  });
+  if (!res.ok) throw new Error(`Gemini TTS HTTP ${res.status}`);
+  const data = await res.json();
+  const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+  if (!inlineData?.data) throw new Error('No audio returned');
+  const fullBuf = await audioCtx.decodeAudioData(pcmToWavBuffer(inlineData.data, 24000));
+  return splitAudioBufferByScenes(fullBuf, scenes);
+}
+
+async function runSoundArtistAgent(scenes, partLabel = '') {
+  setCrewState('sound', 'active');
+  const mode = voiceEngineSelect.value;
+
+  try {
+    if (mode === 'edge') {
+      const list = await fetchEdgeTTSPerScene(scenes, partLabel);
+      setCrewState('sound', 'done');
+      return list;
+    }
+    if (mode === 'gemini') {
+      setStatus(`🎙️ [Sound Artist] Recording Gemini Multi-Speaker Voices ${partLabel}...`);
+      const list = await fetchGeminiMultiSpeakerVoices(scenes, partLabel);
+      setCrewState('sound', 'done');
+      return list;
+    }
+    // Auto mode: Try Gemini Multi-Speaker first, seamlessly fallback to your /api/tts Edge Hindi Neural voices!
+    try {
+      setStatus(`🎙️ [Sound Artist] Recording Gemini Voices ${partLabel}...`);
+      const list = await fetchGeminiMultiSpeakerVoices(scenes, partLabel);
+      setCrewState('sound', 'done');
+      return list;
+    } catch {
+      const list = await fetchEdgeTTSPerScene(scenes, partLabel);
+      setCrewState('sound', 'done');
+      return list;
+    }
+  } catch {
+    setStatus(`⚠️ Voice API busy, rendering ${partLabel} with BGM + SFX + Captions...`);
+    setCrewState('sound', 'done');
+    return scenes.map((s) => createSilentBuffer(Math.max(2.0, (s.text || '').split(' ').length * 0.35)));
+  }
+}
+
+function splitAudioBufferByScenes(fullBuffer, scenes) {
   const sampleRate = fullBuffer.sampleRate, channelData = fullBuffer.getChannelData(0), totalSamples = channelData.length;
   const weights = scenes.map(s => Math.max(4, (s.text || '').length)), totalWeight = weights.reduce((a, b) => a + b, 0);
   const slices = []; let cursorSample = 0;
@@ -1178,16 +1117,18 @@ function playAudioOnce(audioBuffer, char = "hero") {
     let resolved = false; duckBGM(true);
     const source = audioCtx.createBufferSource();
     source.buffer = safeBuf;
-    if (char === 'bro') { source.detune.value = 150; source.playbackRate.value = 1.08; }
-    else if (char === 'villain') { source.detune.value = -240; source.playbackRate.value = 0.98; }
-    else if (char === 'npc') { source.detune.value = -120; source.playbackRate.value = 1.05; }
-    else { source.playbackRate.value = 1.06; }
+    if (char === 'bro') { source.detune.value = 120; source.playbackRate.value = 1.06; }
+    else if (char === 'villain') { source.detune.value = -220; source.playbackRate.value = 0.97; }
+    else { source.playbackRate.value = 1.04; }
     source.connect(analyser); analyser.connect(audioCtx.destination); analyser.connect(destNode);
     source.onended = () => { if (!resolved) { resolved = true; duckBGM(false); resolve(); } };
     source.start(0);
   });
 }
 
+// =========================================================================
+// AGENT 5: EDITOR & H.264 MP4 EXPORTER
+// =========================================================================
 async function createBulletproofRecorder(audioList) {
   const W = canvas.width, H = canvas.height;
   const sr = (audioCtx && audioCtx.sampleRate) ? audioCtx.sampleRate : 44100;
@@ -1261,13 +1202,11 @@ async function createBulletproofRecorder(audioList) {
         }
       };
     } catch (e) {
-      console.warn('MP4 WebCodecs fallback to MediaRecorder:', e);
+      console.warn('MP4 WebCodecs fallback:', e);
     }
   }
 
   const canvasStream = canvas.captureStream(30);
-  const vTrack = canvasStream.getVideoTracks()[0];
-  if (vTrack && vTrack.requestFrame) vTrack.requestFrame();
   const audioTracks = destNode ? destNode.stream.getAudioTracks() : [];
   const combined = new MediaStream([...canvasStream.getVideoTracks(), ...audioTracks]);
   const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus') ? 'video/webm;codecs=vp8,opus' : 'video/webm';
@@ -1290,7 +1229,7 @@ async function createBulletproofRecorder(audioList) {
 
 function triggerAutoDownload(blob, filename) {
   if (!blob || blob.size < 5000) {
-    setStatus('⚠️ Video file too small — try Preview or check permissions.');
+    setStatus('⚠️ Video file too small — try Preview Cut first.');
     return;
   }
   const url = URL.createObjectURL(blob);
@@ -1301,36 +1240,40 @@ function triggerAutoDownload(blob, filename) {
 }
 
 async function renderSinglePart(scenes, partNum, totalParts, recordVideo = true, autoSave = false) {
-  const cleanScenes = sanitizeSceneVisuals(scenes);
+  const litScenes = runLightmanAgent(scenes);
   const partLabel = totalParts > 1 ? `[Part ${partNum}/${totalParts}]` : '';
-  const currentHash = JSON.stringify(cleanScenes.map(s => `${s.char}:${s.text}`));
+  const currentHash = JSON.stringify(litScenes.map(s => `${s.char}:${s.text}`));
   let audioList = [];
-  const allMic = cleanScenes.every((_, idx) => !!customMicBuffers[idx]);
+  const allMic = litScenes.every((_, idx) => !!customMicBuffers[idx]);
 
-  if (allMic) audioList = cleanScenes.map((_, idx) => customMicBuffers[idx]);
-  else if (cachedScriptHash === currentHash && cachedAudioSlices.length === cleanScenes.length) {
-    audioList = cleanScenes.map((_, idx) => customMicBuffers[idx] || cachedAudioSlices[idx]);
+  if (allMic) {
+    setCrewState('sound', 'done');
+    audioList = litScenes.map((_, idx) => customMicBuffers[idx]);
+  } else if (cachedScriptHash === currentHash && cachedAudioSlices.length === litScenes.length) {
+    setCrewState('sound', 'done');
+    audioList = litScenes.map((_, idx) => customMicBuffers[idx] || cachedAudioSlices[idx]);
   } else {
-    const fullAudio = await fetchAllHumanVoicesInOneCall(cleanScenes, partLabel);
-    cachedAudioSlices = splitAudioBufferByScenes(fullAudio, cleanScenes);
+    cachedAudioSlices = await runSoundArtistAgent(litScenes, partLabel);
     cachedScriptHash = currentHash;
-    audioList = cleanScenes.map((_, idx) => customMicBuffers[idx] || cachedAudioSlices[idx]);
+    audioList = litScenes.map((_, idx) => customMicBuffers[idx] || cachedAudioSlices[idx]);
   }
 
+  setCrewState('editor', 'active');
   let recorderSession = recordVideo ? await createBulletproofRecorder(audioList) : null;
   startComedyBGM();
-  for (let i = 0; i < cleanScenes.length; i++) {
-    currentScene = cleanScenes[i];
+  for (let i = 0; i < litScenes.length; i++) {
+    currentScene = litScenes[i];
     smearTimer = 3;
-    playSFX(cleanScenes[i].sfx);
-    setStatus(`🎬 ${partLabel} Rendering Scene ${i + 1}/${cleanScenes.length}...`);
-    await playAudioOnce(audioList[i], cleanScenes[i].char);
+    playSFX(litScenes[i].sfx);
+    setStatus(`✂️ [Editor] Shooting Take ${i + 1}/${litScenes.length} ${partLabel}...`);
+    await playAudioOnce(audioList[i], litScenes[i].char);
   }
   stopComedyBGM();
 
   if (recorderSession) {
-    setStatus(`📦 ${partLabel} Finalizing Video File...`);
+    setStatus(`📦 [Editor] Rendering Final MP4 ${partLabel}...`);
     const { blob, ext, secs } = await recorderSession.stop();
+    setCrewState('editor', 'done');
     const fname = `storytoon_part${partNum}of${totalParts}_${secs}s.${ext}`;
     if (autoSave) triggerAutoDownload(blob, fname);
     else {
@@ -1340,9 +1283,11 @@ async function renderSinglePart(scenes, partNum, totalParts, recordVideo = true,
     }
     return { secs, sizeKB: Math.round(blob.size / 1024) };
   }
+  setCrewState('editor', 'done');
   return { secs: 0, sizeKB: 0 };
 }
 
+// 🎬 ACTION! (Full 5-Agent Film Production Auto-Pilot)
 document.getElementById('oneClickAutoBtn').onclick = async () => {
   if (isPlayingSequence) return;
   const key = apiKeyInput.value.trim();
@@ -1359,19 +1304,19 @@ document.getElementById('oneClickAutoBtn').onclick = async () => {
   let prevEnding = '';
   try {
     for (let part = 1; part <= totalParts; part++) {
-      const scenes = await fetchPartScriptFromGemini(key, topic, part, totalParts, prevEnding);
+      const scenes = await runPreProductionCrew(key, topic, part, totalParts, prevEnding);
       scriptEditor.value = JSON.stringify(scenes, null, 2);
       cachedScriptHash = '';
       renderMicControls();
       prevEnding = scenes.slice(-2).map(s => s.text).join(' ');
 
       const { secs, sizeKB } = await renderSinglePart(scenes, part, totalParts, true, true);
-      setStatus(`✅ Part ${part}/${totalParts} saved (${secs}s • ${sizeKB} KB)!`);
+      setStatus(`✅ Part ${part}/${totalParts} Wrapped! (${secs}s • ${sizeKB} KB MP4)`);
       if (part < totalParts) await sleep(1500);
     }
-    setStatus(`🎉 ALL ${totalParts} PART(S) COMPLETE! Real playable video saved in Downloads!`);
+    setStatus(`🎉 IT'S A WRAP! All ${totalParts} Episode(s) produced & saved in Downloads!`);
   } catch (err) {
-    setStatus(`Error: ${err.message}`);
+    setStatus(`Production Error: ${err.message}`);
   } finally {
     isPlayingSequence = false;
   }
@@ -1383,12 +1328,12 @@ document.getElementById('generateScriptBtn').onclick = async () => {
   const topic = topicInput.value.trim();
   if (!key || !topic) return setStatus('Enter API Key & Topic first!');
   try {
-    const scenes = await fetchPartScriptFromGemini(key, topic, 1, 1, '');
+    const scenes = await runPreProductionCrew(key, topic, 1, 1, '');
     scriptEditor.value = JSON.stringify(scenes, null, 2);
     cachedScriptHash = '';
     renderMicControls();
-    setStatus(`✅ Clean script ready (${scenes.length} scenes)!`);
-  } catch (err) { setStatus(`Error: ${err.message}`); }
+    setStatus(`✅ Pre-Production Done! Writer, DOP & Lightman ready (${scenes.length} shots).`);
+  } catch (err) { setStatus(`Crew Error: ${err.message}`); }
 };
 
 document.getElementById('playRecordBtn').onclick = async () => {
@@ -1398,7 +1343,7 @@ document.getElementById('playRecordBtn').onclick = async () => {
   isPlayingSequence = true; initAudio();
   try {
     const { secs, sizeKB } = await renderSinglePart(scenes, 1, 1, true, true);
-    setStatus(`✅ Saved Real Video (${secs}s • ${sizeKB} KB)!`);
+    setStatus(`✅ Exported MP4 (${secs}s • ${sizeKB} KB)!`);
   } catch (err) { setStatus(`Error: ${err.message}`); }
   finally { isPlayingSequence = false; }
 };
@@ -1408,7 +1353,7 @@ document.getElementById('previewOnlyBtn').onclick = async () => {
   let scenes;
   try { scenes = JSON.parse(scriptEditor.value); } catch { return setStatus('Invalid JSON script!'); }
   isPlayingSequence = true; initAudio();
-  try { await renderSinglePart(scenes, 1, 1, false, false); setStatus('Preview finished!'); }
+  try { await renderSinglePart(scenes, 1, 1, false, false); setStatus('Preview Cut finished!'); }
   catch (err) { setStatus(`Error: ${err.message}`); }
   finally { isPlayingSequence = false; }
 };
