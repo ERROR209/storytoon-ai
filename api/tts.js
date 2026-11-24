@@ -10,11 +10,14 @@ export default async function handler(req, res) {
     if (!text) return res.status(400).json({ error: 'Text is required' });
 
     const profiles = {
-      hero:   { voice: 'hi-IN-MadhurNeural', rate: '+12%', pitch: '+4Hz' },
-      bro:    { voice: 'hi-IN-MadhurNeural', rate: '+18%', pitch: '+28Hz' },
-      mom:    { voice: 'hi-IN-SwaraNeural',  rate: '+6%',  pitch: '-2Hz' },
-      bhabhi: { voice: 'hi-IN-SwaraNeural',  rate: '+10%', pitch: '+10Hz' },
-      npc:    { voice: 'en-IN-PrabhatNeural', rate: '-2%', pitch: '-18Hz' }
+      hero:    { voice: 'hi-IN-MadhurNeural', rate: '+12%', pitch: '+4Hz' },
+      bro:     { voice: 'hi-IN-MadhurNeural', rate: '+18%', pitch: '+28Hz' },
+      mom:     { voice: 'hi-IN-SwaraNeural',  rate: '+6%',  pitch: '-4Hz' },
+      bhabhi:  { voice: 'hi-IN-SwaraNeural',  rate: '+10%', pitch: '+8Hz' },
+      gf:      { voice: 'hi-IN-SwaraNeural',  rate: '+16%', pitch: '+22Hz' },
+      sister:  { voice: 'hi-IN-SwaraNeural',  rate: '+20%', pitch: '+30Hz' },
+      villain: { voice: 'hi-IN-MadhurNeural', rate: '-4%',  pitch: '-24Hz' },
+      npc:     { voice: 'en-IN-PrabhatNeural', rate: '-2%', pitch: '-16Hz' }
     };
 
     const profile = profiles[char] || profiles.hero;

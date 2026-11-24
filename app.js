@@ -50,7 +50,7 @@ applyFormat();
 const DEMO_SCRIPT = [
   { char: "hero", other: "bro", emotion: "normal", otherEmotion: "normal", pose: "normal", action: "idle", location: "room", lighting: "warm", camera: "normal", gag: "none", prop: "none", power: "none", sfx: "none", text: "Bhai kal exam hai aur maine abhi tak kitaab kholi bhi nahi!" },
   { char: "bro", other: "hero", emotion: "smug", otherEmotion: "sweat", pose: "lean", action: "idle", location: "room", lighting: "warm", camera: "in", gag: "none", prop: "none", power: "none", sfx: "vine", text: "Chinta mat kar bhai, raat bhar mein poora syllabus khatam kar denge!" },
-  { char: "hero", other: "bro", emotion: "cursed", otherEmotion: "shocked", pose: "normal", action: "idle", location: "room", lighting: "night", camera: "normal", gag: "none", prop: "phone", power: "none", sfx: "bonk", text: "Par pehle bas 5 minute phone pe ek short dekh leta hoon!" },
+  { char: "sister", other: "hero", emotion: "smug", otherEmotion: "shocked", pose: "normal", action: "idle", location: "room", lighting: "warm", camera: "normal", gag: "none", prop: "phone", power: "none", sfx: "bonk", text: "Mummy ko bata doon kya ki tum dono padhai chhod ke reels dekh rahe ho?" },
   { char: "mom", other: "hero", emotion: "angry", otherEmotion: "sweat", pose: "normal", action: "walk", location: "room", lighting: "dramatic", camera: "in", gag: "none", prop: "none", power: "aura", sfx: "boom", text: "Subah ke 4 baj gaye aur tum dono abhi tak phone chala rahe ho?!" },
   { char: "hero", other: "mom", emotion: "sweat", otherEmotion: "angry", pose: "bonk", action: "idle", location: "room", lighting: "spotlight", camera: "zoomout", gag: "lagg_gaye", prop: "none", power: "none", sfx: "sting", text: "Ab toh sach mein lagg gaye guru, exam hall mein kya likhenge!" }
 ];
@@ -126,8 +126,9 @@ document.getElementById('loadDemoBtn').onclick = () => {
 
 // Web Audio Engine + Foley SFX
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
-let audioCtx = null, destNode = null, analyser = null, dataArray = null, bgmGain = null, bgmInterval = null;
+let audioCtx = null, destNode = null, analyser = null, timeDomainArray = null, bgmGain = null, bgmInterval = null;
 let isPlayingSequence = false;
+let isSpeakingNow = false;
 
 function initAudio() {
   if (!audioCtx) {
@@ -135,7 +136,7 @@ function initAudio() {
     destNode = audioCtx.createMediaStreamDestination();
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 256;
-    dataArray = new Uint8Array(analyser.frequencyBinCount);
+    timeDomainArray = new Uint8Array(analyser.fftSize);
 
     bgmGain = audioCtx.createGain();
     bgmGain.gain.value = 0.08;
@@ -170,7 +171,10 @@ function startComedyBGM() {
   }, 250);
 }
 function stopComedyBGM() { if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; } }
-function duckBGM(speaking) { if (bgmGain && audioCtx) bgmGain.gain.setTargetAtTime(speaking ? 0.025 : 0.09, audioCtx.currentTime, 0.04); }
+function duckBGM(speaking) {
+  isSpeakingNow = speaking;
+  if (bgmGain && audioCtx) bgmGain.gain.setTargetAtTime(speaking ? 0.025 : 0.09, audioCtx.currentTime, 0.04);
+}
 
 function playSFX(type) {
   if (!type || type === 'none') return;
@@ -273,7 +277,7 @@ async function callGeminiAgent(key, models, prompt, temp = 0.85) {
   throw new Error(lastErr);
 }
 
-// AGENT 1: SCRIPTWRITER (With Savage, Dark & Double Meaning Style Guides!)
+// AGENT 1: SCRIPTWRITER (Distinct Female Roles: bhabhi, gf, sister, mom)
 async function runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding) {
   setCrewState('writer', 'active');
   setStatus(`✍️ [1/3 Scriptwriter] Writing ${toneSelect.value} script (Part ${partNum}/${totalParts})...`);
@@ -295,11 +299,13 @@ async function runScriptwriterAgent(key, models, topic, partNum, totalParts, pre
 Write an 8-line Hinglish script about: "${topic}".
 STYLE & VIBE: ${styleDirection}
 ${cont}
-Characters (ONLY use these exact IDs):
+Characters (ONLY use these exact IDs — NEVER mix up female roles!):
 - "hero": main boy
-- "bro": best friend boy
-- "mom": mother / aunty
-- "bhabhi": wife / sister-in-law / girl / didi (ALWAYS use "bhabhi" for any female/wife/girl character, NEVER "npc")
+- "bro": best friend boy (dost)
+- "bhabhi": married woman / dost ki biwi / bhabhi (ALWAYS use "bhabhi" for any married woman/wife/bhabhi)
+- "gf": girlfriend / crush / lover girl (ALWAYS use "gf" for girlfriend/crush/bandi)
+- "sister": sister / behen / didi / chhoti behen (ALWAYS use "sister" for sister/behen/didi)
+- "mom": mother / mummy / aunty
 - "villain": rival / boss / angry uncle
 - "npc": random male bystander/shopkeeper
 Emotions: "normal", "shocked", "smug", "angry", "crying", "cursed" (derpy meme face), "sweat", "dead".
@@ -619,7 +625,7 @@ function drawTopDownScene(scene) {
 
 function drawTopDownCharacter(char, x, y, isSpeaker, isMoving) {
   const bob = isMoving ? Math.sin(frameTick * 0.35) * 10 : (isSpeaker ? mouthOpen * 6 : 0);
-  const colors = { hero: '#3b82f6', bro: '#f59e0b', villain: '#1e293b', mom: '#ec4899', bhabhi: '#a855f7', npc: '#10b981' };
+  const colors = { hero: '#3b82f6', bro: '#f59e0b', villain: '#1e293b', mom: '#ec4899', bhabhi: '#9333ea', gf: '#f43f5e', sister: '#06b6d4', npc: '#10b981' };
   ctx.save(); ctx.translate(x, y + bob);
   ctx.fillStyle = 'rgba(0,0,0,0.28)';
   ctx.beginPath(); ctx.ellipse(26, 22, 52, 34, 0.35, 0, Math.PI * 2); ctx.fill();
@@ -738,7 +744,7 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
   if (isSpeaker && pose === 'fly') jumpY = 75 + Math.sin(frameTick * 0.4) * 18;
   else if (emotion === 'shocked' && isSpeaker) jumpY = 26;
   else if (isWalking) jumpY = Math.abs(snappyStep) * 14;
-  else if (isSpeaker && talkAmt > 0.2) jumpY = 8;
+  else if (isSpeaker && talkAmt > 0.15) jumpY = 8;
 
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.22)';
@@ -765,13 +771,16 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
   ctx.beginPath(); ctx.ellipse(-20 - legSwing, -8, 22, 10, 0, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.ellipse(28 + legSwing, -8, 22, 10, 0, 0, Math.PI * 2); ctx.fill();
 
+  // Distinct Outfit Colors per Character
   if (char === 'villain') {
     const capeWave = Math.sin(frameTick * 0.16) * 14;
     ctx.fillStyle = '#7f1d1d';
     ctx.beginPath(); ctx.moveTo(-40, -255); ctx.lineTo(40, -255); ctx.lineTo(88 + capeWave, -40); ctx.lineTo(-80 + capeWave, -40); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#1e293b';
   } else if (char === 'mom') ctx.fillStyle = '#ec4899';
-  else if (char === 'bhabhi') ctx.fillStyle = '#a855f7';
+  else if (char === 'bhabhi') ctx.fillStyle = '#9333ea'; // Royal Purple Saree/Kurti
+  else if (char === 'gf') ctx.fillStyle = '#f43f5e';     // Stylish Coral/Rose Top
+  else if (char === 'sister') ctx.fillStyle = '#06b6d4'; // Bright Cyan/Teal Top
   else ctx.fillStyle = char === 'hero' ? '#3b82f6' : char === 'bro' ? '#f59e0b' : '#10b981';
 
   ctx.beginPath();
@@ -782,6 +791,14 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
   ctx.closePath();
   ctx.fill(); ctx.stroke();
 
+  // Bhabhi saree pallu diagonal stripe
+  if (char === 'bhabhi') {
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(-34, -255); ctx.lineTo(38, -135); ctx.stroke();
+    ctx.strokeStyle = '#0f172a';
+  }
+
   if (power && power !== 'none' && power !== 'aura' && isSpeaker) {
     ctx.beginPath(); ctx.moveTo(-42, -235); ctx.quadraticCurveTo(-75, -205, -65, -165); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(42, -238); ctx.quadraticCurveTo(95, -245, 138, -238); ctx.stroke();
@@ -790,19 +807,40 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
     ctx.beginPath(); ctx.moveTo(-42, -238); ctx.quadraticCurveTo(-105, -285, -92, -365); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(42, -238); ctx.quadraticCurveTo(105, -285, 92, -365); ctx.stroke();
   } else {
-    const wave = isSpeaker && talkAmt > 0.25 ? 24 : 0;
+    const wave = isSpeaker && talkAmt > 0.2 ? 24 : 0;
     ctx.beginPath(); ctx.moveTo(-42, -235); ctx.quadraticCurveTo(-78, -195, -62, -155); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(42, -235); ctx.quadraticCurveTo(86, -210 - wave, 76, -165 - wave * 1.4); ctx.stroke();
   }
 
   const headY = -362;
+
+  // Back Hairstyles for Female Characters
+  ctx.fillStyle = '#0f172a';
   if (char === 'bhabhi') {
-    ctx.fillStyle = '#0f172a';
+    // Long flowing open hair
     ctx.beginPath();
-    ctx.roundRect(-108, headY - 30, 216, 175, 45);
+    ctx.roundRect(-110, headY - 30, 220, 185, 48);
     ctx.fill();
+  } else if (char === 'gf') {
+    // High bouncy ponytail on side-back
+    const ponyWave = Math.sin(frameTick * 0.2) * 8;
+    ctx.beginPath();
+    ctx.ellipse(-118, headY - 40 + ponyWave, 34, 78, 0.35, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (char === 'sister') {
+    // Cute Double Choti (Two Pigtails)
+    const pigWave = Math.sin(frameTick * 0.25) * 6;
+    ctx.beginPath();
+    ctx.ellipse(-112, headY - 10 + pigWave, 24, 62, 0.25, 0, Math.PI * 2);
+    ctx.ellipse(112, headY - 10 - pigWave, 24, 62, -0.25, 0, Math.PI * 2);
+    ctx.fill();
+    // Hair ties
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath(); ctx.arc(-96, headY - 48, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(96, headY - 48, 10, 0, Math.PI * 2); ctx.fill();
   }
 
+  // Head
   ctx.fillStyle = char === 'villain' ? '#e2e8f0' : '#ffffff';
   ctx.beginPath(); ctx.ellipse(0, headY, 102, 96, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
@@ -812,6 +850,7 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
     ctx.beginPath(); ctx.arc(82, headY - 12, 7, 0, Math.PI * 2); ctx.fill();
   }
 
+  // Front Hair & Accessories
   ctx.fillStyle = '#0f172a';
   if (char === 'villain') {
     ctx.fillStyle = '#991b1b';
@@ -831,10 +870,33 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
     ctx.beginPath(); ctx.arc(0, headY - 32, 100, Math.PI, 0); ctx.fill();
   } else if (char === 'bhabhi') {
     ctx.beginPath(); ctx.arc(0, headY - 32, 100, Math.PI, 0); ctx.fill();
+    // Red Sindoor + Bindi
     ctx.fillStyle = '#ef4444';
-    ctx.beginPath(); ctx.arc(0, headY - 34, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(-4, headY - 94, 8, 28);
+    ctx.beginPath(); ctx.arc(0, headY - 34, 8, 0, Math.PI * 2); ctx.fill();
+  } else if (char === 'gf') {
+    // Side-swept stylish bangs + pink hair clip
+    ctx.beginPath();
+    ctx.arc(0, headY - 32, 100, Math.PI, 0);
+    ctx.lineTo(65, headY - 12);
+    ctx.quadraticCurveTo(0, headY - 52, -98, headY - 32);
+    ctx.fill();
+    ctx.fillStyle = '#f43f5e';
+    ctx.beginPath(); ctx.roundRect(-62, headY - 54, 26, 10, 5); ctx.fill();
+  } else if (char === 'sister') {
+    // Cute front fringe bangs
+    ctx.beginPath();
+    ctx.arc(0, headY - 32, 100, Math.PI, 0);
+    ctx.lineTo(85, headY - 18);
+    ctx.lineTo(42, headY - 45);
+    ctx.lineTo(0, headY - 20);
+    ctx.lineTo(-42, headY - 45);
+    ctx.lineTo(-85, headY - 18);
+    ctx.closePath();
+    ctx.fill();
   }
 
+  // Eyes
   const eyeY = headY - 6;
   const pupilShift = lookDir * 6;
   const isBlinking = (blinkTimer + (isSpeaker ? 0 : 45)) % 150 > 143;
@@ -857,6 +919,13 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
     ctx.beginPath(); ctx.arc(-23, eyeY, eyeR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.arc(23, eyeY, eyeR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
+    // Eyelashes for female characters
+    if (['mom', 'bhabhi', 'gf', 'sister'].includes(char)) {
+      ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(-48, eyeY - 8); ctx.lineTo(-60, eyeY - 18); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(48, eyeY - 8); ctx.lineTo(60, eyeY - 18); ctx.stroke();
+    }
+
     if (isBlinking && emotion === 'normal') {
       ctx.beginPath(); ctx.moveTo(-46, eyeY); ctx.lineTo(46, eyeY); ctx.stroke();
     } else {
@@ -876,17 +945,18 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
     }
   }
 
+  // Animated Lip-Sync Mouth!
   const mouthY = headY + 46;
   ctx.lineWidth = 6;
-  if (isSpeaker && talkAmt > 0.08) {
-    if (talkAmt > 0.50) {
+  if (isSpeaker && talkAmt > 0.05) {
+    if (talkAmt > 0.45) {
       ctx.fillStyle = '#7f1d1d';
       ctx.beginPath(); ctx.arc(0, mouthY - 8, 28, 0, Math.PI, false); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#ffffff'; ctx.fillRect(-20, mouthY - 8, 40, 7);
       ctx.fillStyle = '#fb7185'; ctx.beginPath(); ctx.arc(0, mouthY + 12, 12, Math.PI, 0); ctx.fill();
     } else {
       ctx.fillStyle = '#7f1d1d';
-      ctx.beginPath(); ctx.ellipse(0, mouthY, 16, Math.max(8, talkAmt * 24), 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, mouthY, 18, Math.max(9, talkAmt * 28), 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     }
   } else {
     ctx.beginPath();
@@ -902,12 +972,33 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
 function drawCaptions(text, char) {
   if (!text) return;
   const W = canvas.width, H = canvas.height;
-  const names = { hero: 'HERO', bro: 'BRO', villain: 'VILLAIN', mom: 'MUMMY', bhabhi: 'BHABHI', npc: 'DOST' };
-  const colors = { hero: '#3b82f6', bro: '#f59e0b', villain: '#991b1b', mom: '#ec4899', bhabhi: '#a855f7', npc: '#10b981' };
+  const names = {
+    hero: 'HERO',
+    bro: 'BRO',
+    villain: 'VILLAIN',
+    mom: 'MUMMY',
+    bhabhi: 'BHABHI',
+    gf: 'GIRLFRIEND',
+    sister: 'BEHEN',
+    npc: 'DOST'
+  };
+  const colors = {
+    hero: '#3b82f6',
+    bro: '#f59e0b',
+    villain: '#991b1b',
+    mom: '#ec4899',
+    bhabhi: '#9333ea',
+    gf: '#f43f5e',
+    sister: '#06b6d4',
+    npc: '#10b981'
+  };
+
+  const badgeLabel = names[char] || 'HERO';
+  const badgeW = Math.max(185, badgeLabel.length * 22 + 48);
 
   ctx.fillStyle = colors[char] || '#ef4444'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 5;
-  ctx.beginPath(); ctx.roundRect(36, 36, 185, 44, 12); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#ffffff'; ctx.font = '900 24px sans-serif'; ctx.fillText(names[char] || 'HERO', 58, 66);
+  ctx.beginPath(); ctx.roundRect(36, 36, badgeW, 44, 12); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#ffffff'; ctx.font = '900 24px sans-serif'; ctx.fillText(badgeLabel, 58, 66);
 
   ctx.font = '900 34px sans-serif'; ctx.textAlign = 'center';
   const words = text.split(' '), lines = []; let line = '', maxLineW = W - 100;
@@ -934,7 +1025,6 @@ function renderLoop() {
   if (smearTimer > 0) smearTimer--;
 
   const W = canvas.width, H = canvas.height, groundY = Math.round(H * 0.77);
-  // Guarantee solid base fill so stream never has transparent/black alpha frames
   ctx.fillStyle = '#fef3c7';
   ctx.fillRect(0, 0, W, H);
 
@@ -942,11 +1032,24 @@ function renderLoop() {
   const cam = currentScene.camera || 'normal';
   const gag = currentScene.gag || 'none';
 
-  if (analyser && dataArray) {
-    analyser.getByteFrequencyData(dataArray);
-    let sum = 0; for (let i = 0; i < 32; i++) sum += dataArray[i];
-    mouthOpen = Math.min(1, Math.max(0, ((sum / 32) - 10) / 65));
-  } else mouthOpen = 0;
+  // High-sensitivity Time-Domain RMS Lip-Sync + Syllable Fallback
+  if (isSpeakingNow) {
+    let rmsLevel = 0;
+    if (analyser && timeDomainArray) {
+      analyser.getByteTimeDomainData(timeDomainArray);
+      let sqSum = 0;
+      for (let i = 0; i < timeDomainArray.length; i++) {
+        const v = (timeDomainArray[i] - 128) / 128;
+        sqSum += v * v;
+      }
+      const rms = Math.sqrt(sqSum / timeDomainArray.length);
+      rmsLevel = Math.min(1, rms * 9.5);
+    }
+    const syllablePulse = 0.25 + Math.abs(Math.sin(frameTick * 0.55)) * 0.55;
+    mouthOpen = Math.max(rmsLevel, syllablePulse);
+  } else {
+    mouthOpen = 0;
+  }
 
   ctx.save();
   if (cam === 'shake') ctx.translate((Math.random() - 0.5) * 24, (Math.random() - 0.5) * 24);
@@ -1044,7 +1147,7 @@ async function fetchEdgeTTSPerScene(scenes, partLabel = '') {
 async function fetchGeminiMultiSpeakerVoices(scenes, partLabel = '') {
   const key = apiKeyInput.value.trim();
   if (!key) throw new Error('Gemini API Key missing');
-  const isFemale = (c) => c === 'mom' || c === 'bhabhi';
+  const isFemale = (c) => ['mom', 'bhabhi', 'gf', 'sister'].includes(c);
   const dialogueLines = scenes.map((sc) => `${isFemale(sc.char) ? 'FemaleVoice' : 'MaleVoice'}: ${sc.text}`).join('\n');
 
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(key)}`, {
@@ -1147,6 +1250,8 @@ function playAudioOnce(audioBuffer, char = "hero") {
     const source = audioCtx.createBufferSource();
     source.buffer = safeBuf;
     if (char === 'bro') { source.detune.value = 120; source.playbackRate.value = 1.06; }
+    else if (char === 'gf') { source.detune.value = 140; source.playbackRate.value = 1.07; }
+    else if (char === 'sister') { source.detune.value = 210; source.playbackRate.value = 1.10; }
     else if (char === 'villain') { source.detune.value = -220; source.playbackRate.value = 0.97; }
     else { source.playbackRate.value = 1.04; }
     source.connect(analyser); analyser.connect(audioCtx.destination); analyser.connect(destNode);
@@ -1156,7 +1261,7 @@ function playAudioOnce(audioBuffer, char = "hero") {
 }
 
 // =========================================================================
-// AGENT 5: EDITOR & NATIVE COMPOSITOR VIDEO RECORDER (100% BLACK-SCREEN FREE)
+// AGENT 5: EDITOR & NATIVE COMPOSITOR VIDEO RECORDER
 // =========================================================================
 async function createBulletproofRecorder() {
   const canvasStream = canvas.captureStream(30);
@@ -1191,7 +1296,6 @@ async function createBulletproofRecorder() {
     if (e.data && e.data.size > 0) chunks.push(e.data);
   };
 
-  // Push frame tick explicitly every 33ms so Android stream never stalls
   const pump = setInterval(() => {
     if (videoTrack && typeof videoTrack.requestFrame === 'function') {
       videoTrack.requestFrame();
