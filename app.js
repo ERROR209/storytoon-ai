@@ -34,11 +34,11 @@ formatSelect.addEventListener('change', applyFormat);
 applyFormat();
 
 const DEMO_SCRIPT = [
-  { char: "hero", other: "bro", emotion: "smug", otherEmotion: "normal", action: "walk", location: "park", power: "none", card: null, zoom: "normal", sfx: "none", text: "Bhai aaj park mein maine ek aisa jugad nikala hai ki sab hil jayenge!" },
-  { char: "bro", other: "hero", emotion: "shocked", otherEmotion: "smug", action: "idle", location: "park", power: "energy", card: { icon: "⚡", label: "SECRET TRICK" }, zoom: "in", sfx: "gasp", text: "Oye tere haath mein ye neela gola kahan se aa gaya?!" },
-  { char: "villain", other: "hero", emotion: "angry", otherEmotion: "shocked", action: "walk", location: "street", power: "fire", card: { icon: "😈", label: "GALI KA BOSS" }, zoom: "shake", sfx: "boom", text: "Is gali mein sirf mera raaj chalta hai, ye shakti mujhe de de!" },
-  { char: "hero", other: "villain", emotion: "shadow", otherEmotion: "angry", action: "run", location: "street", power: "aura", card: null, zoom: "in", sfx: "boom", text: "Sapne dekhna band kar, ab tera pack-up hone wala hai!" },
-  { char: "bro", other: "villain", emotion: "smug", otherEmotion: "dead", action: "idle", location: "street", power: "none", card: { icon: "💥", label: "PACK UP!" }, zoom: "normal", sfx: "slap", text: "Ek hi jhatke mein bhai ne boss ko zameen par leta diya!" }
+  { char: "hero", other: "bro", emotion: "smug", otherEmotion: "normal", action: "walk", location: "street", camera: "normal", prop: "none", power: "none", card: null, sfx: "none", text: "Bhai aaj is patli gali mein maine ek naya shortcut nikala hai!" },
+  { char: "bro", other: "hero", emotion: "sweat", otherEmotion: "cursed", action: "idle", location: "street", camera: "top", prop: "car", power: "none", card: { icon: "🚗", label: "GALI JAM!" }, sfx: "gasp", text: "Upar se dekh bhai, kisi ne beech gali mein Alto phansa di hai!" },
+  { char: "villain", other: "hero", emotion: "angry", otherEmotion: "shocked", action: "walk", location: "street", camera: "in", prop: "none", power: "fire", card: { icon: "😈", label: "GALI KA DON" }, sfx: "boom", text: "Meri gaadi ke saamne se hato warna abhi dhuaan nikaal dunga!" },
+  { char: "hero", other: "villain", emotion: "cursed", otherEmotion: "angry", action: "run", location: "park", camera: "top", prop: "tyre", power: "aura", card: null, sfx: "boom", text: "Bhaag le bhai, hum bachpan ke tyre-rolling champion hain!" },
+  { char: "bro", other: "villain", emotion: "smug", otherEmotion: "dead", action: "idle", location: "park", camera: "normal", prop: "chai", power: "none", card: { icon: "☕", label: "CHAI BREAK" }, sfx: "slap", text: "Don toh gayo, ab sukoon se garam chai aur rasgulla khate hain!" }
 ];
 scriptEditor.value = JSON.stringify(DEMO_SCRIPT, null, 2);
 
@@ -49,7 +49,7 @@ let cachedScriptHash = '';
 let cachedAudioSlices = [];
 const customMicBuffers = {};
 
-// Per-Scene Mic Recorder
+// Per-Scene Mic Recorder (Preserved from v14)
 const scriptCard = document.querySelector('.script-card');
 const micPanel = document.createElement('div');
 micPanel.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-top:6px;';
@@ -68,7 +68,7 @@ function renderMicControls() {
     row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:#0f1117;padding:6px 8px;border-radius:8px;border:1px solid #2a2f3d;gap:6px;';
     const label = document.createElement('span');
     label.style.cssText = 'font-size:0.72rem;color:#e2e8f0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
-    label.textContent = `${idx + 1}. [${sc.char.toUpperCase()}] ${sc.text}`;
+    label.textContent = `${idx + 1}. [${sc.char.toUpperCase()}] (${sc.camera || 'normal'}) ${sc.text}`;
 
     const btn = document.createElement('button');
     btn.className = 'btn tiny';
@@ -107,10 +107,10 @@ document.getElementById('loadDemoBtn').onclick = () => {
   scriptEditor.value = JSON.stringify(DEMO_SCRIPT, null, 2);
   cachedScriptHash = '';
   renderMicControls();
-  setStatus('NOT YOUR TYPE Action Demo loaded!');
+  setStatus('NOT YOUR TYPE Top-Down + Visual Gag Demo loaded!');
 };
 
-// Web Audio Engine (Guaranteed non-null AudioContext & fallback buffer)
+// Web Audio Engine
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null, destNode = null, analyser = null, dataArray = null, bgmGain = null, bgmInterval = null;
 let isPlayingSequence = false;
@@ -186,7 +186,7 @@ function playSFX(type) {
   }
 }
 
-// Resilient Gemini Script Generator
+// Resilient Gemini Script Generator (Supports Top-Down Camera, Visual Gag Props & Meme Expressions)
 async function getAvailableTextModels(key) {
   try {
     const ctrl = new AbortController();
@@ -213,14 +213,16 @@ async function fetchPartScriptFromGemini(key, topic, partNum, totalParts, prevEn
 
   const prompt = `Viral Indian animated story creator ("NOT YOUR TYPE" style). Write a 9-line Hinglish script on: "${topic}". Genre: ${toneSelect.value}. ${continuationNote}
 Characters: "hero", "bro", "villain", "npc", "mom" (ONLY if home/family story).
-Emotions: "normal", "shocked", "smug", "angry", "crying", "dead", "shadow".
+Emotions: "normal", "shocked", "smug", "angry", "crying", "dead", "shadow", "cursed" (funny derpy meme face), "sweat" (nervous sweat drops).
 Actions: "idle", "walk", "run".
-Locations: "park" (park/ground), "room" (house/bedroom), "street" (gali/city road), "gaon" (village/fields), "jungle" (night forest), "dramatic", "red".
+Locations: "park", "room", "street", "gaon", "jungle", "dramatic", "red".
+Camera Angles (VARY THESE EVERY 2 SCENES so video never looks static!): "normal" (eye-level), "in" (dramatic close-up), "top" (bird's-eye overhead top-down view showing street/map & chaos), "shake" (impact shake).
+Scene Props (Visual gags on stage): "none", "car" (stuck Alto car), "train" (crowded local train), "chai" (tea & rasgulla stall), "tyre" (rolling tyre), "phone" (glowing smartphone).
 Superpowers: "none", "energy", "fire", "lightning", "aura".
-Card: null OR {"icon":"emoji","label":"2 WORD TEXT"} ONLY when visually helpful.
-Zooms: "normal", "in", "shake". SFX: "none", "boom", "slap", "gasp".
-Rule: Dead characters NEVER speak. Match location and action naturally to the story.
-Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"smug","otherEmotion":"normal","action":"walk","location":"park","power":"none","card":null,"zoom":"normal","sfx":"none","text":"8-13 words Hinglish"}].`;
+Card: null OR {"icon":"emoji","label":"2 WORD TEXT"}.
+SFX: "none", "boom", "slap", "gasp".
+Rule: Dead characters NEVER speak. Use "top" camera angle at least 2 times for situational/chase/chaos scenes!
+Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"smug","otherEmotion":"normal","action":"walk","location":"street","camera":"top","prop":"car","power":"none","card":null,"sfx":"none","text":"8-13 words Hinglish"}].`;
 
   const models = await getAvailableTextModels(key);
   let lastErr = 'Server busy';
@@ -258,7 +260,7 @@ Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"smug","otherEmo
 }
 
 // =========================================================================
-// NOT YOUR TYPE STYLE LAYERED 2D BACKGROUNDS & EXPRESSIVE CHARACTERS
+// NOT YOUR TYPE STAGE RENDERER (Eye-Level + Top-Down Overhead + Visual Gags)
 // =========================================================================
 let currentScene = DEMO_SCRIPT[0];
 let mouthOpen = 0, frameTick = 0, scenePop = 1, blinkTimer = 0;
@@ -272,13 +274,157 @@ function drawCloud(x, y, s = 1) {
   ctx.fill();
 }
 
+// Visual Gag Props (Car/Alto, Train, Chai Stall, Rolling Tyre, Phone)
+function drawSceneProp(prop, x, y, scale = 1, isTopDown = false) {
+  if (!prop || prop === 'none') return;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 6;
+
+  if (prop === 'car') {
+    if (isTopDown) {
+      // Top-down red Alto car stuck in narrow gali
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.beginPath(); ctx.roundRect(-52, -88, 114, 186, 24); ctx.fill();
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath(); ctx.roundRect(-55, -92, 110, 184, 22); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#bae6fd';
+      ctx.beginPath(); ctx.roundRect(-42, -52, 84, 34, 8); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(-40, 32, 80, 26, 8); ctx.fill(); ctx.stroke();
+    } else {
+      // Side-view cartoon Alto car
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath(); ctx.roundRect(-110, -75, 220, 55, 14); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(-70, -120, 130, 50, 16); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#bae6fd';
+      ctx.fillRect(-55, -110, 45, 34); ctx.strokeRect(-55, -110, 45, 34);
+      ctx.fillRect(5, -110, 42, 34); ctx.strokeRect(5, -110, 42, 34);
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath(); ctx.arc(-65, -18, 22, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(65, -18, 22, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+  } else if (prop === 'train') {
+    ctx.fillStyle = '#eab308';
+    ctx.fillRect(-150, -170, 300, 150); ctx.strokeRect(-150, -170, 300, 150);
+    ctx.fillStyle = '#1d4ed8';
+    ctx.fillRect(-150, -110, 300, 32); ctx.strokeRect(-150, -110, 300, 32);
+    ctx.fillStyle = '#bae6fd';
+    for (let wx = -125; wx <= 75; wx += 65) {
+      ctx.fillRect(wx, -152, 44, 32); ctx.strokeRect(wx, -152, 44, 32);
+    }
+  } else if (prop === 'chai') {
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(-75, -95, 150, 95); ctx.strokeRect(-75, -95, 150, 95);
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-85, -128, 170, 32); ctx.strokeRect(-85, -128, 170, 32);
+    ctx.fillStyle = '#0f172a'; ctx.font = '900 18px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('CHAI & SWEETS', 0, -106); ctx.textAlign = 'left';
+  } else if (prop === 'tyre') {
+    const spin = frameTick * 0.25;
+    ctx.save(); ctx.translate(0, -34); ctx.rotate(spin);
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath(); ctx.arc(0, 0, 34, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#94a3b8';
+    ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  } else if (prop === 'phone') {
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath(); ctx.roundRect(-28, -95, 56, 95, 10); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(-22, -85, 44, 72);
+  }
+  ctx.restore();
+}
+
+// Bird's-Eye Top-Down Camera View (Upar se angle!)
+function drawTopDownScene(scene) {
+  const W = canvas.width, H = canvas.height;
+  const loc = scene.location || 'street';
+  const isMoving = scene.action === 'walk' || scene.action === 'run';
+  const scrollY = isMoving ? (frameTick * 5) % 160 : 0;
+
+  // Ground Map Base
+  if (loc === 'park' || loc === 'gaon') {
+    ctx.fillStyle = '#22c55e'; ctx.fillRect(0, 0, W, H);
+    // Winding Park Footpath
+    ctx.fillStyle = '#fde68a'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 6;
+    ctx.fillRect(W * 0.25, 0, W * 0.5, H); ctx.strokeRect(W * 0.25, -10, W * 0.5, H + 20);
+    // Top-down trees on sides
+    for (let ty = -80 + scrollY; ty < H + 100; ty += 220) {
+      ctx.fillStyle = '#15803d';
+      ctx.beginPath(); ctx.arc(W * 0.12, ty, 56, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(W * 0.88, ty + 90, 62, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+  } else if (loc === 'jungle' || loc === 'night') {
+    ctx.fillStyle = '#1e1b4b'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#312e81'; ctx.fillRect(W * 0.28, 0, W * 0.44, H);
+  } else {
+    // Narrow Desi Gali / Road from Top-Down!
+    ctx.fillStyle = '#475569'; ctx.fillRect(0, 0, W, H);
+    // Left & Right Building Rooftops
+    ctx.fillStyle = '#cbd5e1'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 7;
+    ctx.fillRect(-10, -10, W * 0.22 + 10, H + 20); ctx.strokeRect(-10, -10, W * 0.22 + 10, H + 20);
+    ctx.fillRect(W * 0.78, -10, W * 0.22 + 10, H + 20); ctx.strokeRect(W * 0.78, -10, W * 0.22 + 10, H + 20);
+    // Dashed Road Center Line
+    ctx.fillStyle = '#facc15';
+    for (let dy = -120 + scrollY; dy < H + 120; dy += 160) {
+      ctx.fillRect(W * 0.5 - 8, dy, 16, 75);
+    }
+  }
+
+  // Draw Prop in Top-Down Mode if active
+  if (scene.prop && scene.prop !== 'none') {
+    drawSceneProp(scene.prop, W * 0.5, H * 0.34, 1.15, true);
+  }
+
+  // Draw Top-Down Characters (Head + Shoulders + Long Cast Shadow!)
+  const speaker = scene.char || 'hero';
+  const listener = scene.other || (speaker === 'hero' ? 'bro' : 'hero');
+  drawTopDownCharacter(listener, W * 0.62, H * 0.64, false, false);
+  drawTopDownCharacter(speaker, W * 0.38, H * 0.58, true, isMoving);
+}
+
+function drawTopDownCharacter(char, x, y, isSpeaker, isMoving) {
+  const bob = isMoving ? Math.sin(frameTick * 0.35) * 10 : (isSpeaker ? mouthOpen * 6 : 0);
+  const colors = { hero: '#3b82f6', bro: '#f59e0b', villain: '#1e293b', mom: '#ec4899', npc: '#10b981' };
+
+  ctx.save();
+  ctx.translate(x, y + bob);
+  if (isSpeaker) ctx.scale(scenePop, scenePop);
+
+  // Long Ground Cast Shadow (Gives strong 3D height feeling!)
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.beginPath(); ctx.ellipse(26, 22, 52, 34, 0.35, 0, Math.PI * 2); ctx.fill();
+
+  // Shoulders / Torso from Top
+  ctx.fillStyle = colors[char] || '#3b82f6';
+  ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.ellipse(0, 0, 56, 34, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+  // Head from Top
+  ctx.fillStyle = char === 'bro' ? '#ef4444' : '#0f172a';
+  ctx.beginPath(); ctx.arc(0, -4, 34, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+  // Nose / Face tip pointing up-forward
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(0, -34, 14, Math.PI, 0); ctx.fill(); ctx.stroke();
+
+  // Speaker Ring Indicator
+  if (isSpeaker) {
+    ctx.strokeStyle = '#facc15'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(0, 0, 68 + Math.sin(frameTick * 0.3) * 5, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawEnvironment(loc, isMoving) {
   const W = canvas.width, H = canvas.height;
   const floorY = Math.round(H * 0.77);
   const scrollX = isMoving ? (frameTick * 4.5) % W : 0;
 
   if (loc === 'red' || loc === 'dramatic') {
-    // Anime Speed Lines Background (NOT YOUR TYPE dramatic punchline style!)
     ctx.fillStyle = loc === 'red' ? '#dc2626' : '#0f172a';
     ctx.fillRect(0, 0, W, H);
     ctx.strokeStyle = loc === 'red' ? '#fef08a' : '#38bdf8';
@@ -292,7 +438,6 @@ function drawEnvironment(loc, isMoving) {
       ctx.stroke();
     }
   } else if (loc === 'park' || loc === 'gaon') {
-    // Layered Sky Gradient + Soft Clouds + Rolling Grass Hills + Trees/Bench/Hut
     const sky = ctx.createLinearGradient(0, 0, 0, floorY);
     sky.addColorStop(0, '#38bdf8');
     sky.addColorStop(1, '#bae6fd');
@@ -301,13 +446,11 @@ function drawEnvironment(loc, isMoving) {
     drawCloud(((W * 0.2 - scrollX * 0.3) + W) % W, H * 0.14, 1.1);
     drawCloud(((W * 0.72 - scrollX * 0.3) + W) % W, H * 0.20, 0.9);
 
-    // Distant Hill Layer
     ctx.fillStyle = '#4ade80';
     ctx.beginPath(); ctx.arc(W * 0.28, floorY + 20, W * 0.5, Math.PI, 0); ctx.fill();
     ctx.fillStyle = '#22c55e';
     ctx.beginPath(); ctx.arc(W * 0.78, floorY + 20, W * 0.55, Math.PI, 0); ctx.fill();
 
-    // Tree with Thick Hand-Drawn Outline
     const treeX = ((W * 0.80 - scrollX) + W) % W;
     ctx.fillStyle = '#78350f'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 5;
     ctx.fillRect(treeX - 14, floorY - 150, 28, 150); ctx.strokeRect(treeX - 14, floorY - 150, 28, 150);
@@ -321,14 +464,12 @@ function drawEnvironment(loc, isMoving) {
       ctx.fillStyle = '#b45309';
       ctx.beginPath(); ctx.moveTo(hutX - 16, floorY - 105); ctx.lineTo(hutX + 58, floorY - 168); ctx.lineTo(hutX + 132, floorY - 105); ctx.closePath(); ctx.fill(); ctx.stroke();
     } else {
-      // Park Bench
       const benchX = ((W * 0.20 - scrollX) + W) % W;
       ctx.fillStyle = '#b45309';
       ctx.fillRect(benchX, floorY - 52, 110, 14); ctx.strokeRect(benchX, floorY - 52, 110, 14);
       ctx.fillRect(benchX + 12, floorY - 38, 10, 38); ctx.fillRect(benchX + 88, floorY - 38, 10, 38);
     }
   } else if (loc === 'street' || loc === 'shehar') {
-    // Sunset / Warm Gali Sky + Buildings + Electric Pole & Hanging Wires
     const sky = ctx.createLinearGradient(0, 0, 0, floorY);
     sky.addColorStop(0, '#60a5fa');
     sky.addColorStop(1, '#fed7aa');
@@ -350,7 +491,6 @@ function drawEnvironment(loc, isMoving) {
       }
     });
 
-    // Electric Pole + Hanging Wires (Classic Desi Gali Look!)
     const poleX = ((W * 0.56 - scrollX) + W) % W;
     ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 8;
     ctx.beginPath(); ctx.moveTo(poleX, floorY); ctx.lineTo(poleX, floorY - 340); ctx.stroke();
@@ -360,7 +500,6 @@ function drawEnvironment(loc, isMoving) {
     ctx.beginPath(); ctx.moveTo(0, floorY - 300); ctx.quadraticCurveTo(poleX * 0.5, floorY - 260, poleX, floorY - 320); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(poleX, floorY - 320); ctx.quadraticCurveTo((poleX + W) * 0.5, floorY - 260, W, floorY - 300); ctx.stroke();
   } else if (loc === 'jungle' || loc === 'night') {
-    // Dark Purple/Blue Night Forest with Full Moon
     ctx.fillStyle = '#1e1b4b'; ctx.fillRect(0, 0, W, floorY);
     ctx.fillStyle = '#fef9c3'; ctx.beginPath(); ctx.arc(W * 0.80, H * 0.16, 42, 0, Math.PI * 2); ctx.fill();
     for (let i = 0; i < 5; i++) {
@@ -369,24 +508,15 @@ function drawEnvironment(loc, isMoving) {
       ctx.fillStyle = '#1e1b4b'; ctx.beginPath(); ctx.arc(tx + 15, floorY - 270, 82, 0, Math.PI * 2); ctx.fill();
     }
   } else {
-    // Interior Room (Wall + Window + Wooden Door + Sofa)
     ctx.fillStyle = '#fef3c7'; ctx.fillRect(0, 0, W, floorY);
     ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 4;
     for (let x = 40; x < W; x += 65) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, floorY); ctx.stroke(); }
-
-    // Wooden Door
     ctx.fillStyle = '#b45309'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 5;
     ctx.fillRect(W * 0.12, floorY - 240, 115, 240); ctx.strokeRect(W * 0.12, floorY - 240, 115, 240);
-    ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(W * 0.12 + 92, floorY - 115, 7, 0, Math.PI * 2); ctx.fill();
-
-    // Window
     ctx.fillStyle = '#bae6fd';
     ctx.fillRect(W * 0.68, floorY - 250, 130, 115); ctx.strokeRect(W * 0.68, floorY - 250, 130, 115);
-    ctx.beginPath(); ctx.moveTo(W * 0.68 + 65, floorY - 250); ctx.lineTo(W * 0.68 + 65, floorY - 135);
-    ctx.moveTo(W * 0.68, floorY - 192); ctx.lineTo(W * 0.68 + 130, floorY - 192); ctx.stroke();
   }
 
-  // Ground Layer with Thick Hand-Drawn Horizon Line
   ctx.fillStyle = (loc === 'park' || loc === 'gaon') ? '#15803d' : (loc === 'street' || loc === 'shehar') ? '#475569' : (loc === 'jungle' || loc === 'night') ? '#0f172a' : '#d97706';
   ctx.fillRect(0, floorY, W, H - floorY);
   ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 7;
@@ -417,7 +547,6 @@ function drawSuperpowerVFX(power, x, y) {
   ctx.restore();
 }
 
-// NOT YOUR TYPE Character Renderer (Bean Torso, Noodle Limbs, Conjoined Oversized Eyes, D/O Mouths!)
 function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, groundY, scaleVal, isSpeaker, lookDir = 1) {
   const isWalking = action === 'walk' || action === 'run';
   const walkSpeed = action === 'run' ? 0.38 : 0.22;
@@ -428,7 +557,6 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
   else if (isWalking) jumpY = Math.abs(Math.sin(frameTick * walkSpeed)) * 12;
   else if (isSpeaker) jumpY = talkAmt * 10;
 
-  // Ground Contact Shadow
   ctx.save();
   ctx.fillStyle = 'rgba(0,0,0,0.22)';
   ctx.beginPath(); ctx.ellipse(footX, groundY + 4, 65 * scaleVal, 13 * scaleVal, 0, 0, Math.PI * 2); ctx.fill();
@@ -442,17 +570,15 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
 
   ctx.strokeStyle = '#0f172a'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
-  // 1. NOODLE LEGS + SIMPLE CARTOON SHOES
+  // Noodle Legs + Shoes
   ctx.lineWidth = 8;
   ctx.beginPath(); ctx.moveTo(-18, -125); ctx.quadraticCurveTo(-24 - legSwing * 0.5, -70, -24 - legSwing, -12); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(18, -125); ctx.quadraticCurveTo(24 + legSwing * 0.5, -70, 24 + legSwing, -12); ctx.stroke();
-
-  // Shoes
   ctx.fillStyle = '#0f172a';
   ctx.beginPath(); ctx.ellipse(-20 - legSwing, -8, 22, 10, 0, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.ellipse(28 + legSwing, -8, 22, 10, 0, 0, Math.PI * 2); ctx.fill();
 
-  // 2. BEAN-SHAPED TORSO (Not stiff rectangle!)
+  // Bean Torso
   ctx.lineWidth = 8;
   if (char === 'villain') {
     const capeWave = Math.sin(frameTick * 0.16) * 14;
@@ -464,7 +590,6 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
   } else {
     ctx.fillStyle = char === 'hero' ? '#3b82f6' : char === 'bro' ? '#f59e0b' : '#10b981';
   }
-
   ctx.beginPath();
   ctx.moveTo(-42, -125);
   ctx.quadraticCurveTo(-52, -200, -36, -262);
@@ -473,7 +598,7 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
   ctx.closePath();
   ctx.fill(); ctx.stroke();
 
-  // 3. EXPRESSIVE NOODLE ARMS (Curved bezier arms!)
+  // Noodle Arms
   ctx.lineWidth = 8;
   if (power && power !== 'none' && power !== 'aura' && isSpeaker) {
     ctx.beginPath(); ctx.moveTo(-42, -235); ctx.quadraticCurveTo(-75, -205, -65, -165); ctx.stroke();
@@ -488,26 +613,31 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
     ctx.beginPath(); ctx.moveTo(42, -235); ctx.quadraticCurveTo(86, -210 - wave, 76, -165 - wave * 1.4); ctx.stroke();
   }
 
-  // 4. HEAD (Slightly Squashed Organic Circle + Shading)
+  // Head
   const headY = -362;
   ctx.fillStyle = char === 'villain' ? '#e2e8f0' : '#ffffff';
   ctx.lineWidth = 8;
   ctx.beginPath(); ctx.ellipse(0, headY, 102, 96, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 
-  // Cheek / Dark Circle Shading (Signature NOT YOUR TYPE detail!)
   if (emotion === 'shadow' || emotion === 'angry' || char === 'villain') {
     ctx.fillStyle = 'rgba(15, 23, 42, 0.16)';
     ctx.beginPath(); ctx.ellipse(0, headY - 22, 85, 36, 0, 0, Math.PI * 2); ctx.fill();
   }
 
-  // Hair / Cap / Horns
+  // Sweat drops for nervous/funny situations
+  if (emotion === 'sweat') {
+    ctx.fillStyle = '#38bdf8';
+    ctx.beginPath(); ctx.arc(-78, headY - 22, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(82, headY - 12, 7, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Hair / Cap
   ctx.fillStyle = '#0f172a';
   if (char === 'villain') {
     ctx.fillStyle = '#991b1b';
     ctx.beginPath(); ctx.moveTo(-82, headY - 52); ctx.lineTo(-102, headY - 125); ctx.lineTo(-42, headY - 82); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(82, headY - 52); ctx.lineTo(102, headY - 125); ctx.lineTo(42, headY - 82); ctx.fill(); ctx.stroke();
   } else if (char === 'hero') {
-    // Messy Spiky Doodle Hair
     ctx.beginPath();
     ctx.moveTo(-95, headY - 30); ctx.lineTo(-78, headY - 118); ctx.lineTo(-35, headY - 88);
     ctx.lineTo(0, headY - 135); ctx.lineTo(36, headY - 88); ctx.lineTo(80, headY - 115); ctx.lineTo(95, headY - 30);
@@ -521,7 +651,7 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
     ctx.beginPath(); ctx.arc(0, headY - 32, 100, Math.PI, 0); ctx.fill();
   }
 
-  // 5. CONJOINED OVERSIZED EXPRESSIVE EYES (Signature NOT YOUR TYPE Look!)
+  // Conjoined Oversized Eyes + Cursed Meme Face Option
   const eyeY = headY - 6;
   const pupilShift = lookDir * 6;
   const isBlinking = (blinkTimer + (isSpeaker ? 0 : 45)) % 150 > 143;
@@ -530,8 +660,15 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
     ctx.lineWidth = 7;
     ctx.beginPath(); ctx.moveTo(-48, eyeY - 16); ctx.lineTo(-20, eyeY + 12); ctx.moveTo(-20, eyeY - 16); ctx.lineTo(-48, eyeY + 12); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(20, eyeY - 16); ctx.lineTo(48, eyeY + 12); ctx.moveTo(48, eyeY - 16); ctx.lineTo(20, eyeY + 12); ctx.stroke();
+  } else if (emotion === 'cursed') {
+    // Tiny derpy meme eyes looking opposite ways!
+    ctx.fillStyle = '#ffffff'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(-28, eyeY, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(28, eyeY - 6, 20, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath(); ctx.arc(-34, eyeY, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(36, eyeY - 6, 4, 0, Math.PI * 2); ctx.fill();
   } else {
-    // Two big touching white eye circles with black outlines
     const eyeR = emotion === 'shocked' ? 30 : 25;
     ctx.fillStyle = char === 'villain' ? '#fecaca' : '#ffffff';
     ctx.lineWidth = 6;
@@ -547,7 +684,6 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
       ctx.beginPath(); ctx.arc(23 + pupilShift, eyeY, pupR, 0, Math.PI * 2); ctx.fill();
     }
 
-    // Expressive Eyebrows
     ctx.lineWidth = 7;
     if (emotion === 'angry' || char === 'villain') {
       ctx.beginPath(); ctx.moveTo(-54, eyeY - 34); ctx.lineTo(-6, eyeY - 22); ctx.stroke();
@@ -558,26 +694,30 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
     }
   }
 
-  // 6. DYNAMIC LIP-SYNC MOUTHS (D-shape with teeth/tongue, O-shock, Smirk)
+  // Dynamic Lip-Sync Mouths
   const mouthY = headY + 46;
   ctx.lineWidth = 6;
   if (isSpeaker && talkAmt > 0.08) {
     if (talkAmt > 0.52) {
-      // Big 'D' Talking Mouth with White Teeth & Pink Tongue
       ctx.fillStyle = '#7f1d1d';
       ctx.beginPath(); ctx.arc(0, mouthY - 8, 28, 0, Math.PI, false); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#ffffff'; ctx.fillRect(-20, mouthY - 8, 40, 7);
       ctx.fillStyle = '#fb7185'; ctx.beginPath(); ctx.arc(0, mouthY + 12, 12, Math.PI, 0); ctx.fill();
     } else {
-      // 'O' Speaking Mouth
       ctx.fillStyle = '#7f1d1d';
       ctx.beginPath(); ctx.ellipse(0, mouthY, 16, Math.max(8, talkAmt * 24), 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     }
   } else {
     ctx.beginPath();
-    if (emotion === 'smug' || char === 'villain') ctx.arc(0, mouthY - 6, 24, 0.1 * Math.PI, 0.85 * Math.PI);
-    else if (emotion === 'shocked') { ctx.fillStyle = '#7f1d1d'; ctx.arc(0, mouthY + 4, 14, 0, Math.PI * 2); ctx.fill(); }
-    else { ctx.moveTo(-18, mouthY); ctx.lineTo(18, mouthY); }
+    if (emotion === 'cursed') {
+      ctx.moveTo(-24, mouthY + 6); ctx.quadraticCurveTo(0, mouthY - 12, 26, mouthY + 8);
+    } else if (emotion === 'smug' || char === 'villain') {
+      ctx.arc(0, mouthY - 6, 24, 0.1 * Math.PI, 0.85 * Math.PI);
+    } else if (emotion === 'shocked') {
+      ctx.fillStyle = '#7f1d1d'; ctx.arc(0, mouthY + 4, 14, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.moveTo(-18, mouthY); ctx.lineTo(18, mouthY);
+    }
     ctx.stroke();
   }
 
@@ -630,6 +770,7 @@ function renderLoop() {
   frameTick++; blinkTimer++; scenePop += (1 - scenePop) * 0.28;
   const W = canvas.width, H = canvas.height, groundY = Math.round(H * 0.77);
   const charScale = H < 800 ? 0.74 : 0.96;
+  const cam = currentScene.camera || currentScene.zoom || 'normal';
 
   if (analyser && dataArray) {
     analyser.getByteFrequencyData(dataArray);
@@ -638,30 +779,44 @@ function renderLoop() {
   } else mouthOpen = 0;
 
   ctx.save();
-  if (currentScene.zoom === 'in') { ctx.translate(W * 0.5, groundY - 180); ctx.scale(1.18, 1.18); ctx.translate(-W * 0.5, -(groundY - 180)); }
-  else if (currentScene.zoom === 'shake') { ctx.translate((Math.random() - 0.5) * 22, (Math.random() - 0.5) * 22); }
+  if (cam === 'shake') {
+    ctx.translate((Math.random() - 0.5) * 22, (Math.random() - 0.5) * 22);
+  }
 
-  const isMoving = currentScene.action === 'walk' || currentScene.action === 'run';
-  drawEnvironment(currentScene.location || 'park', isMoving);
-
-  const speaker = currentScene.char || 'hero';
-  const listener = currentScene.other || (speaker === 'hero' ? 'bro' : 'hero');
-
-  if (currentScene.zoom !== 'in') {
-    drawFullBodyCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 'none', 0, W * 0.70, groundY, charScale * 0.88, false, -1);
-    drawFullBodyCharacter(speaker, currentScene.emotion || 'normal', currentScene.action || 'idle', currentScene.power || 'none', mouthOpen, W * 0.32, groundY, charScale, true, 1);
+  if (cam === 'top') {
+    // Bird's-Eye Top-Down Overhead Angle!
+    drawTopDownScene(currentScene);
   } else {
-    drawFullBodyCharacter(speaker, currentScene.emotion || 'normal', currentScene.action || 'idle', currentScene.power || 'none', mouthOpen, W * 0.48, groundY, charScale * 1.06, true, 0);
+    if (cam === 'in') {
+      ctx.translate(W * 0.5, groundY - 180); ctx.scale(1.18, 1.18); ctx.translate(-W * 0.5, -(groundY - 180));
+    }
+    const isMoving = currentScene.action === 'walk' || currentScene.action === 'run';
+    drawEnvironment(currentScene.location || 'park', isMoving);
+
+    // Draw Visual Gag Prop on stage if present
+    if (currentScene.prop && currentScene.prop !== 'none') {
+      drawSceneProp(currentScene.prop, W * 0.52, groundY, H < 800 ? 0.78 : 0.95, false);
+    }
+
+    const speaker = currentScene.char || 'hero';
+    const listener = currentScene.other || (speaker === 'hero' ? 'bro' : 'hero');
+
+    if (cam !== 'in') {
+      drawFullBodyCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 'none', 0, W * 0.74, groundY, charScale * 0.88, false, -1);
+      drawFullBodyCharacter(speaker, currentScene.emotion || 'normal', currentScene.action || 'idle', currentScene.power || 'none', mouthOpen, W * 0.28, groundY, charScale, true, 1);
+    } else {
+      drawFullBodyCharacter(speaker, currentScene.emotion || 'normal', currentScene.action || 'idle', currentScene.power || 'none', mouthOpen, W * 0.48, groundY, charScale * 1.06, true, 0);
+    }
   }
 
   drawCutaway(currentScene);
   ctx.restore();
-  drawCaptions(currentScene.text, speaker);
+  drawCaptions(currentScene.text, currentScene.char || 'hero');
   requestAnimationFrame(renderLoop);
 }
 renderLoop();
 
-// Audio & Voice Helpers
+// Audio & Voice Helpers (Multi-Mode TTS + Non-Crashing Fallback)
 function pcmToWavBuffer(base64Pcm, sampleRate = 24000) {
   const binary = atob(base64Pcm), pcmLen = binary.length, wavBuffer = new ArrayBuffer(44 + pcmLen), view = new DataView(wavBuffer);
   const writeStr = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
@@ -745,7 +900,6 @@ async function fetchAllHumanVoicesInOneCall(scenes, partLabel = '') {
     }
   }
 
-  // Non-crashing fallback buffer (timed to word count) so video ALWAYS renders & saves!
   setStatus(`⚠️ TTS busy, rendering ${partLabel} with BGM + SFX + Captions...`);
   const totalWords = scenes.reduce((acc, s) => acc + (s.text || '').split(' ').length, 0);
   const estSeconds = Math.max(8, Math.round(totalWords * 0.42));
@@ -801,15 +955,11 @@ function playAudioOnce(audioBuffer, char = "hero") {
   });
 }
 
-// =========================================================================
-// BULLETPROOF VIDEO RECORDER (Real H.264 MP4 with Direct AudioBuffer + WebM Fallback)
-// Fixes the 1.01 KB empty file bug permanently!
-// =========================================================================
+// Bulletproof Software H.264 MP4 Recorder (No Black Screen on Android Chrome!)
 async function createBulletproofRecorder(audioList) {
   const W = canvas.width, H = canvas.height;
   const sr = (audioCtx && audioCtx.sampleRate) ? audioCtx.sampleRate : 44100;
 
-  // Try Hardware H.264 + AAC MP4 Muxer first (feeds AudioBuffers directly without MediaStreamTrackProcessor crash!)
   if (typeof Mp4Muxer !== 'undefined' && typeof VideoEncoder !== 'undefined' && typeof AudioEncoder !== 'undefined') {
     try {
       const muxer = new Mp4Muxer.Muxer({
@@ -832,7 +982,6 @@ async function createBulletproofRecorder(audioList) {
       const audioEncoder = new AudioEncoder({ output: (c, m) => muxer.addAudioChunk(c, m), error: (e) => console.error(e) });
       audioEncoder.configure({ codec: 'mp4a.40.2', numberOfChannels: 1, sampleRate: sr, bitrate: 128_000 });
 
-      // Encode all scene AudioBuffers directly into AAC track upfront!
       let audioTimestampUs = 0;
       for (const buf of audioList) {
         const safeBuf = (buf && buf.sampleRate) ? buf : createSilentBuffer(2.0);
@@ -884,7 +1033,6 @@ async function createBulletproofRecorder(audioList) {
     }
   }
 
-  // Fallback: MediaRecorder with proper stream
   const canvasStream = canvas.captureStream(30);
   const vTrack = canvasStream.getVideoTracks()[0];
   if (vTrack && vTrack.requestFrame) vTrack.requestFrame();
@@ -942,7 +1090,7 @@ async function renderSinglePart(scenes, partNum, totalParts, recordVideo = true,
     currentScene = scenes[i];
     scenePop = 0.78;
     playSFX(scenes[i].sfx);
-    setStatus(`🎬 ${partLabel} Rendering Scene ${i + 1}/${scenes.length}...`);
+    setStatus(`🎬 ${partLabel} Rendering Scene ${i + 1}/${scenes.length} [${scenes[i].camera || 'normal'}]...`);
     await playAudioOnce(audioList[i], scenes[i].char);
   }
   stopComedyBGM();
