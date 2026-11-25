@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>StoryToon AI — Film Production Studio</title>
-  <link rel="stylesheet" href="style.css?v=26" />
+  <title>StoryToon AI — Cinematic Pastel Studio</title>
+  <link rel="stylesheet" href="style.css?v=27" />
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div class="brand">🎬 <span>StoryToon Studio</span></div>
-      <div class="badge">5-Agent Film Crew</div>
+      <div class="badge">Unholy Tales Engine v27</div>
     </header>
 
     <main class="workspace">
@@ -22,7 +22,7 @@
 
         <label class="field">
           <span>Story Topic / Movie Scene Idea</span>
-          <textarea id="topicInput" rows="2" placeholder="e.g., Exam se ek raat pehle dost ka overconfidence..."></textarea>
+          <textarea id="topicInput" rows="2" placeholder="e.g., Sapno ka ghar banate hi relative ka taana..."></textarea>
         </label>
 
         <div class="row-2">
@@ -50,11 +50,11 @@
             <span>Vibe / Genre</span>
             <select id="toneSelect">
               <option value="Relatable Desi Storytime" selected>Relatable Storytime</option>
+              <option value="Emotional & Deep Metaphor">🎭 Emotional & Deep Metaphor</option>
               <option value="Savage & Brutal Roast">🔥 Savage & Brutal Roast</option>
               <option value="Dark Comedy & Plot Twist">💀 Dark Comedy & Twist</option>
               <option value="Double Meaning Naughty Comedy">😏 Double Meaning (Desi)</option>
               <option value="Desi Comedy + Superpower">⚡ Comedy + Superpower</option>
-              <option value="Hero vs Villain Anime">⚔️ Hero vs Villain</option>
             </select>
           </label>
           <label class="field">
@@ -83,7 +83,7 @@
           <button id="generateScriptBtn" class="btn secondary" style="font-size:0.78rem;">Crew Pre-Production Only</button>
           <button id="playRecordBtn" class="btn primary" style="font-size:0.78rem;">Shoot & Export Current</button>
         </div>
-        <div id="statusBar" class="status-bar">Film Crew ready! Vibe chuno, Topic likho aur "🎬 Action!" dabao.</div>
+        <div id="statusBar" class="status-bar">Cinematic Pastel Engine ready! Topic likho aur "🎬 Action!" dabao.</div>
       </section>
 
       <section class="card stage-card">
@@ -98,13 +98,13 @@
 
       <section class="card script-card">
         <div class="script-header">
-          <span>Shooting Script (Fixed Blocking + Hand Props + Acting)</span>
+          <span>Shooting Script (Cinematic Shots + Minimal Punch Text)</span>
           <button id="loadDemoBtn" class="btn tiny">Load Demo</button>
         </div>
         <textarea id="scriptEditor" rows="7"></textarea>
       </section>
     </main>
   </div>
-  <script src="app.js?v=26"></script>
+  <script src="app.js?v=27"></script>
 </body>
 </html>
