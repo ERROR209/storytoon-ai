@@ -1,4 +1,4 @@
-const APP_VERSION = 'v29.0';
+const APP_VERSION = 'v30.0';
 const canvas = document.getElementById('stageCanvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
@@ -16,6 +16,14 @@ apiKeyInput.value = localStorage.getItem('gemini_api_key') || '';
 apiKeyInput.addEventListener('change', () => {
   localStorage.setItem('gemini_api_key', apiKeyInput.value.trim());
 });
+
+function parseEpisodeConfig() {
+  const val = episodeModeSelect.value;
+  if (val === '1_60') return { totalParts: 1, targetLines: 18, label: '1 Minute (~60s)' };
+  if (val === '1_45') return { totalParts: 1, targetLines: 13, label: 'Single Short (~45s)' };
+  const parts = parseInt(val, 10) || 1;
+  return { totalParts: parts, targetLines: 14, label: `${parts}-Part Episode` };
+}
 
 function setCrewState(role, state) {
   const roles = ['writer', 'director', 'light', 'sound', 'editor'];
@@ -249,7 +257,7 @@ async function callGeminiAgent(key, models, prompt, temp = 0.85) {
   for (const model of models.slice(0, 6)) {
     try {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 40000);
+      const timer = setTimeout(() => ctrl.abort(), 45000);
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -274,13 +282,13 @@ async function callGeminiAgent(key, models, prompt, temp = 0.85) {
   throw new Error(lastErr);
 }
 
-// AGENT 1: SCRIPTWRITER
-async function runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding) {
+// AGENT 1: SCRIPTWRITER (Dynamic Line Count for 45s vs 60s!)
+async function runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding, targetLines) {
   setCrewState('writer', 'active');
-  setStatus(`✍️ [1/3 Scriptwriter] Writing ${toneSelect.value} story (Part ${partNum}/${totalParts})...`);
+  setStatus(`✍️ [1/3 Scriptwriter] Writing ${targetLines}-line ${toneSelect.value} script (Part ${partNum}/${totalParts})...`);
   const cont = partNum > 1
     ? `Continue seamlessly from: "${prevEnding}".`
-    : (totalParts > 1 ? `Part 1 of ${totalParts}. End on a strong cliffhanger!` : `Complete short story with a memorable punchline.`);
+    : (totalParts > 1 ? `Part 1 of ${totalParts}. End on a strong cliffhanger!` : `Complete short story with proper build-up, middle twist, and memorable punchline.`);
 
   const genre = toneSelect.value;
   let styleDirection = 'Relatable, witty Indian Hinglish storytelling like NOT YOUR TYPE.';
@@ -295,24 +303,25 @@ async function runScriptwriterAgent(key, models, topic, partNum, totalParts, pre
   }
 
   const prompt = `You are a viral Indian YouTube animated storyteller ("NOT YOUR TYPE" / "Unholy Tales" style).
-Write a 7-line Hinglish script about: "${topic}".
+Write an EXACTLY ${targetLines}-line Hinglish script about: "${topic}".
 STYLE: ${styleDirection}
 ${cont}
 CRITICAL RULES:
-1. 100% ROMAN ENGLISH LETTERS ONLY (e.g., "chupchap", "sapne"). NEVER use Hindi Devanagari!
-2. LOGICAL CASTING: "char" and "other" MUST NEVER be the same character! Only include characters who are physically present in that scene.
+1. EXACT LENGTH: Return an array of EXACTLY ${targetLines} dialogue objects so the video lasts ${targetLines >= 17 ? '60 seconds (1 full minute)' : '45 seconds'}.
+2. 100% ROMAN ENGLISH LETTERS ONLY (e.g., "chupchap", "sapne"). NEVER use Hindi Devanagari!
+3. LOGICAL CASTING: "char" and "other" MUST NEVER be the same character! Only include characters who are physically present in that scene.
    - Role IDs: "hero", "bro", "bhabhi", "gf", "sister", "mom", "villain", "npc".
-3. EMOTIONS: "normal", "shocked", "smug", "angry", "crying", "sweat" (NEVER "dead").
-4. LOCATION: Choose matching setting: "room" (indoors/home/bedroom) or "park" (outdoors/street/college).
-5. PUNCH TEXT ("punch"): A short 1-to-3 word on-screen visual label for punchlines (e.g., "Plot Twist", "Reality Check", or "" for normal lines).
-Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"normal","otherEmotion":"normal","location":"room","punch":"","text":"8-12 words punchy Roman Hinglish"}]`;
+4. EMOTIONS: "normal", "shocked", "smug", "angry", "crying", "sweat" (NEVER "dead").
+5. LOCATION: Choose matching setting: "room" (indoors/home/bedroom) or "park" (outdoors/street/college).
+6. PUNCH TEXT ("punch"): A short 1-to-3 word on-screen visual label for key moments (e.g., "Plot Twist", "Reality Check", or "" for normal lines).
+Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"normal","otherEmotion":"normal","location":"room","punch":"","text":"10-14 words punchy Roman Hinglish"}]`;
 
   const draft = await callGeminiAgent(key, models, prompt, 0.88);
   setCrewState('writer', 'done');
   return draft;
 }
 
-// AGENT 2: CINEMATIC DIRECTOR (Context-First!)
+// AGENT 2: CINEMATIC DIRECTOR
 async function runDirectorDOPAgent(key, models, draftScript) {
   setCrewState('director', 'active');
   setStatus(`🎥 [2/3 Director] Framing shots strictly matching the story context...`);
@@ -322,7 +331,7 @@ STRICT RULE: 80% of lines MUST use "normal" or "in" so characters act naturally 
 - shot:
   * "normal": Clean medium two-shot (Hero left, Co-star right) — DEFAULT for conversation!
   * "in": Smooth close-up on the active speaker for jokes, reactions, or punchlines.
-  * "eye_cu": Extreme Eye Close-Up — ONLY for sudden realization, betrayal, or horror shock (max 1 per script).
+  * "eye_cu": Extreme Eye Close-Up — ONLY for sudden realization, betrayal, or horror shock (max 1-2 per script).
   * "half_face": Dramatic half-face tear close-up — ONLY if the character is genuinely crying/heartbroken (max 1 per script).
   * "back_view": Back-view looking at a house/horizon — ONLY if dialogue explicitly talks about looking at dreams/future/house.
   * "brick_work": Building a brick wall — ONLY if dialogue explicitly talks about building/constructing/hard work.
@@ -354,12 +363,10 @@ function runLightmanAgent(directedScenes) {
     if (s.emotion === 'dead') s.emotion = 'shocked';
     if (!s.shot) s.shot = 'normal';
 
-    // 1. Prevent duplicate character clone (e.g. char="bro" and other="bro")
     if (!s.other || s.other === s.char) {
       s.other = s.char === 'hero' ? 'bro' : 'hero';
     }
 
-    // 2. Strictly block metaphor shots unless dialogue mentions them
     if (s.shot === 'brick_work' && !/eent|brick|ghar|makaan|mehnat|banao|banaya|build|neev/.test(txt)) {
       s.shot = 'normal';
     }
@@ -370,11 +377,10 @@ function runLightmanAgent(directedScenes) {
       s.shot = 'in';
     }
 
-    // 3. Prevent overuse of extreme close-ups
     if (['eye_cu', 'half_face'].includes(s.shot)) {
       if (s.shot === 'half_face' && s.emotion !== 'crying' && !/ro|rona|aansoo|toot|dukh|bura|sad|akela/.test(txt)) {
         s.shot = 'in';
-      } else if (specialShotCount >= 1) {
+      } else if (specialShotCount >= 2) {
         s.shot = 'in';
       } else {
         specialShotCount++;
@@ -406,10 +412,10 @@ function runLightmanAgent(directedScenes) {
   return litScenes;
 }
 
-async function runPreProductionCrew(key, topic, partNum, totalParts, prevEnding) {
+async function runPreProductionCrew(key, topic, partNum, totalParts, prevEnding, targetLines = 13) {
   setCrewState('reset');
   const models = await getBestGeminiModel(key);
-  const draft = await runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding);
+  const draft = await runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding, targetLines);
   const directed = await runDirectorDOPAgent(key, models, draft);
   return runLightmanAgent(directed);
 }
@@ -440,7 +446,6 @@ function getCharacterPalette(char) {
   return map[char] || map.hero;
 }
 
-// Mood-Aware Pastel Environment Renderer (Daylight vs Dark/Night Room!)
 function drawPastelEnvironment(loc, lighting = 'pastel') {
   const W = canvas.width, H = canvas.height;
   const floorY = Math.round(H * 0.78);
@@ -458,7 +463,6 @@ function drawPastelEnvironment(loc, lighting = 'pastel') {
     ctx.fillStyle = wall;
     ctx.fillRect(0, 0, W, floorY);
 
-    // Center-Top Pastel Window (Never overlaps behind character's back!)
     const winW = 140, winH = 125;
     const winX = W * 0.5 - winW * 0.5;
     const winY = floorY - 395;
@@ -469,12 +473,10 @@ function drawPastelEnvironment(loc, lighting = 'pastel') {
     ctx.beginPath(); ctx.moveTo(winX + winW * 0.5, winY); ctx.lineTo(winX + winW * 0.5, winY + winH); ctx.stroke();
 
     if (isNight) {
-      // Crescent Moon inside Window
       ctx.fillStyle = '#fef08a';
       ctx.beginPath(); ctx.arc(winX + 36, winY + 34, 14, 0, Math.PI * 2); ctx.fill();
     }
 
-    // Soft Light Beam
     ctx.fillStyle = isNight ? 'rgba(147, 197, 253, 0.08)' : 'rgba(255, 255, 255, 0.24)';
     ctx.beginPath();
     ctx.moveTo(winX, winY + winH);
@@ -484,7 +486,6 @@ function drawPastelEnvironment(loc, lighting = 'pastel') {
     ctx.closePath();
     ctx.fill();
 
-    // Wooden Floor
     ctx.fillStyle = isNight ? '#334155' : '#e7c697';
     ctx.fillRect(-W, floorY, W * 3, H * 2);
   } else {
@@ -531,9 +532,6 @@ function drawPastelEnvironment(loc, lighting = 'pastel') {
   ctx.beginPath(); ctx.moveTo(-W, floorY); ctx.lineTo(W * 2, floorY); ctx.stroke();
 }
 
-// =========================================================================
-// CINEMATIC SHOT 1: EXTREME EYE CLOSE-UP
-// =========================================================================
 function drawExtremeEyeCloseUp(char, emotion, elapsed) {
   const W = canvas.width, H = canvas.height;
   const pal = getCharacterPalette(char);
@@ -594,9 +592,6 @@ function drawExtremeEyeCloseUp(char, emotion, elapsed) {
   ctx.restore();
 }
 
-// =========================================================================
-// CINEMATIC SHOT 2: HALF-FACE EMOTIONAL CLOSE-UP + TEAR DROP
-// =========================================================================
 function drawHalfFaceTearShot(char, emotion, elapsed) {
   const W = canvas.width, H = canvas.height;
   const pal = getCharacterPalette(char);
@@ -669,9 +664,6 @@ function drawHalfFaceTearShot(char, emotion, elapsed) {
   ctx.restore();
 }
 
-// =========================================================================
-// CINEMATIC SHOT 3: BACK-VIEW OVER-THE-SHOULDER WIDE SHOT
-// =========================================================================
 function drawBackViewDreamShot(char, lighting) {
   const W = canvas.width, H = canvas.height;
   const floorY = Math.round(H * 0.78);
@@ -700,9 +692,6 @@ function drawBackViewDreamShot(char, lighting) {
   ctx.beginPath(); ctx.arc(cx, cy - 275 + breath, 58, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 }
 
-// =========================================================================
-// CINEMATIC VISUAL METAPHORS (Only when context matches!)
-// =========================================================================
 function drawVisualMetaphorShot(shot, char, elapsed, lighting) {
   const W = canvas.width, H = canvas.height;
   const floorY = Math.round(H * 0.78);
@@ -751,9 +740,6 @@ function drawVisualMetaphorShot(shot, char, elapsed, lighting) {
   return false;
 }
 
-// =========================================================================
-// UNHOLY TALES PROPORTIONED PASTEL CHARACTER RIG (Filled Arms + Sleeves!)
-// =========================================================================
 function drawFilledArm(sx, sy, ex, ey, hx, hy, pal, dir = 1, heldProp = 'none') {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -950,7 +936,6 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
     ctx.beginPath(); ctx.moveTo(8, eyeY - 21 + browLift); ctx.lineTo(34, eyeY - 19 + browLift); ctx.stroke();
   }
 
-  // Expressive Mouth with Upper Teeth & Tongue
   const mouthY = 30;
   ctx.strokeStyle = '#334155';
   ctx.lineWidth = 3.2;
@@ -980,13 +965,9 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
   ctx.restore();
 }
 
-// =========================================================================
-// CLEAN GLASS SUBTITLES + TOP MINIMAL PUNCH LABEL
-// =========================================================================
 function drawCleanSubtitlesAndPunch(text, char, punchText, isDarkBg) {
   const W = canvas.width, H = canvas.height;
 
-  // 1. Optional Minimal Punch Label at Top
   if (punchText && punchText.trim()) {
     ctx.save();
     ctx.textAlign = 'center';
@@ -998,7 +979,6 @@ function drawCleanSubtitlesAndPunch(text, char, punchText, isDarkBg) {
     ctx.restore();
   }
 
-  // 2. Clean Modern Glass Pill Dialogue Subtitles at Bottom
   if (!text || !text.trim()) return;
   const speakerColors = {
     hero: '#60a5fa',
@@ -1036,7 +1016,6 @@ function drawCleanSubtitlesAndPunch(text, char, punchText, isDarkBg) {
   const boxX = (W - boxW) * 0.5;
   const boxY = H - boxH - 42;
 
-  // Frosted Dark Glass Pill
   ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
   ctx.strokeStyle = speakerColors[char] || 'rgba(255,255,255,0.25)';
   ctx.lineWidth = 2.5;
@@ -1045,7 +1024,6 @@ function drawCleanSubtitlesAndPunch(text, char, punchText, isDarkBg) {
   ctx.fill();
   ctx.stroke();
 
-  // Crisp Subtitle Text
   for (let i = 0; i < lines.length; i++) {
     const ty = boxY + 38 + i * lineH;
     ctx.fillStyle = i === lines.length - 1 ? '#fef08a' : '#ffffff';
@@ -1181,32 +1159,41 @@ async function fetchGeminiMultiSpeakerVoices(scenes, partLabel = '') {
   const key = apiKeyInput.value.trim();
   if (!key) throw new Error('Gemini API Key missing');
   const isFemale = (c) => ['mom', 'bhabhi', 'gf', 'sister'].includes(c);
-  const dialogueLines = scenes.map((sc) => `${isFemale(sc.char) ? 'FemaleVoice' : 'MaleVoice'}: ${sc.text}`).join('\n');
 
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(key)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: 'Speak EVERY single line completely from start to finish without cutting off the ending:\n' + dialogueLines }] }],
-      generationConfig: {
-        responseModalities: ["AUDIO"],
-        speechConfig: {
-          multiSpeakerVoiceConfig: {
-            speakerVoiceConfigs: [
-              { speaker: 'MaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
-              { speaker: 'FemaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
-            ]
+  // Split long scripts (13-18 lines) into chunks of 7 lines so Gemini TTS never cuts off the ending!
+  const chunkSize = 7;
+  const allSlices = [];
+  for (let start = 0; start < scenes.length; start += chunkSize) {
+    const batch = scenes.slice(start, start + chunkSize);
+    setStatus(`🎙️ [Sound Artist] Recording Gemini Voices ${partLabel} (${start + 1}-${start + batch.length}/${scenes.length})...`);
+    const dialogueLines = batch.map((sc) => `${isFemale(sc.char) ? 'FemaleVoice' : 'MaleVoice'}: ${sc.text}`).join('\n');
+
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(key)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: 'Speak EVERY single line completely from start to finish without cutting off:\n' + dialogueLines }] }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            multiSpeakerVoiceConfig: {
+              speakerVoiceConfigs: [
+                { speaker: 'MaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
+                { speaker: 'FemaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
+              ]
+            }
           }
         }
-      }
-    })
-  });
-  if (!res.ok) throw new Error(`Gemini TTS HTTP ${res.status}`);
-  const data = await res.json();
-  const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-  if (!inlineData?.data) throw new Error('No audio returned');
-  const fullBuf = await audioCtx.decodeAudioData(pcmToWavBuffer(inlineData.data, 24000));
-  return splitAudioBufferByScenes(fullBuf, scenes);
+      })
+    });
+    if (!res.ok) throw new Error(`Gemini TTS HTTP ${res.status}`);
+    const data = await res.json();
+    const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+    if (!inlineData?.data) throw new Error('No audio returned');
+    const batchBuf = await audioCtx.decodeAudioData(pcmToWavBuffer(inlineData.data, 24000));
+    allSlices.push(...splitAudioBufferByScenes(batchBuf, batch));
+  }
+  return allSlices;
 }
 
 async function runSoundArtistAgent(scenes, partLabel = '') {
@@ -1219,7 +1206,6 @@ async function runSoundArtistAgent(scenes, partLabel = '') {
       return list;
     }
     try {
-      setStatus(`🎙️ [Sound Artist] Recording Gemini Voices ${partLabel}...`);
       const list = await fetchGeminiMultiSpeakerVoices(scenes, partLabel);
       setCrewState('sound', 'done');
       return list;
@@ -1231,7 +1217,7 @@ async function runSoundArtistAgent(scenes, partLabel = '') {
   } catch {
     setStatus(`⚠️ Voice API busy, rendering ${partLabel} with BGM + SFX...`);
     setCrewState('sound', 'done');
-    return scenes.map((s) => createSilentBuffer(Math.max(2.0, (s.text || '').split(' ').length * 0.35)));
+    return scenes.map((s) => createSilentBuffer(Math.max(2.2, (s.text || '').split(' ').length * 0.36)));
   }
 }
 
@@ -1275,11 +1261,11 @@ function playAudioOnce(audioBuffer, char = "hero") {
     let resolved = false; duckBGM(true);
     const source = audioCtx.createBufferSource();
     source.buffer = safeBuf;
-    if (char === 'bro') { source.detune.value = 110; source.playbackRate.value = 1.05; }
-    else if (char === 'gf') { source.detune.value = 140; source.playbackRate.value = 1.06; }
-    else if (char === 'sister') { source.detune.value = 200; source.playbackRate.value = 1.08; }
-    else if (char === 'villain') { source.detune.value = -200; source.playbackRate.value = 0.97; }
-    else { source.playbackRate.value = 1.03; }
+    if (char === 'bro') { source.detune.value = 110; source.playbackRate.value = 1.04; }
+    else if (char === 'gf') { source.detune.value = 140; source.playbackRate.value = 1.05; }
+    else if (char === 'sister') { source.detune.value = 200; source.playbackRate.value = 1.07; }
+    else if (char === 'villain') { source.detune.value = -200; source.playbackRate.value = 0.96; }
+    else { source.playbackRate.value = 1.02; }
     source.connect(analyser); analyser.connect(audioCtx.destination); analyser.connect(destNode);
     source.onended = () => { if (!resolved) { resolved = true; duckBGM(false); resolve(); } };
     source.start(0);
@@ -1412,7 +1398,7 @@ document.getElementById('oneClickAutoBtn').onclick = async () => {
   if (!key) return setStatus('Enter your Google AI Studio API Key first!');
   if (!topic) return setStatus('Enter a Story Topic first!');
 
-  const totalParts = parseInt(episodeModeSelect.value, 10) || 1;
+  const { totalParts, targetLines } = parseEpisodeConfig();
   isPlayingSequence = true;
   initAudio();
   downloadLink.classList.add('hidden');
@@ -1421,7 +1407,7 @@ document.getElementById('oneClickAutoBtn').onclick = async () => {
   let prevEnding = '';
   try {
     for (let part = 1; part <= totalParts; part++) {
-      const scenes = await runPreProductionCrew(key, topic, part, totalParts, prevEnding);
+      const scenes = await runPreProductionCrew(key, topic, part, totalParts, prevEnding, targetLines);
       scriptEditor.value = JSON.stringify(scenes, null, 2);
       cachedScriptHash = '';
       renderMicControls();
@@ -1444,8 +1430,9 @@ document.getElementById('generateScriptBtn').onclick = async () => {
   const key = apiKeyInput.value.trim();
   const topic = topicInput.value.trim();
   if (!key || !topic) return setStatus('Enter API Key & Topic first!');
+  const { targetLines } = parseEpisodeConfig();
   try {
-    const scenes = await runPreProductionCrew(key, topic, 1, 1, '');
+    const scenes = await runPreProductionCrew(key, topic, 1, 1, '', targetLines);
     scriptEditor.value = JSON.stringify(scenes, null, 2);
     cachedScriptHash = '';
     renderMicControls();
