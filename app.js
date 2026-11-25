@@ -1,4 +1,4 @@
-const APP_VERSION = 'v28.0';
+const APP_VERSION = 'v29.0';
 const canvas = document.getElementById('stageCanvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
@@ -300,19 +300,19 @@ STYLE: ${styleDirection}
 ${cont}
 CRITICAL RULES:
 1. 100% ROMAN ENGLISH LETTERS ONLY (e.g., "chupchap", "sapne"). NEVER use Hindi Devanagari!
-2. LOGICAL CASTING: Only include characters in "char" or "other" who are physically present in that scene!
+2. LOGICAL CASTING: "char" and "other" MUST NEVER be the same character! Only include characters who are physically present in that scene.
    - Role IDs: "hero", "bro", "bhabhi", "gf", "sister", "mom", "villain", "npc".
 3. EMOTIONS: "normal", "shocked", "smug", "angry", "crying", "sweat" (NEVER "dead").
 4. LOCATION: Choose matching setting: "room" (indoors/home/bedroom) or "park" (outdoors/street/college).
 5. PUNCH TEXT ("punch"): A short 1-to-3 word on-screen visual label for punchlines (e.g., "Plot Twist", "Reality Check", or "" for normal lines).
-Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"normal","otherEmotion":"normal","location":"room","punch":"","text":"8-13 words punchy Roman Hinglish"}]`;
+Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"normal","otherEmotion":"normal","location":"room","punch":"","text":"8-12 words punchy Roman Hinglish"}]`;
 
   const draft = await callGeminiAgent(key, models, prompt, 0.88);
   setCrewState('writer', 'done');
   return draft;
 }
 
-// AGENT 2: CINEMATIC DIRECTOR (Context-First! Never force metaphors randomly)
+// AGENT 2: CINEMATIC DIRECTOR (Context-First!)
 async function runDirectorDOPAgent(key, models, draftScript) {
   setCrewState('director', 'active');
   setStatus(`🎥 [2/3 Director] Framing shots strictly matching the story context...`);
@@ -341,19 +341,25 @@ Return the SAME array with "shot", "gesture", "prop", "sfx" added. JSON ONLY.`;
   return directed;
 }
 
-// AGENT 3: LIGHTMAN & STRICT CONTEXT GUARD (Blocks unprompted visual metaphors!)
+// AGENT 3: LIGHTMAN & STRICT CONTINUITY GUARD
 function runLightmanAgent(directedScenes) {
   setCrewState('light', 'active');
-  setStatus(`💡 [3/3 Lightman] Verifying scene logic & lighting...`);
+  setStatus(`💡 [3/3 Lightman] Verifying scene logic, anti-clone & lighting...`);
 
   let specialShotCount = 0;
+  const isDarkGenre = toneSelect.value.includes('Dark');
   const litScenes = directedScenes.map((sc) => {
     const txt = (sc.text || '').toLowerCase();
     const s = { ...sc };
     if (s.emotion === 'dead') s.emotion = 'shocked';
     if (!s.shot) s.shot = 'normal';
 
-    // 1. Strictly block metaphor shots unless the dialogue actually mentions those concepts!
+    // 1. Prevent duplicate character clone (e.g. char="bro" and other="bro")
+    if (!s.other || s.other === s.char) {
+      s.other = s.char === 'hero' ? 'bro' : 'hero';
+    }
+
+    // 2. Strictly block metaphor shots unless dialogue mentions them
     if (s.shot === 'brick_work' && !/eent|brick|ghar|makaan|mehnat|banao|banaya|build|neev/.test(txt)) {
       s.shot = 'normal';
     }
@@ -364,7 +370,7 @@ function runLightmanAgent(directedScenes) {
       s.shot = 'in';
     }
 
-    // 2. Prevent overuse of extreme close-ups in normal comedy scenes
+    // 3. Prevent overuse of extreme close-ups
     if (['eye_cu', 'half_face'].includes(s.shot)) {
       if (s.shot === 'half_face' && s.emotion !== 'crying' && !/ro|rona|aansoo|toot|dukh|bura|sad|akela/.test(txt)) {
         s.shot = 'in';
@@ -386,7 +392,7 @@ function runLightmanAgent(directedScenes) {
     if (s.prop === 'phone' && !/phone|mobile|reel|video|game|call|password|message|chat/.test(txt)) s.prop = 'none';
     if (s.prop === 'chai' && !/chai|tea|coffee|cup/.test(txt)) s.prop = 'none';
 
-    if (s.shot === 'half_face' || /raat|night|andhera|sad|akela|toot/.test(txt)) {
+    if (isDarkGenre || s.shot === 'half_face' || /raat|night|andhera|sad|akela|toot|mar|maut|bhoot|thand|fridge|kabr|aatma/.test(txt)) {
       s.lighting = 'night';
     } else if (s.shot === 'eye_cu' || s.shot === 'stomp_dreams' || s.emotion === 'angry') {
       s.lighting = 'dramatic';
@@ -434,72 +440,99 @@ function getCharacterPalette(char) {
   return map[char] || map.hero;
 }
 
-// Soft Pastel Environment Renderer
-function drawPastelEnvironment(loc) {
+// Mood-Aware Pastel Environment Renderer (Daylight vs Dark/Night Room!)
+function drawPastelEnvironment(loc, lighting = 'pastel') {
   const W = canvas.width, H = canvas.height;
   const floorY = Math.round(H * 0.78);
+  const isNight = lighting === 'night' || lighting === 'dramatic';
 
   if (loc === 'room') {
     const wall = ctx.createLinearGradient(0, 0, 0, floorY);
-    wall.addColorStop(0, '#fef9c3');
-    wall.addColorStop(1, '#fde68a');
+    if (isNight) {
+      wall.addColorStop(0, '#0f172a');
+      wall.addColorStop(1, '#1e293b');
+    } else {
+      wall.addColorStop(0, '#fef9c3');
+      wall.addColorStop(1, '#fde68a');
+    }
     ctx.fillStyle = wall;
     ctx.fillRect(0, 0, W, floorY);
 
-    // Minimalist Pastel Window with Soft Sunlight Beam
-    ctx.fillStyle = '#e0f2fe'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 3.5;
-    ctx.beginPath(); ctx.roundRect(W * 0.62, floorY - 310, 160, 145, 8); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(W * 0.62 + 80, floorY - 310); ctx.lineTo(W * 0.62 + 80, floorY - 165); ctx.stroke();
+    // Center-Top Pastel Window (Never overlaps behind character's back!)
+    const winW = 140, winH = 125;
+    const winX = W * 0.5 - winW * 0.5;
+    const winY = floorY - 395;
+    ctx.fillStyle = isNight ? '#1e3a8a' : '#e0f2fe';
+    ctx.strokeStyle = isNight ? '#475569' : '#334155';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath(); ctx.roundRect(winX, winY, winW, winH, 8); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(winX + winW * 0.5, winY); ctx.lineTo(winX + winW * 0.5, winY + winH); ctx.stroke();
 
-    // Soft Sunbeam
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+    if (isNight) {
+      // Crescent Moon inside Window
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath(); ctx.arc(winX + 36, winY + 34, 14, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Soft Light Beam
+    ctx.fillStyle = isNight ? 'rgba(147, 197, 253, 0.08)' : 'rgba(255, 255, 255, 0.24)';
     ctx.beginPath();
-    ctx.moveTo(W * 0.62, floorY - 165);
-    ctx.lineTo(W * 0.62 + 160, floorY - 165);
-    ctx.lineTo(W * 0.45, floorY);
-    ctx.lineTo(W * 0.20, floorY);
+    ctx.moveTo(winX, winY + winH);
+    ctx.lineTo(winX + winW, winY + winH);
+    ctx.lineTo(W * 0.72, floorY);
+    ctx.lineTo(W * 0.28, floorY);
     ctx.closePath();
     ctx.fill();
 
     // Wooden Floor
-    ctx.fillStyle = '#e7c697';
+    ctx.fillStyle = isNight ? '#334155' : '#e7c697';
     ctx.fillRect(-W, floorY, W * 3, H * 2);
   } else {
     const sky = ctx.createLinearGradient(0, 0, 0, floorY);
-    sky.addColorStop(0, '#bae6fd');
-    sky.addColorStop(0.65, '#e0f2fe');
-    sky.addColorStop(1, '#fef3c7');
+    if (isNight) {
+      sky.addColorStop(0, '#090d16');
+      sky.addColorStop(1, '#1e1b4b');
+    } else {
+      sky.addColorStop(0, '#bae6fd');
+      sky.addColorStop(0.65, '#e0f2fe');
+      sky.addColorStop(1, '#fef3c7');
+    }
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, W, floorY);
 
-    const drift = (frameTick * 0.25) % (W + 200);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-    [W * 0.15 + drift, W * 0.65 + drift].forEach((cx, i) => {
-      const x = (cx % (W + 180)) - 90;
-      const y = H * (0.14 + i * 0.08);
-      ctx.beginPath();
-      ctx.arc(x, y, 32, 0, Math.PI * 2);
-      ctx.arc(x + 28, y - 10, 38, 0, Math.PI * 2);
-      ctx.arc(x + 62, y, 30, 0, Math.PI * 2);
-      ctx.fill();
-    });
+    if (isNight) {
+      ctx.fillStyle = '#fef9c3';
+      ctx.beginPath(); ctx.arc(W * 0.78, H * 0.14, 34, 0, Math.PI * 2); ctx.fill();
+    } else {
+      const drift = (frameTick * 0.25) % (W + 200);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      [W * 0.15 + drift, W * 0.65 + drift].forEach((cx, i) => {
+        const x = (cx % (W + 180)) - 90;
+        const y = H * (0.14 + i * 0.08);
+        ctx.beginPath();
+        ctx.arc(x, y, 32, 0, Math.PI * 2);
+        ctx.arc(x + 28, y - 10, 38, 0, Math.PI * 2);
+        ctx.arc(x + 62, y, 30, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
 
-    ctx.fillStyle = '#bbf7d0';
+    ctx.fillStyle = isNight ? '#064e3b' : '#bbf7d0';
     ctx.beginPath(); ctx.arc(W * 0.25, floorY + 25, W * 0.52, Math.PI, 0); ctx.fill();
-    ctx.fillStyle = '#86efac';
+    ctx.fillStyle = isNight ? '#065f46' : '#86efac';
     ctx.beginPath(); ctx.arc(W * 0.78, floorY + 25, W * 0.56, Math.PI, 0); ctx.fill();
 
-    ctx.fillStyle = '#a7f3d0';
+    ctx.fillStyle = isNight ? '#022c22' : '#a7f3d0';
     ctx.fillRect(-W, floorY, W * 3, H * 2);
   }
 
-  ctx.strokeStyle = '#334155';
+  ctx.strokeStyle = isNight ? '#475569' : '#334155';
   ctx.lineWidth = 3.5;
   ctx.beginPath(); ctx.moveTo(-W, floorY); ctx.lineTo(W * 2, floorY); ctx.stroke();
 }
 
 // =========================================================================
-// CINEMATIC SHOT 1: EXTREME EYE CLOSE-UP (Only when triggered by context)
+// CINEMATIC SHOT 1: EXTREME EYE CLOSE-UP
 // =========================================================================
 function drawExtremeEyeCloseUp(char, emotion, elapsed) {
   const W = canvas.width, H = canvas.height;
@@ -515,7 +548,7 @@ function drawExtremeEyeCloseUp(char, emotion, elapsed) {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
-  const cx = W * 0.5, cy = H * 0.52;
+  const cx = W * 0.5, cy = H * 0.48;
   const eyeW = Math.min(W * 0.34, 210);
   const eyeH = Math.min(H * 0.12, 115) * (0.85 + progress * 0.15);
 
@@ -639,12 +672,12 @@ function drawHalfFaceTearShot(char, emotion, elapsed) {
 // =========================================================================
 // CINEMATIC SHOT 3: BACK-VIEW OVER-THE-SHOULDER WIDE SHOT
 // =========================================================================
-function drawBackViewDreamShot(char) {
+function drawBackViewDreamShot(char, lighting) {
   const W = canvas.width, H = canvas.height;
   const floorY = Math.round(H * 0.78);
   const pal = getCharacterPalette(char);
 
-  drawPastelEnvironment('park');
+  drawPastelEnvironment('park', lighting);
 
   const hx = W * 0.62, hy = floorY - 18;
   ctx.fillStyle = '#fffbeb'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 3.5;
@@ -670,12 +703,12 @@ function drawBackViewDreamShot(char) {
 // =========================================================================
 // CINEMATIC VISUAL METAPHORS (Only when context matches!)
 // =========================================================================
-function drawVisualMetaphorShot(shot, char, elapsed) {
+function drawVisualMetaphorShot(shot, char, elapsed, lighting) {
   const W = canvas.width, H = canvas.height;
   const floorY = Math.round(H * 0.78);
 
   if (shot === 'brick_work') {
-    drawPastelEnvironment('park');
+    drawPastelEnvironment('park', lighting);
     const wx = W * 0.56, wy = floorY;
     ctx.fillStyle = '#fca5a5'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 3.5;
     for (let row = 0; row < 4; row++) {
@@ -691,7 +724,7 @@ function drawVisualMetaphorShot(shot, char, elapsed) {
   }
 
   if (shot === 'stomp_dreams') {
-    drawPastelEnvironment('park');
+    drawPastelEnvironment('park', lighting);
     const prog = easeOutCubic(Math.min(1, elapsed / 0.45));
     const footY = -120 + prog * (floorY + 120);
 
@@ -772,7 +805,7 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
   const speakBounce = isSpeaker ? talkAmt * 4.5 : 0;
 
   ctx.save();
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.14)';
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.16)';
   ctx.beginPath(); ctx.ellipse(footX, groundY + 3, 52 * scaleVal, 10 * scaleVal, 0, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 
@@ -917,14 +950,24 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
     ctx.beginPath(); ctx.moveTo(8, eyeY - 21 + browLift); ctx.lineTo(34, eyeY - 19 + browLift); ctx.stroke();
   }
 
+  // Expressive Mouth with Upper Teeth & Tongue
   const mouthY = 30;
   ctx.strokeStyle = '#334155';
-  ctx.lineWidth = 3.5;
+  ctx.lineWidth = 3.2;
   if (isSpeaker && talkAmt > 0.08) {
-    const h = 4 + talkAmt * 14;
-    const w = 10 + (1 - talkAmt) * 6;
-    ctx.fillStyle = '#991b1b';
-    ctx.beginPath(); ctx.ellipse(0, mouthY, w, h, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    if (talkAmt > 0.52) {
+      ctx.fillStyle = '#881337';
+      ctx.beginPath(); ctx.arc(0, mouthY - 5, 16, 0, Math.PI, false); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-11, mouthY - 5, 22, 4);
+      ctx.fillStyle = '#fb7185';
+      ctx.beginPath(); ctx.arc(0, mouthY + 6, 7, Math.PI, 0); ctx.fill();
+    } else {
+      const h = 4 + talkAmt * 13;
+      const w = 10 + (1 - talkAmt) * 6;
+      ctx.fillStyle = '#881337';
+      ctx.beginPath(); ctx.ellipse(0, mouthY, w, h, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
   } else {
     ctx.beginPath();
     if (emotion === 'smug') ctx.arc(0, mouthY - 4, 15, 0.1 * Math.PI, 0.85 * Math.PI);
@@ -938,20 +981,76 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
 }
 
 // =========================================================================
-// CLEAN MINIMAL PUNCH TEXT
+// CLEAN GLASS SUBTITLES + TOP MINIMAL PUNCH LABEL
 // =========================================================================
-function drawMinimalPunchText(punchText, isDarkBg) {
-  if (!punchText || !punchText.trim()) return;
+function drawCleanSubtitlesAndPunch(text, char, punchText, isDarkBg) {
   const W = canvas.width, H = canvas.height;
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.font = '800 42px system-ui, -apple-system, sans-serif';
-  const y = H * 0.20;
 
-  ctx.fillStyle = isDarkBg ? 'rgba(255, 255, 255, 0.94)' : '#1e293b';
-  ctx.shadowColor = isDarkBg ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.8)';
-  ctx.shadowBlur = 12;
-  ctx.fillText(punchText.trim(), W * 0.5, y);
+  // 1. Optional Minimal Punch Label at Top
+  if (punchText && punchText.trim()) {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.font = '800 34px system-ui, -apple-system, sans-serif';
+    ctx.fillStyle = isDarkBg ? 'rgba(255, 255, 255, 0.92)' : '#1e293b';
+    ctx.shadowColor = isDarkBg ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.85)';
+    ctx.shadowBlur = 10;
+    ctx.fillText(punchText.trim(), W * 0.5, H * 0.14);
+    ctx.restore();
+  }
+
+  // 2. Clean Modern Glass Pill Dialogue Subtitles at Bottom
+  if (!text || !text.trim()) return;
+  const speakerColors = {
+    hero: '#60a5fa',
+    bro: '#fbbf24',
+    villain: '#f87171',
+    mom: '#f472b6',
+    bhabhi: '#c084fc',
+    gf: '#fb7185',
+    sister: '#38bdf8',
+    npc: '#34d399'
+  };
+
+  ctx.save();
+  ctx.font = '800 30px system-ui, -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+
+  const words = text.trim().split(' ');
+  const lines = [];
+  let line = '';
+  const maxLineW = W - 120;
+  for (let n = 0; n < words.length; n++) {
+    const test = line + words[n] + ' ';
+    if (ctx.measureText(test).width > maxLineW && n > 0) {
+      lines.push(line.trim());
+      line = words[n] + ' ';
+    } else {
+      line = test;
+    }
+  }
+  lines.push(line.trim());
+
+  const lineH = 38;
+  const boxH = lines.length * lineH + 26;
+  const boxW = Math.min(W - 60, Math.max(...lines.map(l => ctx.measureText(l).width)) + 56);
+  const boxX = (W - boxW) * 0.5;
+  const boxY = H - boxH - 42;
+
+  // Frosted Dark Glass Pill
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.78)';
+  ctx.strokeStyle = speakerColors[char] || 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.roundRect(boxX, boxY, boxW, boxH, 18);
+  ctx.fill();
+  ctx.stroke();
+
+  // Crisp Subtitle Text
+  for (let i = 0; i < lines.length; i++) {
+    const ty = boxY + 38 + i * lineH;
+    ctx.fillStyle = i === lines.length - 1 ? '#fef08a' : '#ffffff';
+    ctx.fillText(lines[i], W * 0.5, ty);
+  }
   ctx.restore();
 }
 
@@ -979,8 +1078,11 @@ function renderLoop() {
 
   const shot = currentScene.shot || currentScene.camera || 'normal';
   const speaker = currentScene.char || 'hero';
-  const listener = currentScene.other || (speaker === 'hero' ? 'bro' : 'hero');
-  let isDarkBg = false;
+  const listener = (currentScene.other && currentScene.other !== speaker)
+    ? currentScene.other
+    : (speaker === 'hero' ? 'bro' : 'hero');
+  const lighting = currentScene.lighting || 'pastel';
+  let isDarkBg = lighting === 'night' || lighting === 'dramatic';
 
   ctx.save();
   if (shot === 'eye_cu') {
@@ -989,8 +1091,8 @@ function renderLoop() {
     drawHalfFaceTearShot(speaker, currentScene.emotion || 'crying', elapsed);
     isDarkBg = true;
   } else if (shot === 'back_view') {
-    drawBackViewDreamShot(speaker);
-  } else if (drawVisualMetaphorShot(shot, speaker, elapsed)) {
+    drawBackViewDreamShot(speaker, lighting);
+  } else if (drawVisualMetaphorShot(shot, speaker, elapsed, lighting)) {
     // Rendered metaphor shot
   } else {
     const charScale = H < 800 ? 0.84 : 1.08;
@@ -1005,7 +1107,7 @@ function renderLoop() {
       ctx.translate(-focusX, -groundY);
     }
 
-    drawPastelEnvironment(currentScene.location || 'room');
+    drawPastelEnvironment(currentScene.location || 'room', lighting);
 
     const activeProp = currentScene.prop || 'none';
     const speakerGesture = currentScene.gesture || 'explain';
@@ -1020,7 +1122,7 @@ function renderLoop() {
   }
   ctx.restore();
 
-  drawMinimalPunchText(currentScene.punch || '', isDarkBg);
+  drawCleanSubtitlesAndPunch(currentScene.text || '', speaker, currentScene.punch || '', isDarkBg);
   requestAnimationFrame(renderLoop);
 }
 renderLoop();
@@ -1040,16 +1142,17 @@ function pcmToWavBuffer(base64Pcm, sampleRate = 24000) {
   return wavBuffer;
 }
 
-function trimDeadSilence(buf) {
+function trimDeadSilence(buf, isLastScene = false) {
   if (!buf || !buf.sampleRate) return buf;
   const sr = buf.sampleRate;
   const data = buf.getChannelData(0);
-  const threshold = 0.012;
+  const threshold = 0.010;
   let start = 0, end = data.length - 1;
   while (start < end && Math.abs(data[start]) < threshold) start++;
   while (end > start && Math.abs(data[end]) < threshold) end--;
-  start = Math.max(0, start - Math.floor(sr * 0.03));
-  end = Math.min(data.length, end + Math.floor(sr * 0.04));
+  start = Math.max(0, start - Math.floor(sr * 0.04));
+  const tailPad = isLastScene ? 0.35 : 0.08;
+  end = Math.min(data.length, end + Math.floor(sr * tailPad));
   const len = Math.max(200, end - start);
   const out = audioCtx.createBuffer(1, len, sr);
   const dst = out.getChannelData(0);
@@ -1069,7 +1172,7 @@ async function fetchEdgeTTSPerScene(scenes, partLabel = '') {
     if (!res.ok) throw new Error(`Edge TTS HTTP ${res.status}`);
     const arr = await res.arrayBuffer();
     const decoded = await audioCtx.decodeAudioData(arr);
-    buffers.push(trimDeadSilence(decoded));
+    buffers.push(trimDeadSilence(decoded, i === scenes.length - 1));
   }
   return buffers;
 }
@@ -1084,7 +1187,7 @@ async function fetchGeminiMultiSpeakerVoices(scenes, partLabel = '') {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: 'Narrate and act out this Indian Hinglish story with natural emotion and pacing:\n' + dialogueLines }] }],
+      contents: [{ parts: [{ text: 'Speak EVERY single line completely from start to finish without cutting off the ending:\n' + dialogueLines }] }],
       generationConfig: {
         responseModalities: ["AUDIO"],
         speechConfig: {
@@ -1139,7 +1242,7 @@ function splitAudioBufferByScenes(fullBuffer, scenes) {
 
   for (let i = 0; i < scenes.length; i++) {
     if (i === scenes.length - 1) {
-      slices.push(trimDeadSilence(extractSubBuffer(fullBuffer, cursorSample, totalSamples)));
+      slices.push(trimDeadSilence(extractSubBuffer(fullBuffer, cursorSample, totalSamples), true));
       break;
     }
     const idealEnd = Math.min(totalSamples - 1, cursorSample + Math.floor((weights[i] / totalWeight) * totalSamples));
@@ -1151,7 +1254,7 @@ function splitAudioBufferByScenes(fullBuffer, scenes) {
       let energy = 0; for (let j = 0; j < win && pos + j < totalSamples; j++) energy += Math.abs(channelData[pos + j]);
       if (energy < lowestEnergy) { lowestEnergy = energy; bestSample = pos + Math.floor(win / 2); }
     }
-    slices.push(trimDeadSilence(extractSubBuffer(fullBuffer, cursorSample, bestSample)));
+    slices.push(trimDeadSilence(extractSubBuffer(fullBuffer, cursorSample, bestSample), false));
     cursorSample = bestSample;
   }
   return slices;
