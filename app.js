@@ -1,4 +1,4 @@
-const APP_VERSION = 'v30.0';
+const APP_VERSION = 'v31.0';
 const canvas = document.getElementById('stageCanvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
@@ -19,10 +19,10 @@ apiKeyInput.addEventListener('change', () => {
 
 function parseEpisodeConfig() {
   const val = episodeModeSelect.value;
-  if (val === '1_60') return { totalParts: 1, targetLines: 18, label: '1 Minute (~60s)' };
-  if (val === '1_45') return { totalParts: 1, targetLines: 13, label: 'Single Short (~45s)' };
+  if (val === '1_60') return { totalParts: 1, targetLines: 16, label: '1 Minute (~60s)' };
+  if (val === '1_45') return { totalParts: 1, targetLines: 12, label: 'Single Short (~45s)' };
   const parts = parseInt(val, 10) || 1;
-  return { totalParts: parts, targetLines: 14, label: `${parts}-Part Episode` };
+  return { totalParts: parts, targetLines: 12, label: `${parts}-Part Episode` };
 }
 
 function setCrewState(role, state) {
@@ -72,7 +72,6 @@ let cachedScriptHash = '';
 let cachedAudioSlices = [];
 const customMicBuffers = {};
 
-// Per-Scene Mic Recorder
 const scriptCard = document.querySelector('.script-card');
 const micPanel = document.createElement('div');
 micPanel.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-top:6px;';
@@ -159,7 +158,7 @@ function initAudio() {
   if (audioCtx.state === 'suspended') audioCtx.resume();
 }
 
-function createSilentBuffer(seconds = 2.2) {
+function createSilentBuffer(seconds = 2.4) {
   initAudio();
   const sr = audioCtx.sampleRate || 44100;
   return audioCtx.createBuffer(1, Math.floor(sr * seconds), sr);
@@ -282,7 +281,7 @@ async function callGeminiAgent(key, models, prompt, temp = 0.85) {
   throw new Error(lastErr);
 }
 
-// AGENT 1: SCRIPTWRITER (Dynamic Line Count for 45s vs 60s!)
+// AGENT 1: SCRIPTWRITER
 async function runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding, targetLines) {
   setCrewState('writer', 'active');
   setStatus(`✍️ [1/3 Scriptwriter] Writing ${targetLines}-line ${toneSelect.value} script (Part ${partNum}/${totalParts})...`);
@@ -293,7 +292,7 @@ async function runScriptwriterAgent(key, models, topic, partNum, totalParts, pre
   const genre = toneSelect.value;
   let styleDirection = 'Relatable, witty Indian Hinglish storytelling like NOT YOUR TYPE.';
   if (genre.includes('Emotional')) {
-    styleDirection = 'DEEP EMOTIONAL & VISUAL METAPHOR storytelling like Unholy Tales! Relatable Hinglish narration about dreams, hard work, and reality checks.';
+    styleDirection = 'DEEP EMOTIONAL & RELATABLE storytelling! Heartfelt Hinglish conversation about life, dreams, and reality checks.';
   } else if (genre.includes('Savage')) {
     styleDirection = 'ULTRA SAVAGE & BRUTAL ROAST style! Cold-blooded comebacks and ruthless Desi humor.';
   } else if (genre.includes('Dark')) {
@@ -302,12 +301,12 @@ async function runScriptwriterAgent(key, models, topic, partNum, totalParts, pre
     styleDirection = 'CLEVER DOUBLE MEANING (NAUGHTY DESI) comedy! Spicy misunderstandings and witty innuendos without explicit slurs.';
   }
 
-  const prompt = `You are a viral Indian YouTube animated storyteller ("NOT YOUR TYPE" / "Unholy Tales" style).
+  const prompt = `You are a viral Indian YouTube animated storyteller ("NOT YOUR TYPE" style).
 Write an EXACTLY ${targetLines}-line Hinglish script about: "${topic}".
 STYLE: ${styleDirection}
 ${cont}
 CRITICAL RULES:
-1. EXACT LENGTH: Return an array of EXACTLY ${targetLines} dialogue objects so the video lasts ${targetLines >= 17 ? '60 seconds (1 full minute)' : '45 seconds'}.
+1. EXACT LENGTH: Return an array of EXACTLY ${targetLines} dialogue objects so the video lasts ${targetLines >= 15 ? '60 seconds (1 full minute)' : '45 seconds'}.
 2. 100% ROMAN ENGLISH LETTERS ONLY (e.g., "chupchap", "sapne"). NEVER use Hindi Devanagari!
 3. LOGICAL CASTING: "char" and "other" MUST NEVER be the same character! Only include characters who are physically present in that scene.
    - Role IDs: "hero", "bro", "bhabhi", "gf", "sister", "mom", "villain", "npc".
@@ -321,21 +320,16 @@ Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"normal","otherE
   return draft;
 }
 
-// AGENT 2: CINEMATIC DIRECTOR
+// AGENT 2: CINEMATIC DIRECTOR (Clean Two-Shot & Close-Up Only — No Weird Eye/Half-Face Shots!)
 async function runDirectorDOPAgent(key, models, draftScript) {
   setCrewState('director', 'active');
-  setStatus(`🎥 [2/3 Director] Framing shots strictly matching the story context...`);
+  setStatus(`🎥 [2/3 Director] Framing clean character shots...`);
 
-  const prompt = `You are the Film Director. Choose camera shots that STRICTLY match each dialogue line.
-STRICT RULE: 80% of lines MUST use "normal" or "in" so characters act naturally in their setting!
+  const prompt = `You are the Film Director. Choose clean, natural camera shots for each dialogue line.
 - shot:
-  * "normal": Clean medium two-shot (Hero left, Co-star right) — DEFAULT for conversation!
-  * "in": Smooth close-up on the active speaker for jokes, reactions, or punchlines.
-  * "eye_cu": Extreme Eye Close-Up — ONLY for sudden realization, betrayal, or horror shock (max 1-2 per script).
-  * "half_face": Dramatic half-face tear close-up — ONLY if the character is genuinely crying/heartbroken (max 1 per script).
-  * "back_view": Back-view looking at a house/horizon — ONLY if dialogue explicitly talks about looking at dreams/future/house.
-  * "brick_work": Building a brick wall — ONLY if dialogue explicitly talks about building/constructing/hard work.
-  * "stomp_dreams": Giant foot crushing a house — ONLY if dialogue explicitly talks about crushing dreams/ambitions.
+  * "normal": Clean medium two-shot (Hero left, Co-star right) — use for 65% of lines.
+  * "in": Smooth speaker close-up zoom for jokes, reactions, or punchlines — use for 35% of lines.
+  (DO NOT use eye_cu, half_face, brick_work, or stomp_dreams!)
 - gesture: "explain", "point", "facepalm", "crossed", "shocked_hands", "shrug".
 - prop: "none" (default), "phone", "chai" (ONLY if literally mentioned in that line).
 - sfx: "none", "bonk", "boom", "sting", "gasp".
@@ -345,7 +339,7 @@ ${JSON.stringify(draftScript)}
 
 Return the SAME array with "shot", "gesture", "prop", "sfx" added. JSON ONLY.`;
 
-  const directed = await callGeminiAgent(key, models, prompt, 0.45);
+  const directed = await callGeminiAgent(key, models, prompt, 0.4);
   setCrewState('director', 'done');
   return directed;
 }
@@ -355,36 +349,20 @@ function runLightmanAgent(directedScenes) {
   setCrewState('light', 'active');
   setStatus(`💡 [3/3 Lightman] Verifying scene logic, anti-clone & lighting...`);
 
-  let specialShotCount = 0;
   const isDarkGenre = toneSelect.value.includes('Dark');
   const litScenes = directedScenes.map((sc) => {
     const txt = (sc.text || '').toLowerCase();
     const s = { ...sc };
     if (s.emotion === 'dead') s.emotion = 'shocked';
-    if (!s.shot) s.shot = 'normal';
 
-    if (!s.other || s.other === s.char) {
-      s.other = s.char === 'hero' ? 'bro' : 'hero';
-    }
-
-    if (s.shot === 'brick_work' && !/eent|brick|ghar|makaan|mehnat|banao|banaya|build|neev/.test(txt)) {
-      s.shot = 'normal';
-    }
-    if (s.shot === 'back_view' && !/sapn|dream|manzil|future|door|ghar|dekh/.test(txt)) {
-      s.shot = 'normal';
-    }
-    if (s.shot === 'stomp_dreams' && !/sapn|dream|barbaad|kuchal|toot|crush|scope|taana/.test(txt)) {
+    // Force only clean shots ("normal" or "in") — eliminate weird eye/half-face/brick/foot shots
+    if (s.shot !== 'normal' && s.shot !== 'in') {
       s.shot = 'in';
     }
 
-    if (['eye_cu', 'half_face'].includes(s.shot)) {
-      if (s.shot === 'half_face' && s.emotion !== 'crying' && !/ro|rona|aansoo|toot|dukh|bura|sad|akela/.test(txt)) {
-        s.shot = 'in';
-      } else if (specialShotCount >= 2) {
-        s.shot = 'in';
-      } else {
-        specialShotCount++;
-      }
+    // Strict anti-clone: char and other can NEVER be identical
+    if (!s.other || s.other === s.char) {
+      s.other = s.char === 'hero' ? 'bro' : 'hero';
     }
 
     if (!s.gesture) {
@@ -398,9 +376,9 @@ function runLightmanAgent(directedScenes) {
     if (s.prop === 'phone' && !/phone|mobile|reel|video|game|call|password|message|chat/.test(txt)) s.prop = 'none';
     if (s.prop === 'chai' && !/chai|tea|coffee|cup/.test(txt)) s.prop = 'none';
 
-    if (isDarkGenre || s.shot === 'half_face' || /raat|night|andhera|sad|akela|toot|mar|maut|bhoot|thand|fridge|kabr|aatma/.test(txt)) {
+    if (isDarkGenre || /raat|night|andhera|sad|akela|toot|mar|maut|bhoot|thand|fridge|kabr|aatma/.test(txt)) {
       s.lighting = 'night';
-    } else if (s.shot === 'eye_cu' || s.shot === 'stomp_dreams' || s.emotion === 'angry') {
+    } else if (s.emotion === 'angry') {
       s.lighting = 'dramatic';
     } else {
       s.lighting = 'pastel';
@@ -412,7 +390,7 @@ function runLightmanAgent(directedScenes) {
   return litScenes;
 }
 
-async function runPreProductionCrew(key, topic, partNum, totalParts, prevEnding, targetLines = 13) {
+async function runPreProductionCrew(key, topic, partNum, totalParts, prevEnding, targetLines = 12) {
   setCrewState('reset');
   const models = await getBestGeminiModel(key);
   const draft = await runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding, targetLines);
@@ -421,7 +399,7 @@ async function runPreProductionCrew(key, topic, partNum, totalParts, prevEnding,
 }
 
 // =========================================================================
-// UNHOLY TALES PASTEL RENDERER + CINEMATIC SHOT ENGINE
+// UNHOLY TALES PASTEL RENDERER
 // =========================================================================
 let currentScene = DEMO_SCRIPT[0];
 let sceneStartTime = performance.now();
@@ -461,7 +439,7 @@ function drawPastelEnvironment(loc, lighting = 'pastel') {
       wall.addColorStop(1, '#fde68a');
     }
     ctx.fillStyle = wall;
-    ctx.fillRect(0, 0, W, floorY);
+    ctx.fillRect(-W, -H, W * 3, floorY + H);
 
     const winW = 140, winH = 125;
     const winX = W * 0.5 - winW * 0.5;
@@ -499,7 +477,7 @@ function drawPastelEnvironment(loc, lighting = 'pastel') {
       sky.addColorStop(1, '#fef3c7');
     }
     ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, W, floorY);
+    ctx.fillRect(-W, -H, W * 3, floorY + H);
 
     if (isNight) {
       ctx.fillStyle = '#fef9c3';
@@ -530,214 +508,6 @@ function drawPastelEnvironment(loc, lighting = 'pastel') {
   ctx.strokeStyle = isNight ? '#475569' : '#334155';
   ctx.lineWidth = 3.5;
   ctx.beginPath(); ctx.moveTo(-W, floorY); ctx.lineTo(W * 2, floorY); ctx.stroke();
-}
-
-function drawExtremeEyeCloseUp(char, emotion, elapsed) {
-  const W = canvas.width, H = canvas.height;
-  const pal = getCharacterPalette(char);
-  const progress = easeOutCubic(elapsed / 0.55);
-
-  ctx.fillStyle = pal.skin;
-  ctx.fillRect(0, 0, W, H);
-
-  const grad = ctx.createRadialGradient(W * 0.5, H * 0.5, 40, W * 0.5, H * 0.5, W * 0.75);
-  grad.addColorStop(0, 'rgba(255,255,255,0.25)');
-  grad.addColorStop(1, 'rgba(180, 120, 95, 0.25)');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-
-  const cx = W * 0.5, cy = H * 0.48;
-  const eyeW = Math.min(W * 0.34, 210);
-  const eyeH = Math.min(H * 0.12, 115) * (0.85 + progress * 0.15);
-
-  const browY = cy - eyeH - 55 - progress * 14;
-  ctx.strokeStyle = pal.hair;
-  ctx.lineWidth = 22;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  if (emotion === 'angry') {
-    ctx.moveTo(cx - eyeW * 1.1, browY - 25);
-    ctx.quadraticCurveTo(cx, browY + 10, cx + eyeW * 1.05, browY + 32);
-  } else {
-    ctx.moveTo(cx - eyeW * 1.1, browY + 12);
-    ctx.quadraticCurveTo(cx - eyeW * 0.1, browY - 28, cx + eyeW * 1.05, browY - 8);
-  }
-  ctx.stroke();
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(cx - eyeW, cy);
-  ctx.quadraticCurveTo(cx, cy - eyeH * 1.45, cx + eyeW, cy);
-  ctx.quadraticCurveTo(cx, cy + eyeH * 1.35, cx - eyeW, cy);
-  ctx.closePath();
-  ctx.fillStyle = '#ffffff';
-  ctx.fill();
-  ctx.lineWidth = 6;
-  ctx.strokeStyle = '#1e293b';
-  ctx.stroke();
-  ctx.clip();
-
-  const lookX = Math.sin(elapsed * 2.2) * 14;
-  const lookY = -10 + Math.cos(elapsed * 3.1) * 6;
-  const irisR = eyeH * 0.88;
-
-  ctx.fillStyle = '#334155';
-  ctx.beginPath(); ctx.arc(cx + lookX, cy + lookY, irisR, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#0f172a';
-  ctx.beginPath(); ctx.arc(cx + lookX, cy + lookY, irisR * 0.55, 0, Math.PI * 2); ctx.fill();
-
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.arc(cx + lookX - irisR * 0.35, cy + lookY - irisR * 0.32, irisR * 0.24, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(cx + lookX + irisR * 0.28, cy + lookY + irisR * 0.25, irisR * 0.11, 0, Math.PI * 2); ctx.fill();
-  ctx.restore();
-}
-
-function drawHalfFaceTearShot(char, emotion, elapsed) {
-  const W = canvas.width, H = canvas.height;
-  const pal = getCharacterPalette(char);
-  const zoom = 1 + easeOutCubic(elapsed / 2.5) * 0.08;
-
-  ctx.fillStyle = '#1e293b';
-  ctx.fillRect(0, 0, W, H);
-
-  ctx.save();
-  ctx.translate(W * 0.5, H * 0.5);
-  ctx.scale(zoom, zoom);
-  ctx.translate(-W * 0.5, -H * 0.5);
-
-  ctx.fillStyle = pal.skin;
-  ctx.strokeStyle = '#1e293b';
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.moveTo(-40, H * 0.10);
-  ctx.quadraticCurveTo(W * 0.62, H * 0.12, W * 0.60, H * 0.48);
-  ctx.quadraticCurveTo(W * 0.58, H * 0.78, W * 0.22, H * 0.86);
-  ctx.lineTo(-40, H * 0.86);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = pal.hair;
-  ctx.beginPath();
-  ctx.moveTo(-40, H * 0.05);
-  ctx.quadraticCurveTo(W * 0.65, H * 0.05, W * 0.64, H * 0.34);
-  ctx.quadraticCurveTo(W * 0.35, H * 0.24, -40, H * 0.32);
-  ctx.closePath();
-  ctx.fill();
-
-  const eyeX = W * 0.34, eyeY = H * 0.44;
-  ctx.strokeStyle = pal.hair;
-  ctx.lineWidth = 14;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(eyeX - 75, eyeY - 36);
-  ctx.quadraticCurveTo(eyeX, eyeY - 58, eyeX + 75, eyeY - 48);
-  ctx.stroke();
-
-  ctx.fillStyle = '#ffffff';
-  ctx.lineWidth = 4.5;
-  ctx.beginPath();
-  ctx.ellipse(eyeX, eyeY, 62, 34, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = '#0f172a';
-  ctx.beginPath(); ctx.arc(eyeX + 8, eyeY + 2, 18, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.arc(eyeX + 2, eyeY - 5, 6, 0, Math.PI * 2); ctx.fill();
-
-  const tearDropY = eyeY + 34 + ((elapsed * 140) % (H * 0.38));
-  const tearAlpha = 1 - (((elapsed * 140) % (H * 0.38)) / (H * 0.38));
-  ctx.save();
-  ctx.globalAlpha = Math.max(0.15, tearAlpha);
-  ctx.fillStyle = '#7dd3fc';
-  ctx.strokeStyle = '#0284c7';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(eyeX + 28, tearDropY - 18);
-  ctx.quadraticCurveTo(eyeX + 44, tearDropY + 6, eyeX + 28, tearDropY + 16);
-  ctx.quadraticCurveTo(eyeX + 12, tearDropY + 6, eyeX + 28, tearDropY - 18);
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
-
-  ctx.restore();
-}
-
-function drawBackViewDreamShot(char, lighting) {
-  const W = canvas.width, H = canvas.height;
-  const floorY = Math.round(H * 0.78);
-  const pal = getCharacterPalette(char);
-
-  drawPastelEnvironment('park', lighting);
-
-  const hx = W * 0.62, hy = floorY - 18;
-  ctx.fillStyle = '#fffbeb'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 3.5;
-  ctx.fillRect(hx - 85, hy - 110, 170, 110); ctx.strokeRect(hx - 85, hy - 110, 170, 110);
-  ctx.fillStyle = '#fca5a5';
-  ctx.beginPath(); ctx.moveTo(hx - 102, hy - 110); ctx.lineTo(hx, hy - 185); ctx.lineTo(hx + 102, hy - 110); ctx.closePath(); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#d97706';
-  ctx.fillRect(hx - 18, hy - 58, 36, 58); ctx.strokeRect(hx - 18, hy - 58, 36, 58);
-  ctx.fillStyle = '#bae6fd';
-  ctx.fillRect(hx + 34, hy - 78, 30, 30); ctx.strokeRect(hx + 34, hy - 78, 30, 30);
-
-  const cx = W * 0.28, cy = floorY + 15;
-  const breath = Math.sin(frameTick * 0.08) * 3;
-  ctx.fillStyle = pal.shirt; ctx.strokeStyle = '#334155'; ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.roundRect(cx - 56, cy - 220 + breath, 112, 130, 28); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = pal.pants;
-  ctx.fillRect(cx - 42, cy - 95, 36, 95); ctx.strokeRect(cx - 42, cy - 95, 36, 95);
-  ctx.fillRect(cx + 6, cy - 95, 36, 95); ctx.strokeRect(cx + 6, cy - 95, 36, 95);
-  ctx.fillStyle = pal.hair;
-  ctx.beginPath(); ctx.arc(cx, cy - 275 + breath, 58, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-}
-
-function drawVisualMetaphorShot(shot, char, elapsed, lighting) {
-  const W = canvas.width, H = canvas.height;
-  const floorY = Math.round(H * 0.78);
-
-  if (shot === 'brick_work') {
-    drawPastelEnvironment('park', lighting);
-    const wx = W * 0.56, wy = floorY;
-    ctx.fillStyle = '#fca5a5'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 3.5;
-    for (let row = 0; row < 4; row++) {
-      for (let col = 0; col < 3; col++) {
-        if (row === 3 && col === 2) continue;
-        const bx = wx + col * 62 + (row % 2) * 18;
-        const by = wy - (row + 1) * 34;
-        ctx.fillRect(bx, by, 58, 30); ctx.strokeRect(bx, by, 58, 30);
-      }
-    }
-    drawPastelCharacter(char, 'normal', 'explain', mouthOpen, W * 0.32, floorY, H < 800 ? 0.78 : 0.95, true, 1, 'none');
-    return true;
-  }
-
-  if (shot === 'stomp_dreams') {
-    drawPastelEnvironment('park', lighting);
-    const prog = easeOutCubic(Math.min(1, elapsed / 0.45));
-    const footY = -120 + prog * (floorY + 120);
-
-    const hx = W * 0.52, hy = floorY;
-    const squash = prog > 0.85 ? 0.32 : 1;
-    ctx.save();
-    ctx.translate(hx, hy);
-    ctx.scale(1 + (1 - squash) * 0.4, squash);
-    ctx.fillStyle = '#fffbeb'; ctx.strokeStyle = '#334155'; ctx.lineWidth = 3.5;
-    ctx.fillRect(-90, -110, 180, 110); ctx.strokeRect(-90, -110, 180, 110);
-    ctx.fillStyle = '#fca5a5';
-    ctx.beginPath(); ctx.moveTo(-105, -110); ctx.lineTo(0, -180); ctx.lineTo(105, -110); ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.restore();
-
-    ctx.fillStyle = '#334155'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 4;
-    ctx.fillRect(hx - 65, footY - 460, 130, 380);
-    ctx.fillStyle = '#ef4444';
-    ctx.beginPath(); ctx.roundRect(hx - 85, footY - 85, 220, 85, 24); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(hx - 85, footY - 22, 220, 22); ctx.strokeRect(hx - 85, footY - 22, 220, 22);
-    return true;
-  }
-
-  return false;
 }
 
 function drawFilledArm(sx, sy, ex, ey, hx, hy, pal, dir = 1, heldProp = 'none') {
@@ -1054,49 +824,39 @@ function renderLoop() {
     mouthOpen = smoothedMouth < 0.02 ? 0 : smoothedMouth;
   }
 
-  const shot = currentScene.shot || currentScene.camera || 'normal';
+  const shot = currentScene.shot === 'in' ? 'in' : 'normal';
   const speaker = currentScene.char || 'hero';
+  // Hard anti-clone guarantee directly inside renderLoop
   const listener = (currentScene.other && currentScene.other !== speaker)
     ? currentScene.other
     : (speaker === 'hero' ? 'bro' : 'hero');
   const lighting = currentScene.lighting || 'pastel';
-  let isDarkBg = lighting === 'night' || lighting === 'dramatic';
+  const isDarkBg = lighting === 'night' || lighting === 'dramatic';
 
   ctx.save();
-  if (shot === 'eye_cu') {
-    drawExtremeEyeCloseUp(speaker, currentScene.emotion || 'shocked', elapsed);
-  } else if (shot === 'half_face') {
-    drawHalfFaceTearShot(speaker, currentScene.emotion || 'crying', elapsed);
-    isDarkBg = true;
-  } else if (shot === 'back_view') {
-    drawBackViewDreamShot(speaker, lighting);
-  } else if (drawVisualMetaphorShot(shot, speaker, elapsed, lighting)) {
-    // Rendered metaphor shot
+  const charScale = H < 800 ? 0.84 : 1.08;
+  const heroIsSpeaker = speaker === 'hero';
+  const leftX = W * 0.28, rightX = W * 0.72;
+
+  if (shot === 'in') {
+    const zoom = 1 + easeOutCubic(Math.min(1, elapsed / 0.55)) * 0.14;
+    const focusX = heroIsSpeaker ? leftX : rightX;
+    ctx.translate(W * 0.5, groundY);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-focusX, -groundY);
+  }
+
+  drawPastelEnvironment(currentScene.location || 'room', lighting);
+
+  const activeProp = currentScene.prop || 'none';
+  const speakerGesture = currentScene.gesture || 'explain';
+
+  if (heroIsSpeaker) {
+    drawPastelCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 0, rightX, groundY, charScale * 0.94, false, -1, 'none');
+    drawPastelCharacter(speaker, currentScene.emotion || 'normal', speakerGesture, mouthOpen, leftX, groundY, charScale, true, 1, activeProp);
   } else {
-    const charScale = H < 800 ? 0.84 : 1.08;
-    const heroIsSpeaker = speaker === 'hero';
-    const leftX = W * 0.30, rightX = W * 0.70;
-
-    if (shot === 'in') {
-      const zoom = 1 + easeOutCubic(Math.min(1, elapsed / 0.6)) * 0.18;
-      const focusX = heroIsSpeaker ? leftX : rightX;
-      ctx.translate(W * 0.5, groundY);
-      ctx.scale(zoom, zoom);
-      ctx.translate(-focusX, -groundY);
-    }
-
-    drawPastelEnvironment(currentScene.location || 'room', lighting);
-
-    const activeProp = currentScene.prop || 'none';
-    const speakerGesture = currentScene.gesture || 'explain';
-
-    if (heroIsSpeaker) {
-      drawPastelCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 0, rightX, groundY, charScale * 0.94, false, -1, 'none');
-      drawPastelCharacter(speaker, currentScene.emotion || 'normal', speakerGesture, mouthOpen, leftX, groundY, charScale, true, 1, activeProp);
-    } else {
-      drawPastelCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 0, leftX, groundY, charScale * 0.94, false, 1, 'none');
-      drawPastelCharacter(speaker, currentScene.emotion || 'normal', speakerGesture, mouthOpen, rightX, groundY, charScale, true, -1, activeProp);
-    }
+    drawPastelCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 0, leftX, groundY, charScale * 0.94, false, 1, 'none');
+    drawPastelCharacter(speaker, currentScene.emotion || 'normal', speakerGesture, mouthOpen, rightX, groundY, charScale, true, -1, activeProp);
   }
   ctx.restore();
 
@@ -1106,7 +866,7 @@ function renderLoop() {
 renderLoop();
 
 // =========================================================================
-// AGENT 4: SOUND & VOICE ARTIST
+// AGENT 4: SOUND & VOICE ARTIST (Per-Batch Edge Fallback — Zero Silent Scenes!)
 // =========================================================================
 function pcmToWavBuffer(base64Pcm, sampleRate = 24000) {
   const binary = atob(base64Pcm), pcmLen = binary.length, wavBuffer = new ArrayBuffer(44 + pcmLen), view = new DataView(wavBuffer);
@@ -1138,87 +898,103 @@ function trimDeadSilence(buf, isLastScene = false) {
   return out;
 }
 
+async function fetchSingleEdgeTTS(scene, isLast = false) {
+  const res = await fetch('/api/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: scene.text, char: scene.char })
+  });
+  if (!res.ok) throw new Error(`Edge TTS HTTP ${res.status}`);
+  const arr = await res.arrayBuffer();
+  const decoded = await audioCtx.decodeAudioData(arr);
+  return trimDeadSilence(decoded, isLast);
+}
+
 async function fetchEdgeTTSPerScene(scenes, partLabel = '') {
   const buffers = [];
   for (let i = 0; i < scenes.length; i++) {
     setStatus(`🎙️ [Sound Artist] Recording Edge Hindi Voice ${partLabel} (${i + 1}/${scenes.length})...`);
-    const res = await fetch('/api/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: scenes[i].text, char: scenes[i].char })
-    });
-    if (!res.ok) throw new Error(`Edge TTS HTTP ${res.status}`);
-    const arr = await res.arrayBuffer();
-    const decoded = await audioCtx.decodeAudioData(arr);
-    buffers.push(trimDeadSilence(decoded, i === scenes.length - 1));
+    try {
+      buffers.push(await fetchSingleEdgeTTS(scenes[i], i === scenes.length - 1));
+    } catch {
+      buffers.push(createSilentBuffer(Math.max(2.4, (scenes[i].text || '').split(' ').length * 0.36)));
+    }
   }
   return buffers;
 }
 
-async function fetchGeminiMultiSpeakerVoices(scenes, partLabel = '') {
-  const key = apiKeyInput.value.trim();
-  if (!key) throw new Error('Gemini API Key missing');
+async function fetchGeminiBatchVoices(batch, key) {
   const isFemale = (c) => ['mom', 'bhabhi', 'gf', 'sister'].includes(c);
+  const dialogueLines = batch.map((sc) => `${isFemale(sc.char) ? 'FemaleVoice' : 'MaleVoice'}: ${sc.text}`).join('\n');
 
-  // Split long scripts (13-18 lines) into chunks of 7 lines so Gemini TTS never cuts off the ending!
-  const chunkSize = 7;
-  const allSlices = [];
-  for (let start = 0; start < scenes.length; start += chunkSize) {
-    const batch = scenes.slice(start, start + chunkSize);
-    setStatus(`🎙️ [Sound Artist] Recording Gemini Voices ${partLabel} (${start + 1}-${start + batch.length}/${scenes.length})...`);
-    const dialogueLines = batch.map((sc) => `${isFemale(sc.char) ? 'FemaleVoice' : 'MaleVoice'}: ${sc.text}`).join('\n');
-
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(key)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: 'Speak EVERY single line completely from start to finish without cutting off:\n' + dialogueLines }] }],
-        generationConfig: {
-          responseModalities: ["AUDIO"],
-          speechConfig: {
-            multiSpeakerVoiceConfig: {
-              speakerVoiceConfigs: [
-                { speaker: 'MaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
-                { speaker: 'FemaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
-              ]
-            }
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 35000);
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(key)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    signal: ctrl.signal,
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: 'Speak EVERY single line completely from start to finish without cutting off:\n' + dialogueLines }] }],
+      generationConfig: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+          multiSpeakerVoiceConfig: {
+            speakerVoiceConfigs: [
+              { speaker: 'MaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
+              { speaker: 'FemaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
+            ]
           }
         }
-      })
-    });
-    if (!res.ok) throw new Error(`Gemini TTS HTTP ${res.status}`);
-    const data = await res.json();
-    const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-    if (!inlineData?.data) throw new Error('No audio returned');
-    const batchBuf = await audioCtx.decodeAudioData(pcmToWavBuffer(inlineData.data, 24000));
-    allSlices.push(...splitAudioBufferByScenes(batchBuf, batch));
-  }
-  return allSlices;
+      }
+    })
+  });
+  clearTimeout(timer);
+  if (!res.ok) throw new Error(`Gemini TTS HTTP ${res.status}`);
+  const data = await res.json();
+  const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+  if (!inlineData?.data) throw new Error('No audio returned');
+  const batchBuf = await audioCtx.decodeAudioData(pcmToWavBuffer(inlineData.data, 24000));
+  if (batchBuf.duration < batch.length * 1.1) throw new Error('Gemini TTS audio too short');
+  return splitAudioBufferByScenes(batchBuf, batch);
 }
 
 async function runSoundArtistAgent(scenes, partLabel = '') {
   setCrewState('sound', 'active');
   const mode = voiceEngineSelect.value;
-  try {
-    if (mode === 'edge') {
-      const list = await fetchEdgeTTSPerScene(scenes, partLabel);
-      setCrewState('sound', 'done');
-      return list;
-    }
-    try {
-      const list = await fetchGeminiMultiSpeakerVoices(scenes, partLabel);
-      setCrewState('sound', 'done');
-      return list;
-    } catch {
-      const list = await fetchEdgeTTSPerScene(scenes, partLabel);
-      setCrewState('sound', 'done');
-      return list;
-    }
-  } catch {
-    setStatus(`⚠️ Voice API busy, rendering ${partLabel} with BGM + SFX...`);
+  const key = apiKeyInput.value.trim();
+
+  if (mode === 'edge' || !key) {
+    const list = await fetchEdgeTTSPerScene(scenes, partLabel);
     setCrewState('sound', 'done');
-    return scenes.map((s) => createSilentBuffer(Math.max(2.2, (s.text || '').split(' ').length * 0.36)));
+    return list;
   }
+
+  // Batch size 6 with per-batch automatic Edge TTS fallback so late scenes NEVER go silent!
+  const chunkSize = 6;
+  const allSlices = [];
+  for (let start = 0; start < scenes.length; start += chunkSize) {
+    const batch = scenes.slice(start, start + chunkSize);
+    setStatus(`🎙️ [Sound Artist] Recording Voices ${partLabel} (${start + 1}-${start + batch.length}/${scenes.length})...`);
+    try {
+      const geminiSlices = await fetchGeminiBatchVoices(batch, key);
+      allSlices.push(...geminiSlices);
+    } catch {
+      // Automatically switch this batch to Edge Neural Hindi TTS!
+      for (let j = 0; j < batch.length; j++) {
+        const globalIdx = start + j;
+        setStatus(`🎙️ [Sound Artist] Edge Hindi Backup ${partLabel} (${globalIdx + 1}/${scenes.length})...`);
+        try {
+          allSlices.push(await fetchSingleEdgeTTS(batch[j], globalIdx === scenes.length - 1));
+        } catch {
+          allSlices.push(createSilentBuffer(Math.max(2.4, (batch[j].text || '').split(' ').length * 0.36)));
+        }
+      }
+    }
+    if (start + chunkSize < scenes.length) await sleep(500);
+  }
+
+  setCrewState('sound', 'done');
+  return allSlices;
 }
 
 function splitAudioBufferByScenes(fullBuffer, scenes) {
@@ -1256,7 +1032,7 @@ function extractSubBuffer(srcBuffer, startSample, endSample) {
 }
 
 function playAudioOnce(audioBuffer, char = "hero") {
-  const safeBuf = (audioBuffer && audioBuffer.sampleRate) ? audioBuffer : createSilentBuffer(2.2);
+  const safeBuf = (audioBuffer && audioBuffer.sampleRate) ? audioBuffer : createSilentBuffer(2.4);
   return new Promise((resolve) => {
     let resolved = false; duckBGM(true);
     const source = audioCtx.createBufferSource();
@@ -1390,7 +1166,6 @@ async function renderSinglePart(scenes, partNum, totalParts, recordVideo = true,
   return { secs: 0, sizeKB: 0, ext: 'webm' };
 }
 
-// 🎬 ACTION!
 document.getElementById('oneClickAutoBtn').onclick = async () => {
   if (isPlayingSequence) return;
   const key = apiKeyInput.value.trim();
