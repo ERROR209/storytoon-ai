@@ -50,7 +50,7 @@ applyFormat();
 const DEMO_SCRIPT = [
   { char: "hero", other: "bro", emotion: "sweat", otherEmotion: "normal", gesture: "facepalm", pose: "normal", action: "idle", location: "room", lighting: "warm", camera: "normal", gag: "none", prop: "none", power: "none", sfx: "none", text: "Bhai kal exam hai aur maine abhi tak kitaab kholi bhi nahi!" },
   { char: "bro", other: "hero", emotion: "smug", otherEmotion: "sweat", gesture: "explain", pose: "lean", action: "idle", location: "room", lighting: "warm", camera: "in", gag: "none", prop: "none", power: "none", sfx: "vine", text: "Chinta mat kar bhai, raat bhar mein poora syllabus khatam kar denge!" },
-  { char: "sister", other: "hero", emotion: "smug", otherEmotion: "shocked", gesture: "crossed", pose: "normal", action: "idle", location: "room", lighting: "warm", camera: "normal", gag: "none", prop: "phone", power: "none", sfx: "bonk", text: "Mummy ko bata doon kya ki tum dono padhai chhod ke reels dekh rahe ho?" },
+  { char: "sister", other: "hero", emotion: "smug", otherEmotion: "shocked", gesture: "point", pose: "normal", action: "idle", location: "room", lighting: "warm", camera: "normal", gag: "none", prop: "phone", power: "none", sfx: "bonk", text: "Mummy ko bata doon kya ki tum dono padhai chhod ke reels dekh rahe ho?" },
   { char: "mom", other: "hero", emotion: "angry", otherEmotion: "sweat", gesture: "point", pose: "normal", action: "walk", location: "room", lighting: "dramatic", camera: "in", gag: "none", prop: "none", power: "aura", sfx: "boom", text: "Subah ke 4 baj gaye aur tum dono abhi tak phone chala rahe ho?!" },
   { char: "hero", other: "mom", emotion: "sweat", otherEmotion: "angry", gesture: "shocked_hands", pose: "bonk", action: "idle", location: "room", lighting: "spotlight", camera: "zoomout", gag: "lagg_gaye", prop: "none", power: "none", sfx: "sting", text: "Ab toh sach mein lagg gaye guru, exam hall mein kya likhenge!" }
 ];
@@ -280,7 +280,7 @@ async function callGeminiAgent(key, models, prompt, temp = 0.85) {
   throw new Error(lastErr);
 }
 
-// AGENT 1: SCRIPTWRITER (Strict Logical Casting — Never force uninvited characters!)
+// AGENT 1: SCRIPTWRITER (Strict Roman Hinglish + Logical Casting)
 async function runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding) {
   setCrewState('writer', 'active');
   setStatus(`✍️ [1/3 Scriptwriter] Writing ${toneSelect.value} script (Part ${partNum}/${totalParts})...`);
@@ -291,9 +291,9 @@ async function runScriptwriterAgent(key, models, topic, partNum, totalParts, pre
   const genre = toneSelect.value;
   let styleDirection = 'Relatable, fast-paced Indian Hinglish comedy like NOT YOUR TYPE.';
   if (genre.includes('Savage')) {
-    styleDirection = 'ULTRA SAVAGE & BRUTAL ROAST style! Characters drop ruthless, unfiltered Desi roasts, ego-destroying comebacks, and cold-blooded one-liners. Use "smug" and "dead" emotions heavily.';
+    styleDirection = 'ULTRA SAVAGE & BRUTAL ROAST style! Characters drop ruthless, unfiltered Desi roasts, ego-destroying comebacks, and cold-blooded one-liners. Use "smug" and "shocked" emotions heavily.';
   } else if (genre.includes('Dark')) {
-    styleDirection = 'DARK COMEDY & SHOCKING PLOT TWIST style! Start innocent, build tension, and drop a twisted, morbid, or spine-chilling dark humor twist at the end. Use "cursed", "shocked", and "dead" emotions.';
+    styleDirection = 'DARK COMEDY & SHOCKING PLOT TWIST style! Start innocent, build tension, and drop a twisted, morbid, or spine-chilling dark humor twist at the end. Use "cursed" and "shocked" emotions.';
   } else if (genre.includes('Double Meaning')) {
     styleDirection = 'CLEVER DOUBLE MEANING (NAUGHTY DESI) comedy! Write innocent-sounding Hinglish dialogues with hilarious, spicy double-meaning innuendos and naughty misunderstandings (like CarryMinati / adult Desi comedy skits), keeping words clever without explicit slurs. Use "smug", "cursed", and "shocked" emotions.';
   }
@@ -302,20 +302,23 @@ async function runScriptwriterAgent(key, models, topic, partNum, totalParts, pre
 Write an 8-line Hinglish script about: "${topic}".
 STYLE & VIBE: ${styleDirection}
 ${cont}
-LOGICAL CASTING RULE (CRITICAL):
-- Only cast characters in "char" or "other" who are ACTUALLY physically present in that scene!
-- If "hero" and "bro" are talking privately about someone else, keep ONLY "hero" and "bro" on screen — DO NOT bring "gf", "bhabhi", "sister", or "mom" on screen unless they physically walk into the scene and speak!
-- When a female character IS physically present and speaking, use the exact role ID:
-  * "bhabhi": married woman / dost ki biwi / bhabhi
-  * "gf": girlfriend / crush
-  * "sister": sister / behen / didi
-  * "mom": mother / mummy / aunty
-- Male IDs: "hero", "bro", "villain" (boss/rival/uncle), "npc" (shopkeeper/stranger).
-Emotions: "normal", "shocked", "smug", "angry", "crying", "cursed", "sweat", "dead".
+CRITICAL RULES:
+1. SCRIPT LANGUAGE: Write 100% in ROMAN ENGLISH LETTERS ONLY (e.g., "chupchap", "kya kar raha hai"). NEVER use Hindi Devanagari script!
+2. LOGICAL CASTING: Only cast characters in "char" or "other" who are ACTUALLY physically present in that scene! If "hero" and "bro" are talking privately, keep ONLY "hero" and "bro" — NEVER bring "gf", "bhabhi", "sister", or "mom" on screen unless they physically walk into the scene and speak!
+3. EXACT ROLE IDs:
+   - "hero": main boy
+   - "bro": best friend boy
+   - "bhabhi": married woman / dost ki biwi / bhabhi
+   - "gf": girlfriend / crush
+   - "sister": sister / behen / didi
+   - "mom": mother / mummy / aunty
+   - "villain": boss / rival / angry uncle
+   - "npc": shopkeeper / bystander
+4. EMOTIONS: "normal", "shocked", "smug", "angry", "crying", "cursed", "sweat" (DO NOT use "dead" for a speaking character!).
 Location: pick ONE primary setting ("room", "park", "street", "gaon", "jungle").
-Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"normal","otherEmotion":"normal","location":"room","text":"8-13 words punchy Hinglish"}]`;
+Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"normal","otherEmotion":"normal","location":"room","text":"8-13 words punchy Roman Hinglish"}]`;
 
-  const draft = await callGeminiAgent(key, models, prompt, 0.90);
+  const draft = await callGeminiAgent(key, models, prompt, 0.88);
   setCrewState('writer', 'done');
   return draft;
 }
@@ -323,7 +326,7 @@ Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"normal","otherE
 // AGENT 2: DIRECTOR, ACTING COACH & CAMERAMAN (DOP)
 async function runDirectorDOPAgent(key, models, draftScript) {
   setCrewState('director', 'active');
-  setStatus(`🎥 [2/3 Director & Acting Coach] Directing body language, gestures & camera...`);
+  setStatus(`🎥 [2/3 Director & Acting Coach] Directing body language, props & camera...`);
 
   const prompt = `You are the Film Director, Acting Coach & Cameraman (DOP). Add acting gestures, camera shots, poses, props, and SFX.
 STRICT RULE: Keep 75% of shots clean ("camera":"normal" or "in", "gag":"none", "prop":"none").
@@ -338,7 +341,7 @@ STRICT RULE: Keep 75% of shots clean ("camera":"normal" or "in", "gag":"none", "
 - pose: "normal", "lean" (punchline close lean), "fly" (knocked in air), "bonk" (hit/defeated).
 - action: "idle", "walk", "run".
 - gag: "none" (default), "train_crowd", "gali_alto", "tyre_run", "chai_kaand", "lagg_gaye" (ONLY if dialogue literally talks about it).
-- prop: "none" (default), "phone", "chai", "car", "train", "tyre" (ONLY if mentioned in that line).
+- prop: "none" (default), "phone", "chai", "car", "train", "tyre" (ONLY if mentioned in that line — phone & chai are held in character's hand!).
 - power: "none" (default, or "energy", "fire", "lightning", "aura" if superpower/anger).
 - sfx: "none", "bonk", "vine", "sting", "boom", "slap", "gasp".
 
@@ -352,16 +355,19 @@ Return the SAME array with these fields added to every object. JSON ONLY.`;
   return directed;
 }
 
-// AGENT 3: LIGHTMAN / GAFFER
+// AGENT 3: LIGHTMAN / GAFFER + CONTINUITY CHECK
 function runLightmanAgent(directedScenes) {
   setCrewState('light', 'active');
-  setStatus(`💡 [3/3 Lightman] Setting scene lighting & atmosphere...`);
+  setStatus(`💡 [3/3 Lightman] Setting scene lighting & continuity...`);
 
   let topCount = 0;
   const isDarkMode = toneSelect.value.includes('Dark');
   const litScenes = directedScenes.map((sc) => {
     const txt = (sc.text || '').toLowerCase();
     const s = { ...sc };
+
+    // Prevent speaker from collapsing on floor
+    if (s.emotion === 'dead') s.emotion = 'shocked';
 
     if (!s.gesture) {
       if (s.emotion === 'angry') s.gesture = 'point';
@@ -381,7 +387,7 @@ function runLightmanAgent(directedScenes) {
     if (s.prop === 'train' && !/train|station|metro/.test(txt)) s.prop = 'none';
     if (s.prop === 'chai' && !/chai|tea|rasgulla|dukaan/.test(txt)) s.prop = 'none';
     if (s.prop === 'tyre' && !/tyre|chakka|wheel/.test(txt)) s.prop = 'none';
-    if (s.prop === 'phone' && !/phone|mobile|reel|video|game|call/.test(txt)) s.prop = 'none';
+    if (s.prop === 'phone' && !/phone|mobile|reel|video|game|call|password/.test(txt)) s.prop = 'none';
 
     const isOutdoor = ['street', 'shehar', 'park', 'gaon', 'jungle'].includes(s.location);
     if (s.camera === 'top') {
@@ -420,7 +426,7 @@ async function runPreProductionCrew(key, topic, partNum, totalParts, prevEnding)
 }
 
 // =========================================================================
-// STAGE RENDERER + ARTICULATED ACTING RIG
+// STAGE RENDERER + ARTICULATED ACTING RIG + HAND-HELD PROPS
 // =========================================================================
 let currentScene = DEMO_SCRIPT[0];
 let mouthOpen = 0, frameTick = 0, smearTimer = 0, blinkTimer = 0;
@@ -535,7 +541,7 @@ function drawFullScreenVisualGag(gag, talkAmt) {
     ctx.fillStyle = '#1e293b'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 8;
     ctx.beginPath(); ctx.arc(0, 0, 58, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.restore();
-    drawFullBodyCharacter('hero', 'cursed', 'run', 'none', talkAmt, W * 0.36, floorY, H < 800 ? 0.72 : 0.90, true, 1, 'normal', 'explain');
+    drawFullBodyCharacter('hero', 'cursed', 'run', 'none', talkAmt, W * 0.36, floorY, H < 800 ? 0.72 : 0.90, true, 1, 'normal', 'explain', 'none');
     ctx.strokeStyle = '#78350f'; ctx.lineWidth = 10;
     ctx.beginPath(); ctx.moveTo(W * 0.42, floorY - 165); ctx.lineTo(tyreX - 42, tyreY - 12); ctx.stroke();
     return true;
@@ -549,7 +555,7 @@ function drawFullScreenVisualGag(gag, talkAmt) {
     grad.addColorStop(1, 'rgba(250, 204, 21, 0.08)');
     ctx.fillStyle = grad;
     ctx.beginPath(); ctx.moveTo(W * 0.44, 0); ctx.lineTo(W * 0.56, 0); ctx.lineTo(W * 0.76, floorY); ctx.lineTo(W * 0.24, floorY); ctx.closePath(); ctx.fill();
-    drawFullBodyCharacter(currentScene.char || 'hero', 'sweat', 'idle', 'none', talkAmt, W * 0.5, floorY, H < 800 ? 0.44 : 0.56, true, 0, 'normal', 'facepalm');
+    drawFullBodyCharacter(currentScene.char || 'hero', 'sweat', 'idle', 'none', talkAmt, W * 0.5, floorY, H < 800 ? 0.48 : 0.60, true, 0, 'normal', 'facepalm', 'none');
     return true;
   }
 
@@ -558,7 +564,7 @@ function drawFullScreenVisualGag(gag, talkAmt) {
     const floorY = H * 0.78;
     ctx.fillStyle = '#64748b'; ctx.fillRect(0, floorY, W, H - floorY);
     drawSceneProp('chai', W * 0.55, floorY, H < 800 ? 1.15 : 1.35, false);
-    drawFullBodyCharacter(currentScene.char || 'hero', currentScene.emotion || 'smug', 'idle', 'none', talkAmt, W * 0.28, floorY, H < 800 ? 0.72 : 0.90, true, 1, 'normal', 'explain');
+    drawFullBodyCharacter(currentScene.char || 'hero', currentScene.emotion || 'smug', 'idle', 'none', talkAmt, W * 0.28, floorY, H < 800 ? 0.72 : 0.90, true, 1, 'normal', 'explain', 'none');
     return true;
   }
 
@@ -575,7 +581,7 @@ function drawCloud(x, y, s = 1) {
 }
 
 function drawSceneProp(prop, x, y, scale = 1, isTopDown = false) {
-  if (!prop || prop === 'none') return;
+  if (!prop || prop === 'none' || prop === 'phone') return; // phone is held in hand!
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(scale, scale);
@@ -605,11 +611,6 @@ function drawSceneProp(prop, x, y, scale = 1, isTopDown = false) {
   } else if (prop === 'tyre') {
     ctx.fillStyle = '#1e293b';
     ctx.beginPath(); ctx.arc(0, -34, 34, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  } else if (prop === 'phone') {
-    ctx.fillStyle = '#1e293b';
-    ctx.beginPath(); ctx.roundRect(-28, -95, 56, 95, 10); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(-22, -85, 44, 72);
   }
   ctx.restore();
 }
@@ -711,19 +712,26 @@ function drawEnvironment(loc, isMoving) {
     ctx.fillStyle = '#1e1b4b'; ctx.fillRect(0, 0, W, floorY);
     ctx.fillStyle = '#fef9c3'; ctx.beginPath(); ctx.arc(W * 0.80, H * 0.16, 42, 0, Math.PI * 2); ctx.fill();
   } else {
+    // Rich Indian Room Scenery (Wall + Door + Window + Study Poster)
     ctx.fillStyle = '#fef3c7'; ctx.fillRect(0, 0, W, floorY);
     ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 4;
     for (let x = 40; x < W; x += 65) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, floorY); ctx.stroke(); }
+    // Wooden Door with Handle
     ctx.fillStyle = '#b45309'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 5;
-    ctx.fillRect(W * 0.12, floorY - 240, 115, 240); ctx.strokeRect(W * 0.12, floorY - 240, 115, 240);
+    ctx.fillRect(W * 0.08, floorY - 260, 120, 260); ctx.strokeRect(W * 0.08, floorY - 260, 120, 260);
+    ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(W * 0.08 + 98, floorY - 125, 7, 0, Math.PI * 2); ctx.fill();
+    // Window with Curtain & Sky
     ctx.fillStyle = '#bae6fd';
-    ctx.fillRect(W * 0.68, floorY - 250, 130, 115); ctx.strokeRect(W * 0.68, floorY - 250, 130, 115);
+    ctx.fillRect(W * 0.65, floorY - 265, 145, 125); ctx.strokeRect(W * 0.65, floorY - 265, 145, 125);
+    ctx.beginPath(); ctx.moveTo(W * 0.65 + 72, floorY - 265); ctx.lineTo(W * 0.65 + 72, floorY - 140); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(W * 0.65, floorY - 202); ctx.lineTo(W * 0.65 + 145, floorY - 202); ctx.stroke();
   }
 
+  // Floor extends deep below so camera zoom never cuts off floor!
   ctx.fillStyle = (loc === 'park' || loc === 'gaon') ? '#15803d' : (loc === 'street' || loc === 'shehar') ? '#475569' : (loc === 'jungle' || loc === 'night') ? '#0f172a' : '#d97706';
-  ctx.fillRect(0, floorY, W, H - floorY);
+  ctx.fillRect(-W, floorY, W * 3, H * 2);
   ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 7;
-  ctx.beginPath(); ctx.moveTo(0, floorY); ctx.lineTo(W, floorY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-W, floorY); ctx.lineTo(W * 2, floorY); ctx.stroke();
 }
 
 function drawSuperpowerVFX(power, x, y) {
@@ -751,9 +759,9 @@ function drawSuperpowerVFX(power, x, y) {
 }
 
 // =========================================================================
-// ARTICULATED ACTING CHARACTER RIG (Elbow Joints, Gestures, Head Nod, Listener Reaction)
+// ARTICULATED ACTING CHARACTER RIG (Hand-Held Props + Directional Pointing)
 // =========================================================================
-function drawArmJointed(sx, sy, ex, ey, hx, hy, isPointing = false) {
+function drawArmJointed(sx, sy, ex, ey, hx, hy, isPointing = false, dir = 1, heldProp = 'none') {
   ctx.strokeStyle = '#0f172a';
   ctx.lineWidth = 8;
   ctx.lineCap = 'round';
@@ -764,7 +772,24 @@ function drawArmJointed(sx, sy, ex, ey, hx, hy, isPointing = false) {
   ctx.lineTo(hx, hy);
   ctx.stroke();
 
-  // Expressive Hand Circle / Pointing Finger
+  // Hand-held Phone or Chai Cup attached directly to hand!
+  if (heldProp === 'phone') {
+    ctx.save();
+    ctx.translate(hx, hy - 14);
+    ctx.rotate(dir * 0.18);
+    ctx.fillStyle = '#1e293b'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.roundRect(-14, -26, 28, 48, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(-10, -21, 20, 36);
+    ctx.restore();
+  } else if (heldProp === 'chai') {
+    ctx.save();
+    ctx.translate(hx, hy - 8);
+    ctx.fillStyle = '#f8fafc'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(-12, -14); ctx.lineTo(12, -14); ctx.lineTo(9, 12); ctx.lineTo(-9, 12); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+
   ctx.fillStyle = '#ffffff';
   ctx.lineWidth = 5;
   ctx.beginPath();
@@ -774,24 +799,23 @@ function drawArmJointed(sx, sy, ex, ey, hx, hy, isPointing = false) {
 
   if (isPointing) {
     ctx.beginPath();
-    ctx.moveTo(hx + 8, hy - 3);
-    ctx.lineTo(hx + 26, hy - 6);
+    ctx.moveTo(hx + dir * 8, hy - 3);
+    ctx.lineTo(hx + dir * 26, hy - 6);
     ctx.stroke();
   }
 }
 
-function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, groundY, scaleVal, isSpeaker, lookDir = 1, pose = 'normal', gesture = 'explain') {
+function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, groundY, scaleVal, isSpeaker, lookDir = 1, pose = 'normal', gesture = 'explain', heldProp = 'none') {
   const isWalking = action === 'walk' || action === 'run';
   const walkSpeed = action === 'run' ? 0.36 : 0.20;
   const rawSin = Math.sin(frameTick * walkSpeed);
   const snappyStep = Math.sign(rawSin) * (Math.abs(rawSin) > 0.4 ? 1 : 0);
   const legSwing = isWalking ? snappyStep * 26 : 0;
 
-  // Natural Acting Micro-Motion (Breathing + Emphasis Bounce)
   const breath = Math.sin(frameTick * 0.08) * 3;
   let jumpY = 0;
   if (isSpeaker && pose === 'fly') jumpY = 75 + Math.sin(frameTick * 0.35) * 16;
-  else if (emotion === 'shocked' && isSpeaker) jumpY = 22;
+  else if (emotion === 'shocked' && isSpeaker) jumpY = 20;
   else if (isWalking) jumpY = Math.abs(snappyStep) * 14;
   else if (isSpeaker) jumpY = talkAmt * 7;
 
@@ -805,13 +829,12 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
   ctx.translate(footX, groundY - jumpY);
 
   let sx = scaleVal, sy = scaleVal;
-  if (isSpeaker && pose === 'lean') { sx *= 1.22; sy *= 1.22; ctx.rotate(0.11); }
-  else if (isSpeaker && pose === 'bonk') { sx *= 1.26; sy *= 0.66; }
-  else if (isSpeaker && pose === 'fly') { ctx.rotate(-0.22); }
+  if (isSpeaker && pose === 'lean') { sx *= 1.18; sy *= 1.18; ctx.rotate(lookDir * 0.10); }
+  else if (isSpeaker && pose === 'bonk') { sx *= 1.24; sy *= 0.68; }
+  else if (isSpeaker && pose === 'fly') { ctx.rotate(lookDir * -0.20); }
   ctx.scale(sx, sy);
 
   if (power === 'aura' && isSpeaker) drawSuperpowerVFX('aura', 0, -30);
-  if (emotion === 'dead') { ctx.translate(0, -102); ctx.rotate(Math.PI / 2); }
 
   // Legs
   ctx.strokeStyle = '#0f172a'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -822,7 +845,7 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
   ctx.beginPath(); ctx.ellipse(-20 - legSwing, -8, 22, 10, 0, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.ellipse(28 + legSwing, -8, 22, 10, 0, 0, Math.PI * 2); ctx.fill();
 
-  // Torso (with subtle breathing shift)
+  // Torso
   ctx.save();
   ctx.translate(0, breath * 0.5);
 
@@ -852,47 +875,46 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
     ctx.strokeStyle = '#0f172a';
   }
 
-  // Articulated Acting Arms & Hand Gestures!
+  // Directional Articulated Acting Arms & Hand-Held Props!
   const actWave = isSpeaker ? Math.sin(frameTick * 0.18) * (8 + talkAmt * 18) : Math.sin(frameTick * 0.08) * 4;
   const effectiveGesture = isSpeaker ? gesture : (emotion === 'shocked' ? 'shocked_hands' : (emotion === 'smug' || emotion === 'angry' ? 'crossed' : 'idle'));
+  const dir = lookDir >= 0 ? 1 : -1;
 
-  if (power && power !== 'none' && power !== 'aura' && isSpeaker) {
-    drawArmJointed(-40, -238, -76, -205, -62, -165);
-    drawArmJointed(40, -238, 95, -245, 138, -238);
-    drawSuperpowerVFX(power, 155, -238);
+  if (heldProp === 'phone' || heldProp === 'chai') {
+    // Character holds phone or chai cup naturally in front hand!
+    drawArmJointed(-dir * 40, -238, -dir * 68, -192, -dir * 48, -152);
+    drawArmJointed(dir * 40, -238, dir * 72, -210, dir * 88, -245 + actWave * 0.3, false, dir, heldProp);
+  } else if (power && power !== 'none' && power !== 'aura' && isSpeaker) {
+    drawArmJointed(-dir * 40, -238, -dir * 76, -205, -dir * 62, -165);
+    drawArmJointed(dir * 40, -238, dir * 95, -245, dir * 138, -238);
+    drawSuperpowerVFX(power, dir * 155, -238);
   } else if (effectiveGesture === 'point') {
-    // Left hand on hip, Right hand pointing forward with elbow bend
-    drawArmJointed(-40, -238, -74, -195, -44, -162);
-    drawArmJointed(40, -238, 88, -230 + actWave * 0.4, 134, -242 + actWave * 0.5, true);
+    // Point directly toward the other character!
+    drawArmJointed(-dir * 40, -238, -dir * 74, -195, -dir * 44, -162);
+    drawArmJointed(dir * 40, -238, dir * 88, -230 + actWave * 0.4, dir * 134, -242 + actWave * 0.5, true, dir);
   } else if (effectiveGesture === 'facepalm') {
-    // Right hand raised to forehead in disbelief
-    drawArmJointed(-40, -238, -68, -190, -52, -148);
-    drawArmJointed(40, -238, 92, -295, 34, -365);
+    drawArmJointed(-dir * 40, -238, -dir * 68, -190, -dir * 52, -148);
+    drawArmJointed(dir * 40, -238, dir * 92, -295, dir * 34, -365);
   } else if (effectiveGesture === 'crossed') {
-    // Arms crossed across chest (attitude / smug / angry)
     ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 9;
     ctx.beginPath(); ctx.moveTo(-42, -235); ctx.quadraticCurveTo(-68, -195, 36, -195); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(42, -235); ctx.quadraticCurveTo(68, -195, -36, -195); ctx.stroke();
   } else if (effectiveGesture === 'shocked_hands') {
-    // Both hands raised near cheeks in shock
     drawArmJointed(-40, -238, -96, -268, -82, -335);
     drawArmJointed(40, -238, 96, -268, 82, -335);
   } else if (effectiveGesture === 'shrug') {
-    // Both palms up shrug
     drawArmJointed(-40, -238, -88, -205, -112, -235 - actWave * 0.4);
     drawArmJointed(40, -238, 88, -205, 112, -235 - actWave * 0.4);
   } else if (effectiveGesture === 'explain') {
-    // Expressive two-hand storytelling gesture synced with speech envelope
     drawArmJointed(-40, -238, -82, -202 - actWave * 0.5, -104, -228 - actWave);
     drawArmJointed(40, -238, 84, -202 + actWave * 0.5, 110, -225 + actWave);
   } else {
-    // Natural Listener Idle (Active breathing / subtle nod)
     drawArmJointed(-40, -238, -66, -190, -54, -142);
     drawArmJointed(40, -238, 66, -190, 54, -142);
   }
   ctx.restore();
 
-  // Articulated Head (with natural speaking nod & listener reaction tilt)
+  // Articulated Head
   const headY = -362;
   const headNodY = isSpeaker ? (talkAmt * 6 + breath * 0.5) : (Math.sin(frameTick * 0.12) * 3);
   const headTilt = isSpeaker
@@ -909,7 +931,7 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
     ctx.beginPath(); ctx.roundRect(-110, -30, 220, 185, 48); ctx.fill();
   } else if (char === 'gf') {
     const ponyWave = Math.sin(frameTick * 0.16) * 7;
-    ctx.beginPath(); ctx.ellipse(-118, -40 + ponyWave, 34, 78, 0.35, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-dir * 118, -40 + ponyWave, 34, 78, -dir * 0.35, 0, Math.PI * 2); ctx.fill();
   } else if (char === 'sister') {
     const pigWave = Math.sin(frameTick * 0.2) * 5;
     ctx.beginPath();
@@ -946,7 +968,7 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
   } else if (char === 'bro') {
     ctx.fillStyle = '#ef4444';
     ctx.beginPath(); ctx.arc(0, -32, 98, Math.PI, 0); ctx.fill(); ctx.stroke();
-    ctx.fillRect(-135, -40, 68, 15); ctx.strokeRect(-135, -40, 68, 15);
+    ctx.fillRect(dir > 0 ? -135 : 67, -40, 68, 15); ctx.strokeRect(dir > 0 ? -135 : 67, -40, 68, 15);
   } else if (char === 'mom') {
     ctx.beginPath(); ctx.arc(0, -118, 36, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(0, -32, 100, Math.PI, 0); ctx.fill();
@@ -980,11 +1002,7 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
   const pupilShift = lookDir * 6;
   const isBlinking = (blinkTimer + (isSpeaker ? 0 : 45)) % 150 > 143;
 
-  if (emotion === 'dead') {
-    ctx.lineWidth = 7;
-    ctx.beginPath(); ctx.moveTo(-48, eyeY - 16); ctx.lineTo(-20, eyeY + 12); ctx.moveTo(-20, eyeY - 16); ctx.lineTo(-48, eyeY + 12); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(20, eyeY - 16); ctx.lineTo(48, eyeY + 12); ctx.moveTo(48, eyeY - 16); ctx.lineTo(20, eyeY + 12); ctx.stroke();
-  } else if (emotion === 'cursed') {
+  if (emotion === 'cursed') {
     ctx.fillStyle = '#ffffff'; ctx.lineWidth = 5;
     ctx.beginPath(); ctx.arc(-28, eyeY, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.arc(28, eyeY - 6, 20, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -1032,20 +1050,17 @@ function drawFullBodyCharacter(char, emotion, action, power, talkAmt, footX, gro
   ctx.lineWidth = 6;
   if (isSpeaker && talkAmt > 0.08) {
     if (talkAmt > 0.55) {
-      // Wide Open Vowel (A / O)
       ctx.fillStyle = '#7f1d1d';
       ctx.beginPath(); ctx.arc(0, mouthY - 8, 25, 0, Math.PI, false); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#ffffff'; ctx.fillRect(-18, mouthY - 8, 36, 6);
       ctx.fillStyle = '#fb7185'; ctx.beginPath(); ctx.arc(0, mouthY + 10, 11, Math.PI, 0); ctx.fill();
     } else {
-      // Half-Open Syllable (E / U)
       const h = 6 + talkAmt * 22;
       const w = 14 + (1 - talkAmt) * 10;
       ctx.fillStyle = '#7f1d1d';
       ctx.beginPath(); ctx.ellipse(0, mouthY, w, h, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     }
   } else {
-    // Natural Closed / Resting Expression during Pauses
     ctx.beginPath();
     if (emotion === 'cursed') { ctx.moveTo(-24, mouthY + 6); ctx.quadraticCurveTo(0, mouthY - 12, 26, mouthY + 8); }
     else if (emotion === 'smug' || char === 'villain') { ctx.arc(0, mouthY - 6, 24, 0.1 * Math.PI, 0.85 * Math.PI); }
@@ -1121,7 +1136,6 @@ function renderLoop() {
   const cam = currentScene.camera || 'normal';
   const gag = currentScene.gag || 'none';
 
-  // Natural Audio-Envelope Lip-Sync (Smooth attack/release, closes on pauses!)
   if (isSpeakingNow && analyser && timeDomainArray) {
     analyser.getByteTimeDomainData(timeDomainArray);
     let sqSum = 0;
@@ -1130,7 +1144,6 @@ function renderLoop() {
       sqSum += v * v;
     }
     const rms = Math.sqrt(sqSum / timeDomainArray.length);
-    // Noise gate: silence/pauses < 0.015 drop cleanly to 0; speech scales naturally
     const targetOpen = rms > 0.015 ? Math.min(1, (rms - 0.015) * 9.0) : 0;
     const smoothFactor = targetOpen > smoothedMouth ? 0.35 : 0.22;
     smoothedMouth += (targetOpen - smoothedMouth) * smoothFactor;
@@ -1149,29 +1162,45 @@ function renderLoop() {
     if (cam === 'top') {
       drawTopDownScene(currentScene);
     } else {
+      const speaker = currentScene.char || 'hero';
+      const listener = currentScene.other || (speaker === 'hero' ? 'bro' : 'hero');
+      const speakerPose = currentScene.pose || 'normal';
+      const speakerGesture = currentScene.gesture || 'explain';
+      const activeProp = currentScene.prop || 'none';
+
+      // FIXED STAGE BLOCKING: Hero stays Left (W*0.28), Co-Star stays Right (W*0.72) — NO TELEPORTING!
+      const heroIsSpeaker = speaker === 'hero';
+      const leftChar = heroIsSpeaker ? speaker : listener;
+      const rightChar = heroIsSpeaker ? listener : speaker;
+      const leftX = W * 0.28;
+      const rightX = W * 0.72;
+
+      // Grounded Camera Zoom anchored on active speaker & floorY
       if (cam === 'in') {
-        ctx.translate(W * 0.5, groundY - 180); ctx.scale(1.22, 1.22); ctx.translate(-W * 0.5, -(groundY - 180));
+        const focusX = heroIsSpeaker ? leftX : rightX;
+        ctx.translate(W * 0.5, groundY);
+        ctx.scale(1.18, 1.18);
+        ctx.translate(-focusX, -groundY);
       } else if (cam === 'zoomout') {
-        ctx.translate(W * 0.5, groundY - 140); ctx.scale(0.76, 0.76); ctx.translate(-W * 0.5, -(groundY - 140));
+        ctx.translate(W * 0.5, groundY);
+        ctx.scale(0.80, 0.80);
+        ctx.translate(-W * 0.5, -groundY);
       }
 
       const isMoving = currentScene.action === 'walk' || currentScene.action === 'run';
       drawEnvironment(currentScene.location || 'room', isMoving);
 
-      if (currentScene.prop && currentScene.prop !== 'none') {
-        drawSceneProp(currentScene.prop, W * 0.52, groundY, H < 800 ? 0.78 : 0.95, false);
+      if (activeProp !== 'none' && activeProp !== 'phone' && activeProp !== 'chai') {
+        drawSceneProp(activeProp, W * 0.52, groundY, H < 800 ? 0.78 : 0.95, false);
       }
 
-      const speaker = currentScene.char || 'hero';
-      const listener = currentScene.other || (speaker === 'hero' ? 'bro' : 'hero');
-      const speakerPose = currentScene.pose || 'normal';
-      const speakerGesture = currentScene.gesture || 'explain';
-
-      if (cam !== 'in') {
-        drawFullBodyCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 'none', 0, W * 0.74, groundY, charScale * 0.88, false, -1, 'normal', 'idle');
-        drawFullBodyCharacter(speaker, currentScene.emotion || 'normal', currentScene.action || 'idle', currentScene.power || 'none', mouthOpen, W * 0.28, groundY, charScale, true, 1, speakerPose, speakerGesture);
+      // Draw Listener behind Speaker for clean depth
+      if (heroIsSpeaker) {
+        drawFullBodyCharacter(rightChar, currentScene.otherEmotion || 'normal', 'idle', 'none', 0, rightX, groundY, charScale * 0.90, false, -1, 'normal', 'idle', 'none');
+        drawFullBodyCharacter(leftChar, currentScene.emotion || 'normal', currentScene.action || 'idle', currentScene.power || 'none', mouthOpen, leftX, groundY, charScale, true, 1, speakerPose, speakerGesture, activeProp);
       } else {
-        drawFullBodyCharacter(speaker, currentScene.emotion || 'normal', currentScene.action || 'idle', currentScene.power || 'none', mouthOpen, W * 0.48, groundY, charScale * 1.08, true, 0, speakerPose, speakerGesture);
+        drawFullBodyCharacter(leftChar, currentScene.otherEmotion || 'normal', 'idle', 'none', 0, leftX, groundY, charScale * 0.90, false, 1, 'normal', 'idle', 'none');
+        drawFullBodyCharacter(rightChar, currentScene.emotion || 'normal', currentScene.action || 'idle', currentScene.power || 'none', mouthOpen, rightX, groundY, charScale, true, -1, speakerPose, speakerGesture, activeProp);
       }
     }
   }
@@ -1276,18 +1305,6 @@ async function runSoundArtistAgent(scenes, partLabel = '') {
       setCrewState('sound', 'done');
       return list;
     }
-    if (mode === 'gemini') {
-      try {
-        setStatus(`🎙️ [Sound Artist] Recording Gemini Multi-Speaker Voices ${partLabel}...`);
-        const list = await fetchGeminiMultiSpeakerVoices(scenes, partLabel);
-        setCrewState('sound', 'done');
-        return list;
-      } catch {
-        const list = await fetchEdgeTTSPerScene(scenes, partLabel);
-        setCrewState('sound', 'done');
-        return list;
-      }
-    }
     try {
       setStatus(`🎙️ [Sound Artist] Recording Gemini Voices ${partLabel}...`);
       const list = await fetchGeminiMultiSpeakerVoices(scenes, partLabel);
@@ -1365,7 +1382,6 @@ async function createBulletproofRecorder() {
   const audioTracks = destNode ? destNode.stream.getAudioTracks() : [];
   const combined = new MediaStream([videoTrack, ...audioTracks]);
 
-  // Prioritize WebM VP8/Opus on Android Chrome (prevents broken MP4 moov atoms & black screens)
   const candidates = [
     { mime: 'video/webm;codecs=vp8,opus', ext: 'webm' },
     { mime: 'video/webm;codecs=vp9,opus', ext: 'webm' },
