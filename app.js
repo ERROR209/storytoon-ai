@@ -1,4 +1,4 @@
-const APP_VERSION = 'v35.0';
+const APP_VERSION = 'v35.1';
 const canvas = document.getElementById('stageCanvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
@@ -1215,15 +1215,22 @@ function trimDeadSilence(buf, isLastScene = false) {
 }
 
 async function fetchSingleEdgeTTS(scene, isLast = false) {
-  const res = await fetch('/api/tts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: scene.text, char: scene.char })
-  });
-  if (!res.ok) throw new Error(`Edge TTS HTTP ${res.status}`);
-  const arr = await res.arrayBuffer();
-  const decoded = await audioCtx.decodeAudioData(arr);
-  return trimDeadSilence(decoded, isLast);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8500);
+  try {
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: ctrl.signal,
+      body: JSON.stringify({ text: scene.text, char: scene.char })
+    });
+    if (!res.ok) throw new Error(`Edge TTS HTTP ${res.status}`);
+    const arr = await res.arrayBuffer();
+    const decoded = await audioCtx.decodeAudioData(arr);
+    return trimDeadSilence(decoded, isLast);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function fetchEdgeTTSPerScene(scenes, partLabel = '') {
@@ -1507,6 +1514,7 @@ document.getElementById('oneClickAutoBtn').onclick = async () => {
     for (let part = 1; part <= totalParts; part++) {
       const scenes = await runPreProductionCrew(key, topic, part, totalParts, prevEnding, targetLines);
       scriptEditor.value = JSON.stringify(scenes, null, 2);
+      if (scenes[0]) { currentScene = scenes[0]; sceneStartTime = performance.now(); }
       cachedScriptHash = '';
       renderMicControls();
       prevEnding = scenes.slice(-2).map(s => s.text).join(' ');
