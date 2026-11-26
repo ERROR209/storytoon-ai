@@ -1,4 +1,4 @@
-const APP_VERSION = 'v32.0';
+const APP_VERSION = 'v33.0';
 const canvas = document.getElementById('stageCanvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
@@ -128,11 +128,11 @@ document.getElementById('loadDemoBtn').onclick = () => {
   scriptEditor.value = JSON.stringify(DEMO_SCRIPT, null, 2);
   cachedScriptHash = '';
   renderMicControls();
-  setStatus('Clean Female & Comedy Demo loaded!');
+  setStatus('Human Crew Demo loaded!');
 };
 
 // =========================================================================
-// WEB AUDIO ENGINE + AMBIENT LOFI + FOLEY SFX
+// WEB AUDIO ENGINE + SCENE-ADAPTIVE BGM + FOLEY SFX
 // =========================================================================
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null, destNode = null, analyser = null, timeDomainArray = null, bgmGain = null, bgmInterval = null;
@@ -163,25 +163,28 @@ function createSilentBuffer(seconds = 2.4) {
   return audioCtx.createBuffer(1, Math.floor(sr * seconds), sr);
 }
 
-function startComedyBGM() {
-  stopComedyBGM();
-  const notes = [261.63, 329.63, 392.00, 493.88, 220.00, 261.63, 329.63, 392.00];
+function startAdaptiveBGM() {
+  stopAdaptiveBGM();
+  const brightNotes = [261.63, 329.63, 392.00, 493.88, 220.00, 261.63, 329.63, 392.00];
+  const suspenseNotes = [220.00, 246.94, 261.63, 246.94, 196.00, 220.00, 246.94, 164.81];
   let step = 0;
   bgmInterval = setInterval(() => {
     if (!audioCtx || audioCtx.state !== 'running') return;
     const now = audioCtx.currentTime;
+    const isSuspense = currentScene.lighting === 'night' || currentScene.lighting === 'dramatic';
+    const scale = isSuspense ? suspenseNotes : brightNotes;
     const osc = audioCtx.createOscillator(), noteGain = audioCtx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(notes[step % notes.length], now);
+    osc.type = isSuspense ? 'triangle' : 'sine';
+    osc.frequency.setValueAtTime(scale[step % scale.length], now);
     step++;
     noteGain.gain.setValueAtTime(0.001, now);
-    noteGain.gain.linearRampToValueAtTime(0.16, now + 0.04);
+    noteGain.gain.linearRampToValueAtTime(0.15, now + 0.04);
     noteGain.gain.exponentialRampToValueAtTime(0.001, now + 0.36);
     osc.connect(noteGain); noteGain.connect(bgmGain);
     osc.start(now); osc.stop(now + 0.38);
   }, 380);
 }
-function stopComedyBGM() { if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; } }
+function stopAdaptiveBGM() { if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; } }
 function duckBGM(speaking) {
   isSpeakingNow = speaking;
   if (!speaking) smoothedMouth = 0;
@@ -230,7 +233,7 @@ function playSFX(type) {
 }
 
 // =========================================================================
-// VIRTUAL FILM CREW PIPELINE
+// REAL HUMAN FILM PRODUCTION CREW PIPELINE
 // =========================================================================
 async function getBestGeminiModel(key) {
   try {
@@ -250,8 +253,11 @@ async function getBestGeminiModel(key) {
   }
 }
 
-async function callGeminiAgent(key, models, prompt, temp = 0.85) {
+async function callGeminiAgent(key, models, prompt, temp = 0.85, expectObject = false) {
   let lastErr = 'Server busy';
+  const openCh = expectObject ? '{' : '[';
+  const closeCh = expectObject ? '}' : ']';
+
   for (const model of models.slice(0, 6)) {
     try {
       const ctrl = new AbortController();
@@ -269,7 +275,7 @@ async function callGeminiAgent(key, models, prompt, temp = 0.85) {
       const data = await res.json();
       if (!res.ok) { lastErr = data.error?.message || `HTTP ${res.status}`; await sleep(600); continue; }
       const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const sIdx = raw.indexOf('['), eIdx = raw.lastIndexOf(']');
+      const sIdx = raw.indexOf(openCh), eIdx = raw.lastIndexOf(closeCh);
       if (sIdx === -1 || eIdx === -1) { lastErr = 'Invalid JSON'; continue; }
       return JSON.parse(raw.slice(sIdx, eIdx + 1));
     } catch (err) {
@@ -280,10 +286,10 @@ async function callGeminiAgent(key, models, prompt, temp = 0.85) {
   throw new Error(lastErr);
 }
 
-// AGENT 1: SCRIPTWRITER (Strict Ban on Fake Death / Ghost Endings!)
+// AGENT 1: HUMAN-STYLE SCRIPTWRITER (Creates Story Bible First + Realistic Script)
 async function runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding, targetLines) {
   setCrewState('writer', 'active');
-  setStatus(`✍️ [1/3 Scriptwriter] Writing ${targetLines}-line ${toneSelect.value} script (Part ${partNum}/${totalParts})...`);
+  setStatus(`✍️ [1/4 Scriptwriter] Building Story Bible & ${targetLines}-line script (Part ${partNum}/${totalParts})...`);
   const cont = partNum > 1
     ? `Continue seamlessly from: "${prevEnding}".`
     : (totalParts > 1 ? `Part 1 of ${totalParts}. End on a strong cliffhanger!` : `Complete short story with a grounded, realistic, and entertaining ending.`);
@@ -300,36 +306,45 @@ async function runScriptwriterAgent(key, models, topic, partNum, totalParts, pre
     styleDirection = 'CLEVER DOUBLE MEANING (NAUGHTY DESI) comedy! Spicy misunderstandings, teasing banter, and witty innuendos that turn out to be totally innocent in the end!';
   }
 
-  const prompt = `You are a viral Indian YouTube animated storyteller ("NOT YOUR TYPE" style).
-Write an EXACTLY ${targetLines}-line Hinglish two-person dialogue script about: "${topic}".
+  const prompt = `You are a lead human scriptwriter for a viral Indian YouTube animated channel ("NOT YOUR TYPE" style).
+Plan a Story Bible first, then write an EXACTLY ${targetLines}-line Hinglish two-person dialogue script about: "${topic}".
 STYLE: ${styleDirection}
 ${cont}
-CRITICAL RULES:
-1. NO FAKE DEATH / NO GHOST CLICHÉ: NEVER end the story with "someone died in an accident / is a ghost / funeral / dead body"! Keep the story grounded in real life unless the user explicitly asked for a ghost/afterlife topic.
-2. DIRECT SPOKEN DIALOGUE ONLY: Every line must be spoken directly by "char" (so their voice and lip-sync match!). Do NOT write third-person narration like "Usne kaha ki...". Instead let "gf" or "bro" speak their own line directly!
-3. EXACT LENGTH: Return an array of EXACTLY ${targetLines} dialogue objects so the video lasts ${targetLines >= 15 ? '60 seconds (1 full minute)' : '45 seconds'}.
-4. 100% ROMAN ENGLISH LETTERS ONLY (e.g., "chupchap", "sapne"). NEVER use Hindi Devanagari!
-5. LOGICAL CASTING: "char" and "other" MUST NEVER be the same character!
-   - Role IDs: "hero", "bro", "bhabhi", "gf", "sister", "mom", "villain", "npc".
-6. EMOTIONS: "normal", "shocked", "smug", "angry", "crying", "sweat" (NEVER "dead").
-7. LOCATION: "room" or "park".
-8. PUNCH TEXT ("punch"): Short 1-to-3 word visual label for key moments (or "" for normal lines).
-Return ONLY JSON array: [{"char":"hero","other":"gf","emotion":"normal","otherEmotion":"normal","location":"room","punch":"","text":"10-14 words punchy spoken Roman Hinglish"}]`;
 
-  const draft = await callGeminiAgent(key, models, prompt, 0.85);
+STRICT HUMAN WRITER RULES:
+1. NO FAKE DEATH / NO GHOST CLICHÉ: NEVER end the story with "someone died in an accident / is a ghost / funeral / dead body"! Keep the story grounded in real life unless the user explicitly asked for a ghost/afterlife topic.
+2. CONSISTENT SETTING & LIGHTING: Maintain continuous physical logic! If someone turns OFF the lights in line 3, the room stays DARK ("night") for ALL following lines until someone explicitly turns the lights back ON! Never flip room lights on/off randomly.
+3. DIRECT SPOKEN DIALOGUE ONLY: Every line must be spoken directly by "char" (so their voice and lip-sync match). Do NOT write third-person narration like "Usne kaha ki...".
+4. EXACT LENGTH: Return an array of EXACTLY ${targetLines} dialogue objects inside "scenes".
+5. 100% ROMAN ENGLISH LETTERS ONLY (e.g., "chupchap", "sapne"). NEVER use Hindi Devanagari!
+6. CASTING: "char" and "other" MUST NEVER be the same character!
+   - Role IDs: "hero", "bro", "bhabhi", "gf", "sister", "mom", "villain", "npc".
+7. EMOTIONS: "normal", "shocked", "smug", "angry", "crying", "sweat" (NEVER "dead").
+8. LIGHTING: "pastel" (bright day/lights on), "night" (dark/lights off/nighttime), or "dramatic" (tense confrontation).
+9. PUNCH TEXT ("punch"): Short 1-to-3 word visual label for key moments (or "" for normal lines).
+
+Return ONLY a JSON object:
+{
+  "bible": { "setting": "room or park", "summary": "1-sentence plot summary" },
+  "scenes": [
+    {"char":"hero","other":"gf","emotion":"normal","otherEmotion":"normal","location":"room","lighting":"pastel","punch":"","text":"10-14 words punchy spoken Roman Hinglish"}
+  ]
+}`;
+
+  const result = await callGeminiAgent(key, models, prompt, 0.82, true);
   setCrewState('writer', 'done');
-  return draft;
+  return Array.isArray(result) ? result : (result.scenes || []);
 }
 
-// AGENT 2: CINEMATIC DIRECTOR
+// AGENT 2: DOP / CINEMATIC DIRECTOR (Clean Framing & Pacing)
 async function runDirectorDOPAgent(key, models, draftScript) {
   setCrewState('director', 'active');
-  setStatus(`🎥 [2/3 Director] Framing clean character shots...`);
+  setStatus(`🎥 [2/4 DOP/Director] Designing clean two-shots & focused speaker close-ups...`);
 
-  const prompt = `You are the Film Director. Choose clean, natural camera shots for each dialogue line.
+  const prompt = `You are a Human Film Director & Cinematographer. Direct each dialogue line cleanly:
 - shot:
-  * "normal": Clean medium two-shot (Hero left, Co-star right) — use for 65% of lines.
-  * "in": Smooth speaker close-up zoom for jokes, reactions, or punchlines — use for 35% of lines.
+  * "normal": Clean medium two-shot (both characters clearly visible in full frame) — use for ~65% of lines.
+  * "in": Focused solo speaker close-up (camera smoothly centers on the speaker so the other person is cleanly off-frame, never half-cut!) — use for ~35% of lines (punchlines, reactions, key twists).
   (ONLY use "normal" or "in"!)
 - gesture: "explain", "point", "facepalm", "crossed", "shocked_hands", "shrug".
 - prop: "none" (default), "phone", "chai" (ONLY if literally mentioned in that line).
@@ -338,31 +353,64 @@ async function runDirectorDOPAgent(key, models, draftScript) {
 Script to direct:
 ${JSON.stringify(draftScript)}
 
-Return the SAME array with "shot", "gesture", "prop", "sfx" added. JSON ONLY.`;
+Return the SAME scenes array with "shot", "gesture", "prop", "sfx" added. JSON array ONLY.`;
 
-  const directed = await callGeminiAgent(key, models, prompt, 0.4);
+  const directed = await callGeminiAgent(key, models, prompt, 0.35, false);
   setCrewState('director', 'done');
   return directed;
 }
 
-// AGENT 3: LIGHTMAN & STRICT CONTINUITY GUARD
+// AGENT 3: LIGHTMAN & STATEFUL CONTINUITY SUPERVISOR (Remembers Light On/Off Across Scenes!)
 function runLightmanAgent(directedScenes) {
   setCrewState('light', 'active');
-  setStatus(`💡 [3/3 Lightman] Verifying scene logic, anti-clone & lighting...`);
+  setStatus(`💡 [3/4 Lightman & Continuity] Locking scene lighting state & anti-clone checks...`);
+
+  // Track persistent physical state across the entire scene timeline!
+  let persistentLightState = null; // null = follow scene default, 'night' = lights turned off, 'pastel' = lights turned on
+  let currentLocation = directedScenes[0]?.location || 'room';
 
   const litScenes = directedScenes.map((sc) => {
     const txt = (sc.text || '').toLowerCase();
     const s = { ...sc };
+
     if (s.emotion === 'dead') s.emotion = 'shocked';
+    if (s.shot !== 'normal' && s.shot !== 'in') s.shot = 'in';
 
-    if (s.shot !== 'normal' && s.shot !== 'in') {
-      s.shot = 'in';
-    }
-
+    // Anti-clone lock
     if (!s.other || s.other === s.char) {
       s.other = s.char === 'hero' ? 'bro' : 'hero';
     }
 
+    // Location continuity
+    if (s.location && s.location !== currentLocation) {
+      currentLocation = s.location;
+      persistentLightState = null; // reset room switch when moving to a new location
+    } else {
+      s.location = currentLocation;
+    }
+
+    // Stateful Light Switch Detection (Human Continuity!)
+    if (/light\s*off|lights\s*off|batti\s*bujha|batti\s*band|andhera\s*kar|light\s*band/.test(txt)) {
+      persistentLightState = 'night';
+    } else if (/light\s*on|lights\s*on|batti\s*jala|light\s*jala|roshni/.test(txt)) {
+      persistentLightState = 'pastel';
+    }
+
+    if (persistentLightState !== null) {
+      // Hold the physical light switch state across all subsequent lines!
+      s.lighting = persistentLightState;
+    } else if (s.lighting !== 'night' && s.lighting !== 'dramatic' && s.lighting !== 'pastel') {
+      if (/raat|night|andhera|bhoot|kabr|aatma/.test(txt)) {
+        s.lighting = 'night';
+        persistentLightState = 'night';
+      } else if (s.emotion === 'angry') {
+        s.lighting = 'dramatic';
+      } else {
+        s.lighting = 'pastel';
+      }
+    }
+
+    // Gesture & prop validation
     if (!s.gesture) {
       if (s.emotion === 'angry') s.gesture = 'point';
       else if (s.emotion === 'smug') s.gesture = 'crossed';
@@ -371,16 +419,9 @@ function runLightmanAgent(directedScenes) {
       else s.gesture = 'explain';
     }
 
-    if (s.prop === 'phone' && !/phone|mobile|reel|video|game|call|password|message|chat/.test(txt)) s.prop = 'none';
+    if (s.prop === 'phone' && !/phone|mobile|reel|video|game|call|password|message|chat|upi|scan/.test(txt)) s.prop = 'none';
     if (s.prop === 'chai' && !/chai|tea|coffee|cup/.test(txt)) s.prop = 'none';
 
-    if (/raat|night|andhera|sad|akela|toot|mar|maut|bhoot|thand|fridge|kabr|aatma/.test(txt)) {
-      s.lighting = 'night';
-    } else if (s.emotion === 'angry') {
-      s.lighting = 'dramatic';
-    } else {
-      s.lighting = 'pastel';
-    }
     return s;
   });
 
@@ -397,7 +438,7 @@ async function runPreProductionCrew(key, topic, partNum, totalParts, prevEnding,
 }
 
 // =========================================================================
-// UNHOLY TALES PASTEL RENDERER (Clean Feminine Hair & Face Rig!)
+// UNHOLY TALES PASTEL RENDERER (Clean Female Rig + Zero Half-Cut Framing!)
 // =========================================================================
 let currentScene = DEMO_SCRIPT[0];
 let sceneStartTime = performance.now();
@@ -572,19 +613,16 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
   ctx.translate(footX, groundY - speakBounce);
   ctx.scale(scaleVal, scaleVal);
 
-  // Female Long Hair Back-Drape BEHIND shoulders & neck (narrower than jawline so ZERO beard effect!)
   if (fem) {
     ctx.fillStyle = pal.hair;
     ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 3.2;
     if (char === 'mom') {
-      // Neat Mom Hair Bun behind head
       ctx.beginPath();
       ctx.arc(-dir * 38, -356 + breath * 0.4, 28, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
     } else {
-      // Flowing Shoulder-Length Hair behind neck/shoulders (only width ±50, never wider than chin!)
       ctx.beginPath();
       ctx.moveTo(-48, -310);
       ctx.quadraticCurveTo(-56, -230, -46, -185);
@@ -596,24 +634,20 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
     }
   }
 
-  // Pants / Legs
   ctx.fillStyle = pal.pants;
   ctx.strokeStyle = '#334155';
   ctx.lineWidth = 3.5;
   ctx.beginPath(); ctx.roundRect(-25, -118, 21, 108, 8); ctx.fill(); ctx.stroke();
   ctx.beginPath(); ctx.roundRect(4, -118, 21, 108, 8); ctx.fill(); ctx.stroke();
 
-  // Shoes
   ctx.fillStyle = fem ? '#fbcfe8' : '#ffffff';
   ctx.beginPath(); ctx.roundRect(-29, -16, 27, 16, 7); ctx.fill(); ctx.stroke();
   ctx.beginPath(); ctx.roundRect(2, -16, 27, 16, 7); ctx.fill(); ctx.stroke();
 
-  // Torso
   ctx.save();
   ctx.translate(0, breath * 0.5);
   ctx.fillStyle = pal.shirt;
   if (fem) {
-    // Slightly tapered feminine top / kurti
     ctx.beginPath();
     ctx.moveTo(-34, -230);
     ctx.lineTo(34, -230);
@@ -635,14 +669,12 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
   ctx.fill();
   ctx.stroke();
 
-  // Neck
   ctx.fillStyle = pal.skin;
   ctx.fillRect(-11, -254, 22, 26);
   ctx.strokeRect(-11, -254, 22, 26);
   ctx.fillStyle = pal.skinShadow;
   ctx.fillRect(-10, -254, 20, 9);
 
-  // Arms
   const actWave = isSpeaker ? Math.sin(frameTick * 0.16) * (6 + talkAmt * 14) : Math.sin(frameTick * 0.07) * 3;
   const effGesture = isSpeaker ? gesture : (emotion === 'shocked' ? 'shocked_hands' : (emotion === 'smug' || emotion === 'angry' ? 'crossed' : 'idle'));
   const shoulderX = fem ? 33 : 38;
@@ -673,7 +705,6 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
   }
   ctx.restore();
 
-  // Head
   const headY = -318;
   const headNod = isSpeaker ? (talkAmt * 4.5 + breath * 0.4) : (Math.sin(frameTick * 0.1) * 2);
   const headTilt = isSpeaker ? Math.sin(frameTick * 0.12) * 0.035 * (0.3 + talkAmt) : 0.02;
@@ -682,7 +713,6 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
   ctx.translate(0, headY + headNod);
   ctx.rotate(headTilt);
 
-  // Clean Skin Face (100% unobstructed jawline — NO beard box!)
   ctx.fillStyle = pal.skin;
   ctx.strokeStyle = '#334155';
   ctx.lineWidth = 3.6;
@@ -691,12 +721,10 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
   ctx.fill();
   ctx.stroke();
 
-  // Soft Blush Cheeks
   ctx.fillStyle = fem ? 'rgba(244, 114, 182, 0.32)' : 'rgba(244, 114, 182, 0.20)';
   ctx.beginPath(); ctx.ellipse(-32, 14, 12, 7, 0, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.ellipse(32, 14, 12, 7, 0, 0, Math.PI * 2); ctx.fill();
 
-  // Hair Top & Side-Locks (Above ears/temples ONLY — never below cheeks!)
   ctx.fillStyle = pal.hair;
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 3.4;
@@ -705,12 +733,10 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
     ctx.beginPath(); ctx.arc(0, -24, 66, Math.PI, 0); ctx.fill(); ctx.stroke();
     ctx.fillRect(dir > 0 ? -90 : 44, -30, 46, 11); ctx.strokeRect(dir > 0 ? -90 : 44, -30, 46, 11);
   } else if (fem) {
-    // Sleek Feminine Side-Parted Hair with Temple Side-Strands
     ctx.beginPath();
     ctx.moveTo(-64, -10);
     ctx.quadraticCurveTo(-56, -84, 0, -82);
     ctx.quadraticCurveTo(56, -84, 64, -10);
-    // Side framing strands tapering cleanly at ear level (y = +12)
     ctx.quadraticCurveTo(60, 12, 52, 16);
     ctx.quadraticCurveTo(50, -28, 12, -44);
     ctx.quadraticCurveTo(-24, -34, -50, -26);
@@ -720,7 +746,6 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
     ctx.fill();
     ctx.stroke();
 
-    // Cute Hair Clip / Bindi detail
     if (char === 'mom' || char === 'bhabhi') {
       ctx.fillStyle = '#e11d48';
       ctx.beginPath(); ctx.arc(0, -22, 3.8, 0, Math.PI * 2); ctx.fill();
@@ -739,7 +764,6 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
     ctx.stroke();
   }
 
-  // Eyes + Feminine Eyelashes
   const eyeY = -4;
   const pupilX = dir * 4;
   const isBlinking = (blinkTimer + (isSpeaker ? 0 : 45)) % 150 > 144;
@@ -771,7 +795,6 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
     ctx.beginPath(); ctx.arc(18 + pupilX, eyeY - 2.5, 2.2, 0, Math.PI * 2); ctx.fill();
   }
 
-  // Eyebrows
   const browLift = isSpeaker ? -talkAmt * 3.5 : 0;
   ctx.strokeStyle = pal.hair;
   ctx.lineWidth = fem ? 3.6 : 4.5;
@@ -787,7 +810,6 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
     ctx.beginPath(); ctx.moveTo(8, eyeY - 21 + browLift); ctx.lineTo(34, eyeY - 19 + browLift); ctx.stroke();
   }
 
-  // Mouth (Soft rose-pink lips for female characters!)
   const mouthY = 30;
   ctx.strokeStyle = fem ? '#be123c' : '#334155';
   ctx.lineWidth = 3.2;
@@ -918,26 +940,38 @@ function renderLoop() {
   const charScale = H < 800 ? 0.84 : 1.08;
   const heroIsSpeaker = speaker === 'hero';
   const leftX = W * 0.28, rightX = W * 0.72;
-
-  if (shot === 'in') {
-    const zoom = 1 + easeOutCubic(Math.min(1, elapsed / 0.55)) * 0.14;
-    const focusX = heroIsSpeaker ? leftX : rightX;
-    ctx.translate(W * 0.5, groundY);
-    ctx.scale(zoom, zoom);
-    ctx.translate(-focusX, -groundY);
-  }
-
-  drawPastelEnvironment(currentScene.location || 'room', lighting);
-
   const activeProp = currentScene.prop || 'none';
   const speakerGesture = currentScene.gesture || 'explain';
 
-  if (heroIsSpeaker) {
-    drawPastelCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 0, rightX, groundY, charScale * 0.94, false, -1, 'none');
-    drawPastelCharacter(speaker, currentScene.emotion || 'normal', speakerGesture, mouthOpen, leftX, groundY, charScale, true, 1, activeProp);
+  if (shot === 'in') {
+    // DOP Solo Close-Up Framing: smoothly centers speaker and slides listener cleanly out so nobody is half-cut!
+    const t = easeOutCubic(Math.min(1, elapsed / 0.45));
+    const zoom = 1 + t * 0.16;
+    const speakerStartX = heroIsSpeaker ? leftX : rightX;
+    const speakerSoloX = heroIsSpeaker ? W * 0.44 : W * 0.56;
+    const speakerX = speakerStartX + (speakerSoloX - speakerStartX) * t;
+
+    ctx.translate(W * 0.5, groundY);
+    ctx.scale(zoom, zoom);
+    ctx.translate(-speakerX, -groundY);
+
+    drawPastelEnvironment(currentScene.location || 'room', lighting);
+
+    // Slide listener completely off-frame during close-up so no half-cut ear/arm appears
+    if (t < 0.95) {
+      const offX = heroIsSpeaker ? rightX + t * (W * 0.55) : leftX - t * (W * 0.55);
+      drawPastelCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 0, offX, groundY, charScale * 0.94, false, heroIsSpeaker ? -1 : 1, 'none');
+    }
+    drawPastelCharacter(speaker, currentScene.emotion || 'normal', speakerGesture, mouthOpen, speakerX, groundY, charScale, true, heroIsSpeaker ? 1 : -1, activeProp);
   } else {
-    drawPastelCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 0, leftX, groundY, charScale * 0.94, false, 1, 'none');
-    drawPastelCharacter(speaker, currentScene.emotion || 'normal', speakerGesture, mouthOpen, rightX, groundY, charScale, true, -1, activeProp);
+    drawPastelEnvironment(currentScene.location || 'room', lighting);
+    if (heroIsSpeaker) {
+      drawPastelCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 0, rightX, groundY, charScale * 0.94, false, -1, 'none');
+      drawPastelCharacter(speaker, currentScene.emotion || 'normal', speakerGesture, mouthOpen, leftX, groundY, charScale, true, 1, activeProp);
+    } else {
+      drawPastelCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 0, leftX, groundY, charScale * 0.94, false, 1, 'none');
+      drawPastelCharacter(speaker, currentScene.emotion || 'normal', speakerGesture, mouthOpen, rightX, groundY, charScale, true, -1, activeProp);
+    }
   }
   ctx.restore();
 
@@ -947,7 +981,7 @@ function renderLoop() {
 renderLoop();
 
 // =========================================================================
-// AGENT 4: SOUND & VOICE ARTIST
+// AGENT 4: SOUND & DUBBING DIRECTOR (Emotion-Aware Voice Pacing!)
 // =========================================================================
 function pcmToWavBuffer(base64Pcm, sampleRate = 24000) {
   const binary = atob(base64Pcm), pcmLen = binary.length, wavBuffer = new ArrayBuffer(44 + pcmLen), view = new DataView(wavBuffer);
@@ -994,7 +1028,7 @@ async function fetchSingleEdgeTTS(scene, isLast = false) {
 async function fetchEdgeTTSPerScene(scenes, partLabel = '') {
   const buffers = [];
   for (let i = 0; i < scenes.length; i++) {
-    setStatus(`🎙️ [Sound Artist] Recording Edge Hindi Voice ${partLabel} (${i + 1}/${scenes.length})...`);
+    setStatus(`🎙️ [Sound Director] Recording Edge Hindi Voice ${partLabel} (${i + 1}/${scenes.length})...`);
     try {
       buffers.push(await fetchSingleEdgeTTS(scenes[i], i === scenes.length - 1));
     } catch {
@@ -1005,8 +1039,7 @@ async function fetchEdgeTTSPerScene(scenes, partLabel = '') {
 }
 
 async function fetchGeminiBatchVoices(batch, key) {
-  const isFemale = (c) => ['mom', 'bhabhi', 'gf', 'sister'].includes(c);
-  const dialogueLines = batch.map((sc) => `${isFemale(sc.char) ? 'FemaleVoice' : 'MaleVoice'}: ${sc.text}`).join('\n');
+  const dialogueLines = batch.map((sc) => `${isFemaleChar(sc.char) ? 'FemaleVoice' : 'MaleVoice'}: ${sc.text}`).join('\n');
 
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 35000);
@@ -1015,7 +1048,7 @@ async function fetchGeminiBatchVoices(batch, key) {
     headers: { 'Content-Type': 'application/json' },
     signal: ctrl.signal,
     body: JSON.stringify({
-      contents: [{ parts: [{ text: 'Speak EVERY single line completely from start to finish without cutting off:\n' + dialogueLines }] }],
+      contents: [{ parts: [{ text: 'Perform EVERY single line with natural Indian Hindi/Hinglish expression from start to finish without cutting off:\n' + dialogueLines }] }],
       generationConfig: {
         responseModalities: ["AUDIO"],
         speechConfig: {
@@ -1054,14 +1087,14 @@ async function runSoundArtistAgent(scenes, partLabel = '') {
   const allSlices = [];
   for (let start = 0; start < scenes.length; start += chunkSize) {
     const batch = scenes.slice(start, start + chunkSize);
-    setStatus(`🎙️ [Sound Artist] Recording Voices ${partLabel} (${start + 1}-${start + batch.length}/${scenes.length})...`);
+    setStatus(`🎙️ [Sound Director] Recording Voices ${partLabel} (${start + 1}-${start + batch.length}/${scenes.length})...`);
     try {
       const geminiSlices = await fetchGeminiBatchVoices(batch, key);
       allSlices.push(...geminiSlices);
     } catch {
       for (let j = 0; j < batch.length; j++) {
         const globalIdx = start + j;
-        setStatus(`🎙️ [Sound Artist] Edge Hindi Backup ${partLabel} (${globalIdx + 1}/${scenes.length})...`);
+        setStatus(`🎙️ [Sound Director] Edge Hindi Backup ${partLabel} (${globalIdx + 1}/${scenes.length})...`);
         try {
           allSlices.push(await fetchSingleEdgeTTS(batch[j], globalIdx === scenes.length - 1));
         } catch {
@@ -1110,17 +1143,28 @@ function extractSubBuffer(srcBuffer, startSample, endSample) {
   return sub;
 }
 
-function playAudioOnce(audioBuffer, char = "hero") {
+function playAudioOnce(audioBuffer, char = "hero", emotion = "normal") {
   const safeBuf = (audioBuffer && audioBuffer.sampleRate) ? audioBuffer : createSilentBuffer(2.4);
   return new Promise((resolve) => {
     let resolved = false; duckBGM(true);
     const source = audioCtx.createBufferSource();
     source.buffer = safeBuf;
-    if (char === 'bro') { source.detune.value = 110; source.playbackRate.value = 1.04; }
-    else if (char === 'gf') { source.detune.value = 140; source.playbackRate.value = 1.05; }
-    else if (char === 'sister') { source.detune.value = 200; source.playbackRate.value = 1.07; }
-    else if (char === 'villain') { source.detune.value = -200; source.playbackRate.value = 0.96; }
-    else { source.playbackRate.value = 1.02; }
+
+    let detune = 0;
+    let rate = 1.02;
+    if (char === 'bro') { detune = 110; rate = 1.04; }
+    else if (char === 'gf') { detune = 140; rate = 1.05; }
+    else if (char === 'sister') { detune = 200; rate = 1.07; }
+    else if (char === 'villain') { detune = -200; rate = 0.96; }
+
+    // Emotion-aware dubbing inflection
+    if (emotion === 'angry') { rate += 0.04; detune += 35; }
+    else if (emotion === 'shocked') { rate += 0.03; detune += 55; }
+    else if (emotion === 'crying' || emotion === 'sweat') { rate -= 0.04; detune -= 30; }
+
+    source.detune.value = detune;
+    source.playbackRate.value = rate;
+
     source.connect(analyser); analyser.connect(audioCtx.destination); analyser.connect(destNode);
     source.onended = () => { if (!resolved) { resolved = true; duckBGM(false); resolve(); } };
     source.start(0);
@@ -1128,7 +1172,7 @@ function playAudioOnce(audioBuffer, char = "hero") {
 }
 
 // =========================================================================
-// AGENT 5: EDITOR & ANDROID HARDWARE-SAFE VIDEO RECORDER
+// AGENT 5: EDITOR & FINAL QC SUPERVISOR
 // =========================================================================
 async function createBulletproofRecorder() {
   const canvasStream = canvas.captureStream(30);
@@ -1218,15 +1262,15 @@ async function renderSinglePart(scenes, partNum, totalParts, recordVideo = true,
 
   setCrewState('editor', 'active');
   let recorderSession = recordVideo ? await createBulletproofRecorder() : null;
-  startComedyBGM();
+  startAdaptiveBGM();
   for (let i = 0; i < litScenes.length; i++) {
     currentScene = litScenes[i];
     sceneStartTime = performance.now();
     playSFX(litScenes[i].sfx);
     setStatus(`✂️ [Editor] Shooting Take ${i + 1}/${litScenes.length} ${partLabel}...`);
-    await playAudioOnce(audioList[i], litScenes[i].char);
+    await playAudioOnce(audioList[i], litScenes[i].char, litScenes[i].emotion);
   }
-  stopComedyBGM();
+  stopAdaptiveBGM();
 
   if (recorderSession) {
     setStatus(`📦 [Editor] Saving Final Video ${partLabel}...`);
