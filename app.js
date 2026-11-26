@@ -1,4 +1,4 @@
-const APP_VERSION = 'v33.0';
+const APP_VERSION = 'v34.0';
 const canvas = document.getElementById('stageCanvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
@@ -11,6 +11,8 @@ const voiceEngineSelect = document.getElementById('voiceEngineSelect');
 const scriptEditor = document.getElementById('scriptEditor');
 const statusBar = document.getElementById('statusBar');
 const downloadLink = document.getElementById('downloadLink');
+
+const VALID_LOCATIONS = ['room', 'cafe', 'college', 'office', 'park', 'street', 'hospital', 'gym'];
 
 apiKeyInput.value = localStorage.getItem('gemini_api_key') || '';
 apiKeyInput.addEventListener('change', () => {
@@ -57,10 +59,10 @@ formatSelect.addEventListener('change', applyFormat);
 applyFormat();
 
 const DEMO_SCRIPT = [
-  { char: "hero", other: "gf", emotion: "sweat", otherEmotion: "smug", gesture: "explain", shot: "normal", location: "room", lighting: "pastel", punch: "Date Night", prop: "none", sfx: "none", text: "Aaj tum bahut khoobsurat lag rahi ho, maine special dinner plan kiya hai!" },
-  { char: "gf", other: "hero", emotion: "smug", otherEmotion: "normal", gesture: "explain", shot: "in", location: "room", lighting: "pastel", punch: "Sweet Surprise", prop: "none", sfx: "none", text: "Aww tum kitne sweet ho, chalo jaldi chalte hain mujhe bahut bhook lagi hai!" },
-  { char: "hero", other: "gf", emotion: "shocked", otherEmotion: "smug", gesture: "facepalm", shot: "normal", location: "room", lighting: "pastel", punch: "Wallet Check", prop: "phone", sfx: "gasp", text: "Ek minute ruko, mera wallet toh ghar par hi reh gaya aur UPI down hai!" },
-  { char: "gf", other: "hero", emotion: "angry", otherEmotion: "sweat", gesture: "crossed", shot: "in", location: "room", lighting: "pastel", punch: "Popat Ho Gaya", prop: "none", sfx: "bonk", text: "Har baar tumhara yahi bahana hota hai, aaj bill tum hi bharoge chahe bartan dho!" }
+  { char: "hero", other: "gf", emotion: "sweat", otherEmotion: "smug", gesture: "explain", shot: "normal", location: "cafe", lighting: "pastel", punch: "Cafe Date", prop: "chai", sfx: "none", text: "Is cafe ki coffee toh bahut mehangi lag rahi hai, menu mein price dekha kya?" },
+  { char: "gf", other: "hero", emotion: "smug", otherEmotion: "normal", gesture: "explain", shot: "in", location: "cafe", lighting: "pastel", punch: "No Tension", prop: "none", sfx: "none", text: "Chill karo baby, aaj treat meri taraf se hai jo chahiye order kar lo!" },
+  { char: "hero", other: "gf", emotion: "shocked", otherEmotion: "smug", gesture: "facepalm", shot: "normal", location: "cafe", lighting: "pastel", punch: "Bill Twist", prop: "phone", sfx: "gasp", text: "Waiter ne 4500 ka bill diya hai aur tumhara UPI server down dikha raha hai!" },
+  { char: "gf", other: "hero", emotion: "angry", otherEmotion: "sweat", gesture: "crossed", shot: "in", location: "cafe", lighting: "pastel", punch: "Bartan Dho", prop: "none", sfx: "bonk", text: "Mera phone toh dead ho gaya, ab tum pay karo warna kitchen mein bartan dhone padenge!" }
 ];
 scriptEditor.value = JSON.stringify(DEMO_SCRIPT, null, 2);
 
@@ -89,7 +91,7 @@ function renderMicControls() {
     row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:#0b0e14;padding:6px 8px;border-radius:8px;border:1px solid #262c3d;gap:6px;';
     const label = document.createElement('span');
     label.style.cssText = 'font-size:0.71rem;color:#e2e8f0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
-    label.textContent = `${idx + 1}. [${(sc.shot || 'normal').toUpperCase()} • ${(sc.char || 'hero').toUpperCase()}] ${sc.text}`;
+    label.textContent = `${idx + 1}. [${(sc.location || 'room').toUpperCase()} • ${(sc.char || 'hero').toUpperCase()}] ${sc.text}`;
 
     const btn = document.createElement('button');
     btn.className = 'btn tiny';
@@ -128,7 +130,7 @@ document.getElementById('loadDemoBtn').onclick = () => {
   scriptEditor.value = JSON.stringify(DEMO_SCRIPT, null, 2);
   cachedScriptHash = '';
   renderMicControls();
-  setStatus('Human Crew Demo loaded!');
+  setStatus('Cafe Date Multi-Set Demo loaded!');
 };
 
 // =========================================================================
@@ -233,7 +235,7 @@ function playSFX(type) {
 }
 
 // =========================================================================
-// REAL HUMAN FILM PRODUCTION CREW PIPELINE
+// REAL HUMAN FILM PRODUCTION CREW PIPELINE (Story-Aware Dynamic Sets!)
 // =========================================================================
 async function getBestGeminiModel(key) {
   try {
@@ -286,10 +288,10 @@ async function callGeminiAgent(key, models, prompt, temp = 0.85, expectObject = 
   throw new Error(lastErr);
 }
 
-// AGENT 1: HUMAN-STYLE SCRIPTWRITER (Creates Story Bible First + Realistic Script)
+// AGENT 1: HUMAN SCRIPTWRITER + ART DIRECTOR (Chooses Matching Story Sets!)
 async function runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding, targetLines) {
   setCrewState('writer', 'active');
-  setStatus(`✍️ [1/4 Scriptwriter] Building Story Bible & ${targetLines}-line script (Part ${partNum}/${totalParts})...`);
+  setStatus(`✍️ [1/4 Scriptwriter] Designing Story Sets & ${targetLines}-line script (Part ${partNum}/${totalParts})...`);
   const cont = partNum > 1
     ? `Continue seamlessly from: "${prevEnding}".`
     : (totalParts > 1 ? `Part 1 of ${totalParts}. End on a strong cliffhanger!` : `Complete short story with a grounded, realistic, and entertaining ending.`);
@@ -306,28 +308,38 @@ async function runScriptwriterAgent(key, models, topic, partNum, totalParts, pre
     styleDirection = 'CLEVER DOUBLE MEANING (NAUGHTY DESI) comedy! Spicy misunderstandings, teasing banter, and witty innuendos that turn out to be totally innocent in the end!';
   }
 
-  const prompt = `You are a lead human scriptwriter for a viral Indian YouTube animated channel ("NOT YOUR TYPE" style).
+  const prompt = `You are a lead human scriptwriter & art director for a viral Indian YouTube animated channel ("NOT YOUR TYPE" style).
 Plan a Story Bible first, then write an EXACTLY ${targetLines}-line Hinglish two-person dialogue script about: "${topic}".
 STYLE: ${styleDirection}
 ${cont}
 
-STRICT HUMAN WRITER RULES:
-1. NO FAKE DEATH / NO GHOST CLICHÉ: NEVER end the story with "someone died in an accident / is a ghost / funeral / dead body"! Keep the story grounded in real life unless the user explicitly asked for a ghost/afterlife topic.
-2. CONSISTENT SETTING & LIGHTING: Maintain continuous physical logic! If someone turns OFF the lights in line 3, the room stays DARK ("night") for ALL following lines until someone explicitly turns the lights back ON! Never flip room lights on/off randomly.
-3. DIRECT SPOKEN DIALOGUE ONLY: Every line must be spoken directly by "char" (so their voice and lip-sync match). Do NOT write third-person narration like "Usne kaha ki...".
-4. EXACT LENGTH: Return an array of EXACTLY ${targetLines} dialogue objects inside "scenes".
-5. 100% ROMAN ENGLISH LETTERS ONLY (e.g., "chupchap", "sapne"). NEVER use Hindi Devanagari!
-6. CASTING: "char" and "other" MUST NEVER be the same character!
+STRICT HUMAN WRITER & SET DESIGN RULES:
+1. STORY-MATCHED LOCATIONS ("location"): NEVER default to "room" unless the story is actually at home/bedroom! Choose the exact background matching the story from these 8 sets:
+   - "cafe": Date night, coffee shop, restaurant, chai tapri, food bill.
+   - "college": School, classroom, exam, teacher, canteen, hostel/campus.
+   - "office": Job interview, boss, corporate cabin, salary, work stress.
+   - "gym": Workout, fitness, trainer, bodybuilding, dieting.
+   - "hospital": Doctor, clinic, checkup, illness, pharmacy.
+   - "street": Road, traffic, bike/car ride, market, random street encounter.
+   - "park": Evening walk, bench, garden, outdoor hangout.
+   - "room": Home, bedroom, gaming at home, family at home.
+   (If characters move to a new place mid-story, change "location" smoothly at that scene!)
+2. NO FAKE DEATH / NO GHOST CLICHÉ: NEVER end the story with "someone died in an accident / is a ghost / funeral / dead body"!
+3. CONSISTENT LIGHTING: Maintain physical logic! If someone turns OFF the lights, stay "night" until turned ON.
+4. DIRECT SPOKEN DIALOGUE ONLY: Every line must be spoken directly by "char". Do NOT write third-person narration.
+5. EXACT LENGTH: Return an array of EXACTLY ${targetLines} dialogue objects inside "scenes".
+6. 100% ROMAN ENGLISH LETTERS ONLY (e.g., "chupchap", "sapne"). NEVER use Hindi Devanagari!
+7. CASTING: "char" and "other" MUST NEVER be the same character!
    - Role IDs: "hero", "bro", "bhabhi", "gf", "sister", "mom", "villain", "npc".
-7. EMOTIONS: "normal", "shocked", "smug", "angry", "crying", "sweat" (NEVER "dead").
-8. LIGHTING: "pastel" (bright day/lights on), "night" (dark/lights off/nighttime), or "dramatic" (tense confrontation).
-9. PUNCH TEXT ("punch"): Short 1-to-3 word visual label for key moments (or "" for normal lines).
+8. EMOTIONS: "normal", "shocked", "smug", "angry", "crying", "sweat" (NEVER "dead").
+9. LIGHTING: "pastel" (day/lights on), "night" (dark/nighttime), or "dramatic" (intense confrontation).
+10. PUNCH TEXT ("punch"): Short 1-to-3 word visual label for key moments (or "" for normal lines).
 
 Return ONLY a JSON object:
 {
-  "bible": { "setting": "room or park", "summary": "1-sentence plot summary" },
+  "bible": { "primaryLocation": "cafe", "summary": "1-sentence plot summary" },
   "scenes": [
-    {"char":"hero","other":"gf","emotion":"normal","otherEmotion":"normal","location":"room","lighting":"pastel","punch":"","text":"10-14 words punchy spoken Roman Hinglish"}
+    {"char":"hero","other":"gf","emotion":"normal","otherEmotion":"normal","location":"cafe","lighting":"pastel","punch":"","text":"10-14 words punchy spoken Roman Hinglish"}
   ]
 }`;
 
@@ -336,15 +348,15 @@ Return ONLY a JSON object:
   return Array.isArray(result) ? result : (result.scenes || []);
 }
 
-// AGENT 2: DOP / CINEMATIC DIRECTOR (Clean Framing & Pacing)
+// AGENT 2: DOP / CINEMATIC DIRECTOR
 async function runDirectorDOPAgent(key, models, draftScript) {
   setCrewState('director', 'active');
-  setStatus(`🎥 [2/4 DOP/Director] Designing clean two-shots & focused speaker close-ups...`);
+  setStatus(`🎥 [2/4 DOP/Director] Framing two-shots & clean solo speaker close-ups...`);
 
   const prompt = `You are a Human Film Director & Cinematographer. Direct each dialogue line cleanly:
 - shot:
   * "normal": Clean medium two-shot (both characters clearly visible in full frame) — use for ~65% of lines.
-  * "in": Focused solo speaker close-up (camera smoothly centers on the speaker so the other person is cleanly off-frame, never half-cut!) — use for ~35% of lines (punchlines, reactions, key twists).
+  * "in": Focused solo speaker close-up (camera smoothly centers on the speaker so the other person is cleanly off-frame, never half-cut!) — use for ~35% of lines.
   (ONLY use "normal" or "in"!)
 - gesture: "explain", "point", "facepalm", "crossed", "shocked_hands", "shrug".
 - prop: "none" (default), "phone", "chai" (ONLY if literally mentioned in that line).
@@ -360,16 +372,28 @@ Return the SAME scenes array with "shot", "gesture", "prop", "sfx" added. JSON a
   return directed;
 }
 
-// AGENT 3: LIGHTMAN & STATEFUL CONTINUITY SUPERVISOR (Remembers Light On/Off Across Scenes!)
-function runLightmanAgent(directedScenes) {
+// Infer location from topic/script if Writer left generic default
+function inferTopicLocation(topicText) {
+  const t = (topicText || '').toLowerCase();
+  if (/cafe|coffee|restaurant|date|dinner|lunch|chai|hotel|bill|waiter/.test(t)) return 'cafe';
+  if (/college|school|class|exam|teacher|sir|madam|padhai|lecture|campus/.test(t)) return 'college';
+  if (/office|boss|interview|salary|job|company|meeting|corporate/.test(t)) return 'office';
+  if (/gym|workout|body|muscle|trainer|protein|diet|exercise/.test(t)) return 'gym';
+  if (/hospital|doctor|clinic|dawai|patient|bimari|checkup|injection/.test(t)) return 'hospital';
+  if (/road|street|traffic|bike|scooty|car|market|bazaar|gali/.test(t)) return 'street';
+  if (/park|garden|bench|walk|ground/.test(t)) return 'park';
+  return null;
+}
+
+// AGENT 3: LIGHTMAN, SET & STATEFUL CONTINUITY SUPERVISOR
+function runLightmanAgent(directedScenes, topicHint = '') {
   setCrewState('light', 'active');
-  setStatus(`💡 [3/4 Lightman & Continuity] Locking scene lighting state & anti-clone checks...`);
+  setStatus(`💡 [3/4 Lightman & Set Crew] Verifying dynamic sets, lighting state & continuity...`);
 
-  // Track persistent physical state across the entire scene timeline!
-  let persistentLightState = null; // null = follow scene default, 'night' = lights turned off, 'pastel' = lights turned on
-  let currentLocation = directedScenes[0]?.location || 'room';
+  const inferredTopicLoc = inferTopicLocation(topicHint);
+  let persistentLightState = null;
 
-  const litScenes = directedScenes.map((sc) => {
+  const litScenes = directedScenes.map((sc, idx) => {
     const txt = (sc.text || '').toLowerCase();
     const s = { ...sc };
 
@@ -381,15 +405,18 @@ function runLightmanAgent(directedScenes) {
       s.other = s.char === 'hero' ? 'bro' : 'hero';
     }
 
-    // Location continuity
-    if (s.location && s.location !== currentLocation) {
-      currentLocation = s.location;
-      persistentLightState = null; // reset room switch when moving to a new location
-    } else {
-      s.location = currentLocation;
+    // Validate or auto-detect dynamic location
+    let loc = (s.location || '').toLowerCase().trim();
+    if (!VALID_LOCATIONS.includes(loc)) {
+      loc = inferTopicLoc || (idx > 0 ? directedScenes[idx - 1].location : 'room') || 'room';
     }
+    // If Gemini defaulted every single scene to 'room' even though topic is clearly cafe/college/office/etc.
+    if (loc === 'room' && inferredTopicLoc && !/ghar|home|bedroom|kamra|room/.test(txt)) {
+      loc = inferredTopicLoc;
+    }
+    s.location = VALID_LOCATIONS.includes(loc) ? loc : 'room';
 
-    // Stateful Light Switch Detection (Human Continuity!)
+    // Stateful Light Switch Detection
     if (/light\s*off|lights\s*off|batti\s*bujha|batti\s*band|andhera\s*kar|light\s*band/.test(txt)) {
       persistentLightState = 'night';
     } else if (/light\s*on|lights\s*on|batti\s*jala|light\s*jala|roshni/.test(txt)) {
@@ -397,7 +424,6 @@ function runLightmanAgent(directedScenes) {
     }
 
     if (persistentLightState !== null) {
-      // Hold the physical light switch state across all subsequent lines!
       s.lighting = persistentLightState;
     } else if (s.lighting !== 'night' && s.lighting !== 'dramatic' && s.lighting !== 'pastel') {
       if (/raat|night|andhera|bhoot|kabr|aatma/.test(txt)) {
@@ -410,7 +436,6 @@ function runLightmanAgent(directedScenes) {
       }
     }
 
-    // Gesture & prop validation
     if (!s.gesture) {
       if (s.emotion === 'angry') s.gesture = 'point';
       else if (s.emotion === 'smug') s.gesture = 'crossed';
@@ -434,11 +459,11 @@ async function runPreProductionCrew(key, topic, partNum, totalParts, prevEnding,
   const models = await getBestGeminiModel(key);
   const draft = await runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding, targetLines);
   const directed = await runDirectorDOPAgent(key, models, draft);
-  return runLightmanAgent(directed);
+  return runLightmanAgent(directed, topic);
 }
 
 // =========================================================================
-// UNHOLY TALES PASTEL RENDERER (Clean Female Rig + Zero Half-Cut Framing!)
+// 8-SET DYNAMIC BACKGROUND RENDERER + CLEAN CHARACTER RIG
 // =========================================================================
 let currentScene = DEMO_SCRIPT[0];
 let sceneStartTime = performance.now();
@@ -472,44 +497,145 @@ function drawPastelEnvironment(loc, lighting = 'pastel') {
   const floorY = Math.round(H * 0.78);
   const isNight = lighting === 'night' || lighting === 'dramatic';
 
-  if (loc === 'room') {
+  if (loc === 'cafe') {
+    // 1. CAFE / RESTAURANT SET
     const wall = ctx.createLinearGradient(0, 0, 0, floorY);
-    if (isNight) {
-      wall.addColorStop(0, '#0f172a');
-      wall.addColorStop(1, '#1e293b');
-    } else {
-      wall.addColorStop(0, '#fef9c3');
-      wall.addColorStop(1, '#fde68a');
-    }
+    wall.addColorStop(0, isNight ? '#1c1917' : '#ffedd5');
+    wall.addColorStop(1, isNight ? '#292524' : '#fed7aa');
     ctx.fillStyle = wall;
     ctx.fillRect(-W, -H, W * 3, floorY + H);
 
-    const winW = 140, winH = 125;
-    const winX = W * 0.5 - winW * 0.5;
-    const winY = floorY - 395;
-    ctx.fillStyle = isNight ? '#1e3a8a' : '#e0f2fe';
-    ctx.strokeStyle = isNight ? '#475569' : '#334155';
-    ctx.lineWidth = 3.5;
-    ctx.beginPath(); ctx.roundRect(winX, winY, winW, winH, 8); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(winX + winW * 0.5, winY); ctx.lineTo(winX + winW * 0.5, winY + winH); ctx.stroke();
+    // Warm Hanging Cafe Lamps (placed at sides so center close-ups stay clean!)
+    [W * 0.22, W * 0.78].forEach(lx => {
+      ctx.strokeStyle = '#334155'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(lx, 0); ctx.lineTo(lx, H * 0.16); ctx.stroke();
+      ctx.fillStyle = isNight ? '#fbbf24' : '#ea580c';
+      ctx.beginPath(); ctx.arc(lx, H * 0.18, 24, Math.PI, 0); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(254, 240, 138, 0.22)';
+      ctx.beginPath(); ctx.moveTo(lx - 22, H * 0.18); ctx.lineTo(lx + 22, H * 0.18); ctx.lineTo(lx + 65, floorY); ctx.lineTo(lx - 65, floorY); ctx.closePath(); ctx.fill();
+    });
 
-    if (isNight) {
-      ctx.fillStyle = '#fef08a';
-      ctx.beginPath(); ctx.arc(winX + 36, winY + 34, 14, 0, Math.PI * 2); ctx.fill();
+    // Cafe Menu Board on Wall
+    ctx.fillStyle = '#1e293b'; ctx.strokeStyle = '#92400e'; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.roundRect(W * 0.5 - 75, floorY - 410, 150, 95, 8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fef08a'; ctx.font = '800 18px system-ui, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('CAFE MENU', W * 0.5, floorY - 378);
+    ctx.fillStyle = '#e2e8f0'; ctx.font = '600 13px system-ui, sans-serif';
+    ctx.fillText('Coffee • Chai • Pizza', W * 0.5, floorY - 348);
+
+    // Wooden Cafe Floor
+    ctx.fillStyle = isNight ? '#1c1917' : '#d6a87c';
+    ctx.fillRect(-W, floorY, W * 3, H * 2);
+
+  } else if (loc === 'college') {
+    // 2. COLLEGE / CLASSROOM SET
+    const wall = ctx.createLinearGradient(0, 0, 0, floorY);
+    wall.addColorStop(0, isNight ? '#0f172a' : '#ecfdf5');
+    wall.addColorStop(1, isNight ? '#1e293b' : '#d1fae5');
+    ctx.fillStyle = wall;
+    ctx.fillRect(-W, -H, W * 3, floorY + H);
+
+    // Green Chalkboard
+    ctx.fillStyle = isNight ? '#064e3b' : '#15803d';
+    ctx.strokeStyle = '#78350f'; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.roundRect(W * 0.5 - 125, floorY - 420, 250, 130, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = '700 17px system-ui, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('CLASS 101 • EXAM TODAY', W * 0.5, floorY - 370);
+    ctx.font = '600 14px system-ui, sans-serif';
+    ctx.fillText('E = mc²   |   Syllabus = ∞', W * 0.5, floorY - 335);
+
+    ctx.fillStyle = isNight ? '#334155' : '#cbd5e1';
+    ctx.fillRect(-W, floorY, W * 3, H * 2);
+
+  } else if (loc === 'office') {
+    // 3. CORPORATE OFFICE SET
+    const wall = ctx.createLinearGradient(0, 0, 0, floorY);
+    wall.addColorStop(0, isNight ? '#090d16' : '#f1f5f9');
+    wall.addColorStop(1, isNight ? '#1e293b' : '#cbd5e1');
+    ctx.fillStyle = wall;
+    ctx.fillRect(-W, -H, W * 3, floorY + H);
+
+    // Panoramic Office Window with City Buildings
+    const wx = W * 0.5 - 135, wy = floorY - 425, ww = 270, wh = 150;
+    ctx.fillStyle = isNight ? '#0f172a' : '#bae6fd';
+    ctx.strokeStyle = '#334155'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.roundRect(wx, wy, ww, wh, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = isNight ? '#334155' : '#94a3b8';
+    ctx.fillRect(wx + 24, wy + 55, 45, 92);
+    ctx.fillRect(wx + 85, wy + 35, 55, 112);
+    ctx.fillRect(wx + 160, wy + 65, 50, 82);
+
+    ctx.fillStyle = isNight ? '#1e293b' : '#94a3b8';
+    ctx.fillRect(-W, floorY, W * 3, H * 2);
+
+  } else if (loc === 'hospital') {
+    // 4. HOSPITAL / CLINIC SET
+    const wall = ctx.createLinearGradient(0, 0, 0, floorY);
+    wall.addColorStop(0, isNight ? '#0f172a' : '#f0fdf4');
+    wall.addColorStop(1, isNight ? '#1e293b' : '#dcfce7');
+    ctx.fillStyle = wall;
+    ctx.fillRect(-W, -H, W * 3, floorY + H);
+
+    // Medical Plus Emblem + Heart Monitor
+    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#16a34a'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.roundRect(W * 0.16, floorY - 395, 72, 72, 12); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(W * 0.16 + 30, floorY - 380, 12, 42);
+    ctx.fillRect(W * 0.16 + 15, floorY - 365, 42, 12);
+
+    ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#475569'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.roundRect(W * 0.72, floorY - 390, 96, 65, 8); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(W * 0.73, floorY - 356); ctx.lineTo(W * 0.76, floorY - 356);
+    ctx.lineTo(W * 0.78, floorY - 378); ctx.lineTo(W * 0.80, floorY - 336);
+    ctx.lineTo(W * 0.82, floorY - 356); ctx.lineTo(W * 0.84, floorY - 356);
+    ctx.stroke();
+
+    ctx.fillStyle = isNight ? '#1e293b' : '#bbf7d0';
+    ctx.fillRect(-W, floorY, W * 3, H * 2);
+
+  } else if (loc === 'gym') {
+    // 5. GYM / FITNESS SET
+    const wall = ctx.createLinearGradient(0, 0, 0, floorY);
+    wall.addColorStop(0, '#1e293b');
+    wall.addColorStop(1, '#334155');
+    ctx.fillStyle = wall;
+    ctx.fillRect(-W, -H, W * 3, floorY + H);
+
+    // Gym Banner & Wall Mirror
+    ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.roundRect(W * 0.5 - 110, floorY - 415, 220, 80, 8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fbbf24'; ctx.font = '900 22px system-ui, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('NO PAIN • NO GAIN', W * 0.5, floorY - 367);
+
+    // Rubber Gym Mat Floor
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(-W, floorY, W * 3, H * 2);
+
+  } else if (loc === 'street') {
+    // 6. CITY STREET / ROAD SET
+    const sky = ctx.createLinearGradient(0, 0, 0, floorY);
+    sky.addColorStop(0, isNight ? '#090d16' : '#fed7aa');
+    sky.addColorStop(1, isNight ? '#1e1b4b' : '#fef3c7');
+    ctx.fillStyle = sky;
+    ctx.fillRect(-W, -H, W * 3, floorY + H);
+
+    // Background City Buildings
+    ctx.fillStyle = isNight ? '#1e293b' : '#cbd5e1';
+    ctx.fillRect(W * 0.08, floorY - 340, 120, 340);
+    ctx.fillRect(W * 0.72, floorY - 380, 140, 380);
+
+    // Asphalt Road + Dashed Line
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(-W, floorY, W * 3, H * 2);
+    ctx.fillStyle = '#fef08a';
+    for (let rx = -W; rx < W * 2; rx += 110) {
+      ctx.fillRect(rx, floorY + 55, 60, 10);
     }
 
-    ctx.fillStyle = isNight ? 'rgba(147, 197, 253, 0.08)' : 'rgba(255, 255, 255, 0.24)';
-    ctx.beginPath();
-    ctx.moveTo(winX, winY + winH);
-    ctx.lineTo(winX + winW, winY + winH);
-    ctx.lineTo(W * 0.72, floorY);
-    ctx.lineTo(W * 0.28, floorY);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.fillStyle = isNight ? '#334155' : '#e7c697';
-    ctx.fillRect(-W, floorY, W * 3, H * 2);
-  } else {
+  } else if (loc === 'park') {
+    // 7. PARK / GARDEN SET
     const sky = ctx.createLinearGradient(0, 0, 0, floorY);
     if (isNight) {
       sky.addColorStop(0, '#090d16');
@@ -524,7 +650,7 @@ function drawPastelEnvironment(loc, lighting = 'pastel') {
 
     if (isNight) {
       ctx.fillStyle = '#fef9c3';
-      ctx.beginPath(); ctx.arc(W * 0.78, H * 0.14, 34, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(W * 0.80, H * 0.14, 34, 0, Math.PI * 2); ctx.fill();
     } else {
       const drift = (frameTick * 0.25) % (W + 200);
       ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
@@ -545,6 +671,44 @@ function drawPastelEnvironment(loc, lighting = 'pastel') {
     ctx.beginPath(); ctx.arc(W * 0.78, floorY + 25, W * 0.56, Math.PI, 0); ctx.fill();
 
     ctx.fillStyle = isNight ? '#022c22' : '#a7f3d0';
+    ctx.fillRect(-W, floorY, W * 3, H * 2);
+
+  } else {
+    // 8. HOME / BEDROOM SET (Side-aligned window so close-ups never overlap speaker head!)
+    const wall = ctx.createLinearGradient(0, 0, 0, floorY);
+    if (isNight) {
+      wall.addColorStop(0, '#0f172a');
+      wall.addColorStop(1, '#1e293b');
+    } else {
+      wall.addColorStop(0, '#fef9c3');
+      wall.addColorStop(1, '#fde68a');
+    }
+    ctx.fillStyle = wall;
+    ctx.fillRect(-W, -H, W * 3, floorY + H);
+
+    // Side-aligned Window (W * 0.14) + Wall Frame (W * 0.76)
+    const winW = 120, winH = 115;
+    const winX = W * 0.14;
+    const winY = floorY - 400;
+    ctx.fillStyle = isNight ? '#1e3a8a' : '#e0f2fe';
+    ctx.strokeStyle = isNight ? '#475569' : '#334155';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath(); ctx.roundRect(winX, winY, winW, winH, 8); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(winX + winW * 0.5, winY); ctx.lineTo(winX + winW * 0.5, winY + winH); ctx.stroke();
+
+    if (isNight) {
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath(); ctx.arc(winX + 32, winY + 32, 13, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Minimalist Wall Poster on Right Side
+    ctx.fillStyle = isNight ? '#1e293b' : '#ffffff';
+    ctx.strokeStyle = '#334155'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.roundRect(W * 0.74, floorY - 390, 95, 75, 6); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fb7185';
+    ctx.beginPath(); ctx.arc(W * 0.74 + 47, floorY - 352, 18, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = isNight ? '#334155' : '#e7c697';
     ctx.fillRect(-W, floorY, W * 3, H * 2);
   }
 
@@ -934,7 +1098,7 @@ function renderLoop() {
     ? currentScene.other
     : (speaker === 'hero' ? 'bro' : 'hero');
   const lighting = currentScene.lighting || 'pastel';
-  const isDarkBg = lighting === 'night' || lighting === 'dramatic';
+  const isDarkBg = lighting === 'night' || lighting === 'dramatic' || currentScene.location === 'gym';
 
   ctx.save();
   const charScale = H < 800 ? 0.84 : 1.08;
@@ -944,7 +1108,6 @@ function renderLoop() {
   const speakerGesture = currentScene.gesture || 'explain';
 
   if (shot === 'in') {
-    // DOP Solo Close-Up Framing: smoothly centers speaker and slides listener cleanly out so nobody is half-cut!
     const t = easeOutCubic(Math.min(1, elapsed / 0.45));
     const zoom = 1 + t * 0.16;
     const speakerStartX = heroIsSpeaker ? leftX : rightX;
@@ -957,7 +1120,6 @@ function renderLoop() {
 
     drawPastelEnvironment(currentScene.location || 'room', lighting);
 
-    // Slide listener completely off-frame during close-up so no half-cut ear/arm appears
     if (t < 0.95) {
       const offX = heroIsSpeaker ? rightX + t * (W * 0.55) : leftX - t * (W * 0.55);
       drawPastelCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 0, offX, groundY, charScale * 0.94, false, heroIsSpeaker ? -1 : 1, 'none');
@@ -981,7 +1143,7 @@ function renderLoop() {
 renderLoop();
 
 // =========================================================================
-// AGENT 4: SOUND & DUBBING DIRECTOR (Emotion-Aware Voice Pacing!)
+// AGENT 4: SOUND & DUBBING DIRECTOR
 // =========================================================================
 function pcmToWavBuffer(base64Pcm, sampleRate = 24000) {
   const binary = atob(base64Pcm), pcmLen = binary.length, wavBuffer = new ArrayBuffer(44 + pcmLen), view = new DataView(wavBuffer);
@@ -1157,7 +1319,6 @@ function playAudioOnce(audioBuffer, char = "hero", emotion = "normal") {
     else if (char === 'sister') { detune = 200; rate = 1.07; }
     else if (char === 'villain') { detune = -200; rate = 0.96; }
 
-    // Emotion-aware dubbing inflection
     if (emotion === 'angry') { rate += 0.04; detune += 35; }
     else if (emotion === 'shocked') { rate += 0.03; detune += 55; }
     else if (emotion === 'crying' || emotion === 'sweat') { rate -= 0.04; detune -= 30; }
@@ -1242,7 +1403,7 @@ function triggerAutoDownload(blob, filename) {
 }
 
 async function renderSinglePart(scenes, partNum, totalParts, recordVideo = true, autoSave = false) {
-  const litScenes = runLightmanAgent(scenes);
+  const litScenes = runLightmanAgent(scenes, topicInput.value.trim());
   const partLabel = totalParts > 1 ? `[Part ${partNum}/${totalParts}]` : '';
   const currentHash = JSON.stringify(litScenes.map(s => `${s.char}:${s.text}`));
   let audioList = [];
@@ -1267,7 +1428,7 @@ async function renderSinglePart(scenes, partNum, totalParts, recordVideo = true,
     currentScene = litScenes[i];
     sceneStartTime = performance.now();
     playSFX(litScenes[i].sfx);
-    setStatus(`✂️ [Editor] Shooting Take ${i + 1}/${litScenes.length} ${partLabel}...`);
+    setStatus(`✂️ [Editor] Shooting Take ${i + 1}/${litScenes.length} [${litScenes[i].location.toUpperCase()}] ${partLabel}...`);
     await playAudioOnce(audioList[i], litScenes[i].char, litScenes[i].emotion);
   }
   stopAdaptiveBGM();
