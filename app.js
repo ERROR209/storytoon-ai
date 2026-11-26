@@ -1,4 +1,4 @@
-const APP_VERSION = 'v35.2';
+const APP_VERSION = 'v36.0';
 const canvas = document.getElementById('stageCanvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
@@ -60,10 +60,10 @@ formatSelect.addEventListener('change', applyFormat);
 applyFormat();
 
 const DEMO_SCRIPT = [
-  { char: "bro", cast: ["hero", "bro"], emotion: "smug", otherEmotion: "sweat", gesture: "point", shot: "normal", location: "gym", lighting: "pastel", punch: "Gym Flex", prop: "none", sfx: "none", text: "Bhai woh treadmill wali sundar ladki tujhe hi dekh rahi hai, jaldi heavy dumbbell utha!" },
-  { char: "hero", cast: ["hero", "bro"], emotion: "sweat", otherEmotion: "smug", gesture: "explain", shot: "in", location: "gym", lighting: "pastel", punch: "50 Kg Drama", prop: "none", sfx: "none", text: "Haan bhai bas expression hardcore rakhna padta hai taaki lage main roz workout karta hoon!" },
-  { char: "gf", cast: ["hero", "gf", "bro"], emotion: "normal", otherEmotion: "shocked", gesture: "explain", shot: "wide", location: "gym", lighting: "pastel", punch: "Entry Twist", prop: "none", sfx: "gasp", text: "Excuse me bhaiya, kya aap side hat sakte hain? Mujhe peeche wale water cooler se paani lena hai!" },
-  { char: "bro", cast: ["hero", "gf", "bro"], emotion: "smug", otherEmotion: "crying", gesture: "point", shot: "wide", location: "gym", lighting: "pastel", punch: "Popat Ho Gaya", prop: "none", sfx: "bonk", text: "Lo bhaiya ban gaye tum bodybuilder, ab pehle ye 5 kilo ka dumbbell toh neeche rakh do!" }
+  { char: "bro", cast: ["hero", "bro"], emotion: "smug", otherEmotion: "sweat", gesture: "point", shot: "normal", location: "cafe", lighting: "pastel", punch: "Cafe Date", prop: "none", sfx: "none", text: "Bhai teri girlfriend kab aane wali hai? Main 20 minute se khaali table dekh raha hoon!" },
+  { char: "hero", cast: ["hero", "bro"], emotion: "sweat", otherEmotion: "smug", gesture: "explain", shot: "in", location: "cafe", lighting: "pastel", punch: "5 Min Drama", prop: "phone", sfx: "none", text: "Bas 2 minute aur bhai, abhi message aaya hai ki woh parking mein pahunch gayi hai!" },
+  { char: "gf", cast: ["hero", "gf", "bro"], emotion: "normal", otherEmotion: "shocked", gesture: "explain", shot: "wide", location: "cafe", lighting: "pastel", punch: "Entry Twist", prop: "none", sfx: "gasp", text: "Sorry guys late ho gayi, par aaj ka coffee bill tum dono mein se kaun pay karega?" },
+  { char: "bro", cast: ["hero", "gf", "bro"], emotion: "angry", otherEmotion: "sweat", gesture: "point", shot: "wide", location: "cafe", lighting: "pastel", punch: "Wallet Gayab", prop: "none", sfx: "bonk", text: "Mujhe mat dekho bhabhi, mera wallet toh ghar par hi bhool gaya hai!" }
 ];
 scriptEditor.value = JSON.stringify(DEMO_SCRIPT, null, 2);
 
@@ -93,7 +93,7 @@ function renderMicControls() {
     const castCount = Array.isArray(sc.cast) ? sc.cast.length : 2;
     const label = document.createElement('span');
     label.style.cssText = 'font-size:0.71rem;color:#e2e8f0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
-    label.textContent = `${idx + 1}. [${castCount}P • ${(sc.char || 'hero').toUpperCase()}] ${sc.text}`;
+    label.textContent = `${idx + 1}. [${castCount}P • ${(sc.location || 'room').toUpperCase()} • ${(sc.char || 'hero').toUpperCase()}] ${sc.text}`;
 
     const btn = document.createElement('button');
     btn.className = 'btn tiny';
@@ -132,7 +132,7 @@ document.getElementById('loadDemoBtn').onclick = () => {
   scriptEditor.value = JSON.stringify(DEMO_SCRIPT, null, 2);
   cachedScriptHash = '';
   renderMicControls();
-  setStatus('3-Character Gym + Actress Entry Demo loaded!');
+  setStatus('Cafe Date Entry + Costume & VFX Demo loaded!');
 };
 
 // =========================================================================
@@ -237,7 +237,7 @@ function playSFX(type) {
 }
 
 // =========================================================================
-// ADVANCED HUMAN FILM CREW + CASTING DIRECTOR + MULTI-CAST DOP
+// ADVANCED HUMAN FILM CREW + CONTINUITY & COSTUME SUPERVISOR
 // =========================================================================
 async function getBestGeminiModel(key) {
   try {
@@ -290,10 +290,10 @@ async function callGeminiAgent(key, models, prompt, temp = 0.85, expectObject = 
   throw new Error(lastErr);
 }
 
-// AGENT 1: SCRIPTWRITER + CASTING DIRECTOR (Ensures Actresses Actually Enter & Speak!)
+// AGENT 1: SCRIPTWRITER + CASTING DIRECTOR
 async function runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding, targetLines) {
   setCrewState('writer', 'active');
-  setStatus(`✍️ [1/4 Scriptwriter & Casting] Casting actors/actresses & writing ${targetLines}-line script (Part ${partNum}/${totalParts})...`);
+  setStatus(`✍️ [1/4 Scriptwriter & Casting] Writing ${targetLines}-line script with strict character entry (Part ${partNum}/${totalParts})...`);
   const cont = partNum > 1
     ? `Continue seamlessly from: "${prevEnding}".`
     : (totalParts > 1 ? `Part 1 of ${totalParts}. End on a strong cliffhanger!` : `Complete short story with a grounded, realistic, and entertaining ending.`);
@@ -315,15 +315,13 @@ Plan a Cast List & Story Bible first, then write an EXACTLY ${targetLines}-line 
 STYLE: ${styleDirection}
 ${cont}
 
-STRICT CASTING & SCRIPT RULES:
-1. ACTIVE ACTRESS CASTING (CRITICAL!): If the topic or story mentions a girl, crush, ladki, girlfriend, sister, bhabhi, mom, or female stranger, you MUST actually bring her ON SCREEN in the middle/climax of the story AND give her spoken dialogues! Do NOT just talk about a girl off-screen — cast her using female Role IDs ("gf", "sister", "bhabhi", "mom")!
-2. UP TO 3 CHARACTERS ON SCREEN ("cast"): Each scene object has:
-   - "char": the active speaker's Role ID.
-   - "cast": array of 2 or 3 Role IDs currently visible on screen (MUST include "char"!). For example, when Hero and Bro are talking in the gym, "cast": ["hero", "bro"]. When the girl ("gf") walks up to them, "cast": ["hero", "gf", "bro"] so all 3 appear together!
+STRICT CASTING, ENTRY & SCRIPT RULES:
+1. STRICT CHARACTER ENTRY ("cast"): Do NOT put a character in "cast" before they physically arrive in the scene! For example, if Hero and Bro are waiting for the girlfriend ("gf") in a cafe, scenes 1-4 MUST have "cast": ["hero", "bro"] ONLY. Only add "gf" to "cast": ["hero", "gf", "bro"] in the exact scene where she arrives and speaks!
+2. ACTIVE ACTRESS CASTING: If the topic mentions a girl, crush, ladki, girlfriend, sister, bhabhi, or mom, she MUST physically enter the story by the middle/climax and speak dialogues using female Role IDs ("gf", "sister", "bhabhi", "mom").
 3. ROLE IDS (Strict Gender Mapping):
    - Male roles: "hero", "bro", "villain", "npc".
-   - Female roles: "gf" (young woman / crush / girlfriend), "sister", "bhabhi", "mom".
-   NEVER assign a female line (like "kya main use kar sakti hoon" or a girl speaking) to "npc" or "bro" — ALWAYS use "gf" / "sister" / "bhabhi" / "mom"!
+   - Female roles: "gf", "sister", "bhabhi", "mom".
+   NEVER assign a female dialogue to "npc" or "bro"!
 4. STORY-MATCHED LOCATIONS ("location"): Choose from: "room", "cafe", "college", "office", "park", "street", "hospital", "gym".
 5. NO FAKE DEATH / NO GHOST CLICHÉ: Keep endings grounded in real life.
 6. DIRECT SPOKEN DIALOGUE ONLY: Every line is spoken directly by "char" in 100% ROMAN ENGLISH LETTERS ONLY (never Hindi Devanagari).
@@ -334,9 +332,9 @@ STRICT CASTING & SCRIPT RULES:
 
 Return ONLY a JSON object:
 {
-  "bible": { "primaryLocation": "gym", "characters": ["hero", "bro", "gf"], "summary": "1-sentence plot" },
+  "bible": { "primaryLocation": "cafe", "characters": ["hero", "bro", "gf"], "summary": "1-sentence plot" },
   "scenes": [
-    {"char":"bro","cast":["hero","bro"],"emotion":"smug","otherEmotion":"sweat","location":"gym","lighting":"pastel","punch":"Gym Flex","text":"10-14 words punchy spoken Roman Hinglish"}
+    {"char":"bro","cast":["hero","bro"],"emotion":"smug","otherEmotion":"sweat","location":"cafe","lighting":"pastel","punch":"Cafe Wait","text":"10-14 words punchy spoken Roman Hinglish"}
   ]
 }`;
 
@@ -345,14 +343,14 @@ Return ONLY a JSON object:
   return Array.isArray(result) ? result : (result.scenes || []);
 }
 
-// AGENT 2: DOP / MULTI-CAST CAMERAMAN (Auto Wide Zoom-Out for 3+ Characters!)
+// AGENT 2: DOP / MULTI-CAST CAMERAMAN + VFX DIRECTOR
 async function runDirectorDOPAgent(key, models, draftScript) {
   setCrewState('director', 'active');
-  setStatus(`🎥 [2/4 DOP & Cameraman] Setting wide ensemble zoom-outs & solo close-ups...`);
+  setStatus(`🎥 [2/4 DOP & VFX] Framing wide ensemble zoom-outs & solo close-ups...`);
 
-  const prompt = `You are a Film Director & Cameraman. Direct camera framing for each line:
+  const prompt = `You are a Film Director & Cinematographer. Direct camera framing for each line:
 - shot:
-  * "wide": Wide ensemble zoom-out shot whenever 3 characters are on screen in "cast" (so all 3 fit comfortably without crowding!).
+  * "wide": Wide ensemble zoom-out shot whenever 3 characters are on screen in "cast".
   * "normal": Medium two-shot when 2 characters are on screen (~65% of 2-person lines).
   * "in": Focused solo speaker close-up for punchlines/reactions (~35% of lines).
 - gesture: "explain", "point", "facepalm", "crossed", "shocked_hands", "shrug".
@@ -387,10 +385,10 @@ function hasFemaleCueInText(text) {
   return /\b(main\s+.*?(sakti|rahi|karti|karungi|jaungi)|ladki\s+hoon)\b/.test(t);
 }
 
-// AGENT 3: CASTING, SET & STATEFUL CONTINUITY SUPERVISOR
-function runLightmanAgent(directedScenes, topicHint = '') {
+// AGENT 3: SET, COSTUME & CONTINUITY SUPERVISOR
+function runContinuityAndCostumeSupervisor(directedScenes, topicHint = '') {
   setCrewState('light', 'active');
-  setStatus(`💡 [3/4 Casting & Continuity] Checking actress presence, multi-cast framing & set lighting...`);
+  setStatus(`👔 [3/4 Set, Costume & Continuity] Locking outfits, character entry, gender & lighting...`);
 
   const inferredTopicLoc = inferTopicLocation(topicHint);
   const topicWantsGirl = /ladki|girl|crush|gf|girlfriend|bhabhi|sister|behen|mom|mummy|wife|biwi|aurat|lady/.test((topicHint || '').toLowerCase());
@@ -402,12 +400,12 @@ function runLightmanAgent(directedScenes, topicHint = '') {
 
     if (s.emotion === 'dead') s.emotion = 'shocked';
 
-    // Gender-to-Actor Casting Guard: if line uses feminine Hindi grammar, ensure speaker is female!
+    // 1. First-person Gender Lock
     if (hasFemaleCueInText(txt) && !FEMALE_ROLES.includes(s.char)) {
       s.char = 'gf';
     }
 
-    // Build clean deduplicated cast array (2 or 3 characters)
+    // 2. Clean deduplicated cast array (2 or 3 characters)
     let castList = Array.isArray(s.cast) ? [...new Set(s.cast.filter(Boolean))] : [];
     if (!castList.includes(s.char)) castList.unshift(s.char);
     if (castList.length < 2) {
@@ -418,21 +416,21 @@ function runLightmanAgent(directedScenes, topicHint = '') {
     s.cast = castList;
     s.other = castList.find(c => c !== s.char) || 'bro';
 
-    // Entry Continuity Guard: Do not show girlfriend on-screen before she actually arrives!
+    // 3. Entry Continuity Guard: Do not show girlfriend on-screen before she actually arrives!
     if (s.char !== 'gf' && /\b(aane\s+wali|aa\s+rahi\s+hai|intezaar|wait\s+kar|call\s+karke|pahunch\s+gaye|kab\s+aayegi)\b/.test(txt)) {
       s.cast = s.cast.filter(c => c !== 'gf');
       if (s.cast.length < 2) s.cast.push(s.char === 'hero' ? 'bro' : 'hero');
       s.other = s.cast.find(c => c !== s.char) || 'bro';
     }
 
-    // Cameraman Auto-Framing Rule: 3 characters -> always "wide" zoom-out!
+    // 4. Cameraman Auto-Framing Rule
     if (s.cast.length >= 3) {
       s.shot = 'wide';
     } else if (s.shot !== 'normal' && s.shot !== 'in') {
       s.shot = 'normal';
     }
 
-    // Validate or auto-detect dynamic location
+    // 5. Location Continuity
     let loc = (s.location || '').toLowerCase().trim();
     if (!VALID_LOCATIONS.includes(loc)) {
       loc = inferredTopicLoc || (idx > 0 ? directedScenes[idx - 1].location : 'room') || 'room';
@@ -442,7 +440,7 @@ function runLightmanAgent(directedScenes, topicHint = '') {
     }
     s.location = VALID_LOCATIONS.includes(loc) ? loc : 'room';
 
-    // Stateful Light Switch Detection
+    // 6. Stateful Light Switch Continuity
     if (/light\s*off|lights\s*off|batti\s*bujha|batti\s*band|andhera\s*kar|light\s*band/.test(txt)) {
       persistentLightState = 'night';
     } else if (/light\s*on|lights\s*on|batti\s*jala|light\s*jala|roshni/.test(txt)) {
@@ -476,8 +474,7 @@ function runLightmanAgent(directedScenes, topicHint = '') {
     return s;
   });
 
-  // Safety Check: If topic explicitly asked for a girl/actress and Gemini STILL forgot to include any female role,
-  // cast "gf" into the climax scene so the actress actually shows up on screen!
+  // Safety Check: Ensure actress enters in climax if topic explicitly asked for a girl
   const anyFemaleCast = litScenes.some(s => s.cast.some(c => FEMALE_ROLES.includes(c)));
   if (topicWantsGirl && !anyFemaleCast && litScenes.length >= 3) {
     const climaxIdx = Math.max(1, litScenes.length - 3);
@@ -494,11 +491,11 @@ async function runPreProductionCrew(key, topic, partNum, totalParts, prevEnding,
   const models = await getBestGeminiModel(key);
   const draft = await runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding, targetLines);
   const directed = await runDirectorDOPAgent(key, models, draft);
-  return runLightmanAgent(directed, topic);
+  return runContinuityAndCostumeSupervisor(directed, topic);
 }
 
 // =========================================================================
-// 8-SET DYNAMIC RENDERER + SMART CAMERAMAN (Wide 3-Cast Zoom-Out!)
+// 8-SET RENDERER + COSTUME DESIGNER + ANIME VFX + SMART CAMERAMAN
 // =========================================================================
 let currentScene = DEMO_SCRIPT[0];
 let sceneStartTime = performance.now();
@@ -513,18 +510,37 @@ function isFemaleChar(char) {
   return FEMALE_ROLES.includes(char);
 }
 
-function getCharacterPalette(char) {
-  const map = {
-    hero:    { shirt: '#e2e8f0', collar: '#cbd5e1', hair: '#1e293b', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#334155' },
-    bro:     { shirt: '#fed7aa', collar: '#fdba74', hair: '#1e293b', skin: '#f9dcc4', skinShadow: '#ecc0a0', pants: '#1e3a8a' },
-    villain: { shirt: '#334155', collar: '#1e293b', hair: '#0f172a', skin: '#f1d5c5', skinShadow: '#dfb9a4', pants: '#0f172a' },
-    mom:     { shirt: '#fbcfe8', collar: '#f472b6', hair: '#291d18', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#831843' },
-    bhabhi:  { shirt: '#ddd6fe', collar: '#a78bfa', hair: '#1e1b18', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#4c1d95' },
-    gf:      { shirt: '#fecdd3', collar: '#fb7185', hair: '#3b2316', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#881337' },
-    sister:  { shirt: '#bae6fd', collar: '#38bdf8', hair: '#291d18', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#0369a1' },
-    npc:     { shirt: '#bbf7d0', collar: '#4ade80', hair: '#334155', skin: '#f9dcc4', skinShadow: '#ecc0a0', pants: '#14532d' }
+// COSTUME DESIGNER: Adapts outfits dynamically to location!
+function getCharacterPalette(char, loc = 'room') {
+  const base = {
+    hero:    { shirt: '#e2e8f0', collar: '#cbd5e1', hair: '#1e293b', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#334155', tie: null, coat: false, vest: false },
+    bro:     { shirt: '#fed7aa', collar: '#fdba74', hair: '#1e293b', skin: '#f9dcc4', skinShadow: '#ecc0a0', pants: '#1e3a8a', tie: null, coat: false, vest: false },
+    villain: { shirt: '#334155', collar: '#1e293b', hair: '#0f172a', skin: '#f1d5c5', skinShadow: '#dfb9a4', pants: '#0f172a', tie: null, coat: false, vest: false },
+    mom:     { shirt: '#fbcfe8', collar: '#f472b6', hair: '#291d18', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#831843', tie: null, coat: false, vest: false },
+    bhabhi:  { shirt: '#ddd6fe', collar: '#a78bfa', hair: '#1e1b18', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#4c1d95', tie: null, coat: false, vest: false },
+    gf:      { shirt: '#fecdd3', collar: '#fb7185', hair: '#3b2316', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#881337', tie: null, coat: false, vest: false },
+    sister:  { shirt: '#bae6fd', collar: '#38bdf8', hair: '#291d18', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#0369a1', tie: null, coat: false, vest: false },
+    npc:     { shirt: '#bbf7d0', collar: '#4ade80', hair: '#334155', skin: '#f9dcc4', skinShadow: '#ecc0a0', pants: '#14532d', tie: null, coat: false, vest: false }
   };
-  return map[char] || map.hero;
+  const pal = { ...(base[char] || base.hero) };
+
+  if (loc === 'office') {
+    pal.shirt = char === 'villain' ? '#1e293b' : '#f8fafc';
+    pal.collar = '#cbd5e1';
+    pal.pants = '#0f172a';
+    if (!isFemaleChar(char)) pal.tie = char === 'hero' ? '#2563eb' : '#dc2626';
+  } else if (loc === 'gym') {
+    pal.vest = true;
+    pal.shirt = char === 'hero' ? '#38bdf8' : (char === 'bro' ? '#fb923c' : '#f472b6');
+    pal.pants = '#1e293b';
+  } else if (loc === 'hospital' && (char === 'npc' || char === 'villain')) {
+    pal.shirt = '#ffffff';
+    pal.collar = '#38bdf8';
+    pal.coat = true;
+  } else if (loc === 'college') {
+    pal.tie = '#0284c7'; // Campus ID lanyard look
+  }
+  return pal;
 }
 
 function drawPastelEnvironment(loc, lighting = 'pastel') {
@@ -567,11 +583,11 @@ function drawPastelEnvironment(loc, lighting = 'pastel') {
 
     ctx.fillStyle = isNight ? '#064e3b' : '#15803d';
     ctx.strokeStyle = '#78350f'; ctx.lineWidth = 6;
-    ctx.beginPath(); ctx.roundRect(W * 0.5 - 125, floorY - 420, 250, 130, 6); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(W * 0.5 - 125, floorY - 455, 250, 120, 6); ctx.fill(); ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = '700 17px system-ui, sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('CLASS 101 • EXAM TODAY', W * 0.5, floorY - 370);
+    ctx.fillText('CLASS 101 • EXAM TODAY', W * 0.5, floorY - 405);
     ctx.font = '600 14px system-ui, sans-serif';
-    ctx.fillText('E = mc²   |   Syllabus = ∞', W * 0.5, floorY - 335);
+    ctx.fillText('E = mc²   |   Syllabus = ∞', W * 0.5, floorY - 372);
 
     ctx.fillStyle = isNight ? '#334155' : '#cbd5e1';
     ctx.fillRect(-W, floorY, W * 3, H * 2);
@@ -583,14 +599,14 @@ function drawPastelEnvironment(loc, lighting = 'pastel') {
     ctx.fillStyle = wall;
     ctx.fillRect(-W, -H, W * 3, floorY + H);
 
-    const wx = W * 0.5 - 135, wy = floorY - 425, ww = 270, wh = 150;
+    const wx = W * 0.5 - 135, wy = floorY - 455, ww = 270, wh = 140;
     ctx.fillStyle = isNight ? '#0f172a' : '#bae6fd';
     ctx.strokeStyle = '#334155'; ctx.lineWidth = 4;
     ctx.beginPath(); ctx.roundRect(wx, wy, ww, wh, 6); ctx.fill(); ctx.stroke();
     ctx.fillStyle = isNight ? '#334155' : '#94a3b8';
-    ctx.fillRect(wx + 24, wy + 55, 45, 92);
-    ctx.fillRect(wx + 85, wy + 35, 55, 112);
-    ctx.fillRect(wx + 160, wy + 65, 50, 82);
+    ctx.fillRect(wx + 24, wy + 50, 45, 87);
+    ctx.fillRect(wx + 85, wy + 30, 55, 107);
+    ctx.fillRect(wx + 160, wy + 60, 50, 77);
 
     ctx.fillStyle = isNight ? '#1e293b' : '#94a3b8';
     ctx.fillRect(-W, floorY, W * 3, H * 2);
@@ -603,18 +619,18 @@ function drawPastelEnvironment(loc, lighting = 'pastel') {
     ctx.fillRect(-W, -H, W * 3, floorY + H);
 
     ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#16a34a'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.roundRect(W * 0.16, floorY - 395, 72, 72, 12); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(W * 0.16, floorY - 420, 72, 72, 12); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#ef4444';
-    ctx.fillRect(W * 0.16 + 30, floorY - 380, 12, 42);
-    ctx.fillRect(W * 0.16 + 15, floorY - 365, 42, 12);
+    ctx.fillRect(W * 0.16 + 30, floorY - 405, 12, 42);
+    ctx.fillRect(W * 0.16 + 15, floorY - 390, 42, 12);
 
     ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#475569'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.roundRect(W * 0.72, floorY - 390, 96, 65, 8); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(W * 0.72, floorY - 415, 96, 65, 8); ctx.fill(); ctx.stroke();
     ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(W * 0.73, floorY - 356); ctx.lineTo(W * 0.76, floorY - 356);
-    ctx.lineTo(W * 0.78, floorY - 378); ctx.lineTo(W * 0.80, floorY - 336);
-    ctx.lineTo(W * 0.82, floorY - 356); ctx.lineTo(W * 0.84, floorY - 356);
+    ctx.moveTo(W * 0.73, floorY - 381); ctx.lineTo(W * 0.76, floorY - 381);
+    ctx.lineTo(W * 0.78, floorY - 403); ctx.lineTo(W * 0.80, floorY - 361);
+    ctx.lineTo(W * 0.82, floorY - 381); ctx.lineTo(W * 0.84, floorY - 381);
     ctx.stroke();
 
     ctx.fillStyle = isNight ? '#1e293b' : '#bbf7d0';
@@ -628,9 +644,9 @@ function drawPastelEnvironment(loc, lighting = 'pastel') {
     ctx.fillRect(-W, -H, W * 3, floorY + H);
 
     ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.roundRect(W * 0.5 - 110, floorY - 415, 220, 80, 8); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#fbbf24'; ctx.font = '900 22px system-ui, sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('NO PAIN • NO GAIN', W * 0.5, floorY - 367);
+    ctx.beginPath(); ctx.roundRect(W * 0.5 - 110, floorY - 465, 220, 75, 8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fbbf24'; ctx.font = '900 21px system-ui, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('NO PAIN • NO GAIN', W * 0.5, floorY - 420);
 
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(-W, floorY, W * 3, H * 2);
@@ -705,7 +721,7 @@ function drawPastelEnvironment(loc, lighting = 'pastel') {
 
     const winW = 120, winH = 115;
     const winX = W * 0.14;
-    const winY = floorY - 400;
+    const winY = floorY - 410;
     ctx.fillStyle = isNight ? '#1e3a8a' : '#e0f2fe';
     ctx.strokeStyle = isNight ? '#475569' : '#334155';
     ctx.lineWidth = 3.5;
@@ -719,9 +735,9 @@ function drawPastelEnvironment(loc, lighting = 'pastel') {
 
     ctx.fillStyle = isNight ? '#1e293b' : '#ffffff';
     ctx.strokeStyle = '#334155'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.roundRect(W * 0.74, floorY - 390, 95, 75, 6); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(W * 0.74, floorY - 400, 95, 75, 6); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#fb7185';
-    ctx.beginPath(); ctx.arc(W * 0.74 + 47, floorY - 352, 18, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(W * 0.74 + 47, floorY - 362, 18, 0, Math.PI * 2); ctx.fill();
 
     ctx.fillStyle = isNight ? '#334155' : '#e7c697';
     ctx.fillRect(-W, floorY, W * 3, H * 2);
@@ -744,14 +760,16 @@ function drawFilledArm(sx, sy, ex, ey, hx, hy, pal, dir = 1, heldProp = 'none') 
   ctx.lineWidth = 15;
   ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(hx, hy); ctx.stroke();
 
-  const sleeveX = sx + (ex - sx) * 0.55;
-  const sleeveY = sy + (ey - sy) * 0.55;
-  ctx.strokeStyle = '#334155';
-  ctx.lineWidth = 28;
-  ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sleeveX, sleeveY); ctx.stroke();
-  ctx.strokeStyle = pal.shirt;
-  ctx.lineWidth = 21;
-  ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sleeveX, sleeveY); ctx.stroke();
+  if (!pal.vest) {
+    const sleeveX = sx + (ex - sx) * 0.55;
+    const sleeveY = sy + (ey - sy) * 0.55;
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 28;
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sleeveX, sleeveY); ctx.stroke();
+    ctx.strokeStyle = pal.shirt;
+    ctx.lineWidth = 21;
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sleeveX, sleeveY); ctx.stroke();
+  }
 
   if (heldProp === 'phone') {
     ctx.save();
@@ -776,8 +794,8 @@ function drawFilledArm(sx, sy, ex, ey, hx, hy, pal, dir = 1, heldProp = 'none') 
   ctx.beginPath(); ctx.arc(hx, hy, 11, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
 }
 
-function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, scaleVal, isSpeaker, lookDir = 1, heldProp = 'none') {
-  const pal = getCharacterPalette(char);
+function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, scaleVal, isSpeaker, lookDir = 1, heldProp = 'none', loc = 'room') {
+  const pal = getCharacterPalette(char, loc);
   const fem = isFemaleChar(char);
   const dir = lookDir >= 0 ? 1 : -1;
   const breath = Math.sin(frameTick * 0.08) * 2.5;
@@ -840,6 +858,18 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
     ctx.roundRect(-38, -232, 76, 122, 22);
     ctx.fill();
     ctx.stroke();
+  }
+
+  // Location Costume Details (Office Tie, Doctor Coat, College Lanyard)
+  if (pal.tie) {
+    ctx.fillStyle = pal.tie;
+    ctx.beginPath();
+    ctx.moveTo(-5, -214); ctx.lineTo(5, -214); ctx.lineTo(8, -162); ctx.lineTo(0, -150); ctx.lineTo(-8, -162);
+    ctx.closePath(); ctx.fill();
+  }
+  if (pal.coat) {
+    ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(0, -214); ctx.lineTo(0, -112); ctx.stroke();
   }
 
   ctx.fillStyle = pal.collar;
@@ -940,6 +970,32 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
     ctx.quadraticCurveTo(20, -48, -22, -32);
     ctx.quadraticCurveTo(-48, -42, -66, -18);
     ctx.fill();
+    ctx.stroke();
+  }
+
+  // VFX ARTIST: Anime Sweat Drop & Red Anger Vein
+  if (emotion === 'sweat' || emotion === 'shocked') {
+    const dropOffset = (frameTick % 45) * 0.35;
+    const sx = -dir * 48;
+    const sy = -22 + dropOffset;
+    ctx.fillStyle = '#38bdf8';
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - 11);
+    ctx.quadraticCurveTo(sx + 8, sy + 2, sx, sy + 8);
+    ctx.quadraticCurveTo(sx - 8, sy + 2, sx, sy - 11);
+    ctx.fill();
+    ctx.stroke();
+  } else if (emotion === 'angry') {
+    const vx = -dir * 42;
+    const vy = -38;
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(vx - 7, vy - 2); ctx.lineTo(vx - 2, vy - 2); ctx.lineTo(vx - 2, vy - 7);
+    ctx.moveTo(vx + 7, vy + 2); ctx.lineTo(vx + 2, vy + 2); ctx.lineTo(vx + 2, vy + 7);
     ctx.stroke();
   }
 
@@ -1115,36 +1171,40 @@ function renderLoop() {
 
   const isMultiCast = castList.length >= 3;
   const shot = isMultiCast ? 'wide' : (currentScene.shot === 'in' ? 'in' : 'normal');
+  const loc = currentScene.location || 'room';
   const lighting = currentScene.lighting || 'pastel';
-  const isDarkBg = lighting === 'night' || lighting === 'dramatic' || currentScene.location === 'gym';
+  const isDarkBg = lighting === 'night' || lighting === 'dramatic' || loc === 'gym';
 
   ctx.save();
+  // VFX Micro-Shake on Angry Emotion
+  if (currentScene.emotion === 'angry' && elapsed < 0.45) {
+    const shake = (1 - elapsed / 0.45) * 5;
+    ctx.translate(Math.sin(frameTick * 1.7) * shake, Math.cos(frameTick * 1.9) * shake * 0.6);
+  }
+
   const baseScale = H < 800 ? 0.84 : 1.08;
   const activeProp = currentScene.prop || 'none';
   const speakerGesture = currentScene.gesture || 'explain';
 
   if (shot === 'wide') {
-    // SMART CAMERAMAN WIDE ZOOM-OUT FOR 3 CHARACTERS!
     const t = easeOutCubic(Math.min(1, elapsed / 0.45));
-    const camZoom = 1 - t * 0.14; // Smooth zoom out to 0.86x so all 3 fit cleanly!
+    const camZoom = 1 - t * 0.14;
     ctx.translate(W * 0.5, groundY);
     ctx.scale(camZoom, camZoom);
     ctx.translate(-W * 0.5, -groundY);
 
-    drawPastelEnvironment(currentScene.location || 'room', lighting);
+    drawPastelEnvironment(loc, lighting);
 
-    // Position 3 characters evenly across wide stage (left 0.19, center 0.50, right 0.81)
     const slots = [W * 0.19, W * 0.50, W * 0.81];
     const speakerIdx = castList.indexOf(speaker);
 
-    // Draw listeners first, then active speaker on top
     castList.forEach((role, idx) => {
       if (role === speaker) return;
       const lookDir = idx < speakerIdx ? 1 : (idx > speakerIdx ? -1 : (idx === 0 ? 1 : -1));
-      drawPastelCharacter(role, currentScene.otherEmotion || 'normal', 'idle', 0, slots[idx], groundY, baseScale * 0.90, false, lookDir, 'none');
+      drawPastelCharacter(role, currentScene.otherEmotion || 'normal', 'idle', 0, slots[idx], groundY, baseScale * 0.90, false, lookDir, 'none', loc);
     });
     const spLook = speakerIdx === 2 ? -1 : 1;
-    drawPastelCharacter(speaker, currentScene.emotion || 'normal', speakerGesture, mouthOpen, slots[speakerIdx], groundY, baseScale * 0.94, true, spLook, activeProp);
+    drawPastelCharacter(speaker, currentScene.emotion || 'normal', speakerGesture, mouthOpen, slots[speakerIdx], groundY, baseScale * 0.94, true, spLook, activeProp, loc);
 
   } else if (shot === 'in') {
     const heroIsSpeaker = speaker === 'hero';
@@ -1160,27 +1220,26 @@ function renderLoop() {
     ctx.scale(zoom, zoom);
     ctx.translate(-speakerX, -groundY);
 
-    drawPastelEnvironment(currentScene.location || 'room', lighting);
+    drawPastelEnvironment(loc, lighting);
 
     if (t < 0.95) {
       const offX = heroIsSpeaker ? rightX + t * (W * 0.55) : leftX - t * (W * 0.55);
-      drawPastelCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 0, offX, groundY, baseScale * 0.94, false, heroIsSpeaker ? -1 : 1, 'none');
+      drawPastelCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 0, offX, groundY, baseScale * 0.94, false, heroIsSpeaker ? -1 : 1, 'none', loc);
     }
-    drawPastelCharacter(speaker, currentScene.emotion || 'normal', speakerGesture, mouthOpen, speakerX, groundY, baseScale, true, heroIsSpeaker ? 1 : -1, activeProp);
+    drawPastelCharacter(speaker, currentScene.emotion || 'normal', speakerGesture, mouthOpen, speakerX, groundY, baseScale, true, heroIsSpeaker ? 1 : -1, activeProp, loc);
 
   } else {
-    // Standard 2-character medium shot
     const leftX = W * 0.28, rightX = W * 0.72;
     const listener = castList.find(c => c !== speaker) || 'bro';
     const speakerOnLeft = speaker === 'hero' || (listener !== 'hero' && castList.indexOf(speaker) === 0);
 
-    drawPastelEnvironment(currentScene.location || 'room', lighting);
+    drawPastelEnvironment(loc, lighting);
     if (speakerOnLeft) {
-      drawPastelCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 0, rightX, groundY, baseScale * 0.94, false, -1, 'none');
-      drawPastelCharacter(speaker, currentScene.emotion || 'normal', speakerGesture, mouthOpen, leftX, groundY, baseScale, true, 1, activeProp);
+      drawPastelCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 0, rightX, groundY, baseScale * 0.94, false, -1, 'none', loc);
+      drawPastelCharacter(speaker, currentScene.emotion || 'normal', speakerGesture, mouthOpen, leftX, groundY, baseScale, true, 1, activeProp, loc);
     } else {
-      drawPastelCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 0, leftX, groundY, baseScale * 0.94, false, 1, 'none');
-      drawPastelCharacter(speaker, currentScene.emotion || 'normal', speakerGesture, mouthOpen, rightX, groundY, baseScale, true, -1, activeProp);
+      drawPastelCharacter(listener, currentScene.otherEmotion || 'normal', 'idle', 0, leftX, groundY, baseScale * 0.94, false, 1, 'none', loc);
+      drawPastelCharacter(speaker, currentScene.emotion || 'normal', speakerGesture, mouthOpen, rightX, groundY, baseScale, true, -1, activeProp, loc);
     }
   }
   ctx.restore();
@@ -1191,7 +1250,7 @@ function renderLoop() {
 renderLoop();
 
 // =========================================================================
-// AGENT 4: SOUND & DUBBING DIRECTOR
+// AGENT 4: SOUND & DUBBING DIRECTOR (UNCHANGED)
 // =========================================================================
 function pcmToWavBuffer(base64Pcm, sampleRate = 24000) {
   const binary = atob(base64Pcm), pcmLen = binary.length, wavBuffer = new ArrayBuffer(44 + pcmLen), view = new DataView(wavBuffer);
@@ -1458,7 +1517,7 @@ function triggerAutoDownload(blob, filename) {
 }
 
 async function renderSinglePart(scenes, partNum, totalParts, recordVideo = true, autoSave = false) {
-  const litScenes = runLightmanAgent(scenes, topicInput.value.trim());
+  const litScenes = runContinuityAndCostumeSupervisor(scenes, topicInput.value.trim());
   const partLabel = totalParts > 1 ? `[Part ${partNum}/${totalParts}]` : '';
   const currentHash = JSON.stringify(litScenes.map(s => `${s.char}:${s.text}`));
   let audioList = [];
@@ -1549,6 +1608,7 @@ document.getElementById('generateScriptBtn').onclick = async () => {
   try {
     const scenes = await runPreProductionCrew(key, topic, 1, 1, '', targetLines);
     scriptEditor.value = JSON.stringify(scenes, null, 2);
+    if (scenes[0]) { currentScene = scenes[0]; sceneStartTime = performance.now(); }
     cachedScriptHash = '';
     renderMicControls();
     setStatus(`✅ Pre-Production Done! (${scenes.length} shots ready).`);
