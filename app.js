@@ -1,4 +1,4 @@
-const APP_VERSION = 'v35.1';
+const APP_VERSION = 'v35.2';
 const canvas = document.getElementById('stageCanvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
@@ -382,7 +382,9 @@ function inferTopicLocation(topicText) {
 }
 
 function hasFemaleCueInText(text) {
-  return /\b(sakti|rahi|karti|karungi|jaungi|bolti|meri\s+naam|behen|didi|bhabhi|mummy|maa|gf|girlfriend|ladki\s+hoon)\b/.test((text || '').toLowerCase());
+  const t = (text || '').toLowerCase();
+  if (/\b(meri\s+girlfriend|meri\s+gf|meri\s+behen|meri\s+didi|meri\s+bhabhi|meri\s+mummy|uski\s+girlfriend)\b/.test(t)) return false;
+  return /\b(main\s+.*?(sakti|rahi|karti|karungi|jaungi)|ladki\s+hoon)\b/.test(t);
 }
 
 // AGENT 3: CASTING, SET & STATEFUL CONTINUITY SUPERVISOR
@@ -415,6 +417,13 @@ function runLightmanAgent(directedScenes, topicHint = '') {
     if (castList.length > 3) castList = castList.slice(0, 3);
     s.cast = castList;
     s.other = castList.find(c => c !== s.char) || 'bro';
+
+    // Entry Continuity Guard: Do not show girlfriend on-screen before she actually arrives!
+    if (s.char !== 'gf' && /\b(aane\s+wali|aa\s+rahi\s+hai|intezaar|wait\s+kar|call\s+karke|pahunch\s+gaye|kab\s+aayegi)\b/.test(txt)) {
+      s.cast = s.cast.filter(c => c !== 'gf');
+      if (s.cast.length < 2) s.cast.push(s.char === 'hero' ? 'bro' : 'hero');
+      s.other = s.cast.find(c => c !== s.char) || 'bro';
+    }
 
     // Cameraman Auto-Framing Rule: 3 characters -> always "wide" zoom-out!
     if (s.cast.length >= 3) {
@@ -540,11 +549,11 @@ function drawPastelEnvironment(loc, lighting = 'pastel') {
     });
 
     ctx.fillStyle = '#1e293b'; ctx.strokeStyle = '#92400e'; ctx.lineWidth = 5;
-    ctx.beginPath(); ctx.roundRect(W * 0.5 - 75, floorY - 410, 150, 95, 8); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(W * 0.5 - 75, floorY - 475, 150, 82, 8); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#fef08a'; ctx.font = '800 18px system-ui, sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('CAFE MENU', W * 0.5, floorY - 378);
+    ctx.fillText('CAFE MENU', W * 0.5, floorY - 445);
     ctx.fillStyle = '#e2e8f0'; ctx.font = '600 13px system-ui, sans-serif';
-    ctx.fillText('Coffee • Chai • Pizza', W * 0.5, floorY - 348);
+    ctx.fillText('Coffee • Chai • Pizza', W * 0.5, floorY - 418);
 
     ctx.fillStyle = isNight ? '#1c1917' : '#d6a87c';
     ctx.fillRect(-W, floorY, W * 3, H * 2);
