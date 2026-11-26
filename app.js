@@ -1,4 +1,4 @@
-const APP_VERSION = 'v31.0';
+const APP_VERSION = 'v32.0';
 const canvas = document.getElementById('stageCanvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
@@ -57,11 +57,10 @@ formatSelect.addEventListener('change', applyFormat);
 applyFormat();
 
 const DEMO_SCRIPT = [
-  { char: "hero", other: "bro", emotion: "sweat", otherEmotion: "normal", gesture: "facepalm", shot: "normal", location: "room", lighting: "pastel", punch: "Kal Exam Hai!", prop: "none", sfx: "none", text: "Bhai kal subah exam hai aur maine abhi tak syllabus dekha bhi nahi!" },
-  { char: "bro", other: "hero", emotion: "smug", otherEmotion: "sweat", gesture: "explain", shot: "in", location: "room", lighting: "pastel", punch: "Full Confidence", prop: "none", sfx: "none", text: "Chinta mat kar bhai, ek raat mein poori kitaab chat kar jayenge!" },
-  { char: "hero", other: "bro", emotion: "shocked", otherEmotion: "smug", gesture: "point", shot: "normal", location: "room", lighting: "pastel", punch: "", prop: "phone", sfx: "gasp", text: "Par tu toh abhi phone mein game khel raha hai, padhega kab?" },
-  { char: "bro", other: "hero", emotion: "smug", otherEmotion: "angry", gesture: "crossed", shot: "in", location: "room", lighting: "pastel", punch: "Pro Gamer Logic", prop: "phone", sfx: "bonk", text: "Brain warm-up kar raha hoon bhai, bina warm-up ke padhai nahi hoti!" },
-  { char: "mom", other: "hero", emotion: "angry", otherEmotion: "shocked", gesture: "point", shot: "normal", location: "room", lighting: "dramatic", punch: "Mummy Entry!", prop: "none", sfx: "boom", text: "Subah ke paanch baj gaye aur tum dono abhi tak phone chala rahe ho?!" }
+  { char: "hero", other: "gf", emotion: "sweat", otherEmotion: "smug", gesture: "explain", shot: "normal", location: "room", lighting: "pastel", punch: "Date Night", prop: "none", sfx: "none", text: "Aaj tum bahut khoobsurat lag rahi ho, maine special dinner plan kiya hai!" },
+  { char: "gf", other: "hero", emotion: "smug", otherEmotion: "normal", gesture: "explain", shot: "in", location: "room", lighting: "pastel", punch: "Sweet Surprise", prop: "none", sfx: "none", text: "Aww tum kitne sweet ho, chalo jaldi chalte hain mujhe bahut bhook lagi hai!" },
+  { char: "hero", other: "gf", emotion: "shocked", otherEmotion: "smug", gesture: "facepalm", shot: "normal", location: "room", lighting: "pastel", punch: "Wallet Check", prop: "phone", sfx: "gasp", text: "Ek minute ruko, mera wallet toh ghar par hi reh gaya aur UPI down hai!" },
+  { char: "gf", other: "hero", emotion: "angry", otherEmotion: "sweat", gesture: "crossed", shot: "in", location: "room", lighting: "pastel", punch: "Popat Ho Gaya", prop: "none", sfx: "bonk", text: "Har baar tumhara yahi bahana hota hai, aaj bill tum hi bharoge chahe bartan dho!" }
 ];
 scriptEditor.value = JSON.stringify(DEMO_SCRIPT, null, 2);
 
@@ -129,7 +128,7 @@ document.getElementById('loadDemoBtn').onclick = () => {
   scriptEditor.value = JSON.stringify(DEMO_SCRIPT, null, 2);
   cachedScriptHash = '';
   renderMicControls();
-  setStatus('Clean Pastel Demo loaded!');
+  setStatus('Clean Female & Comedy Demo loaded!');
 };
 
 // =========================================================================
@@ -281,46 +280,48 @@ async function callGeminiAgent(key, models, prompt, temp = 0.85) {
   throw new Error(lastErr);
 }
 
-// AGENT 1: SCRIPTWRITER
+// AGENT 1: SCRIPTWRITER (Strict Ban on Fake Death / Ghost Endings!)
 async function runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding, targetLines) {
   setCrewState('writer', 'active');
   setStatus(`✍️ [1/3 Scriptwriter] Writing ${targetLines}-line ${toneSelect.value} script (Part ${partNum}/${totalParts})...`);
   const cont = partNum > 1
     ? `Continue seamlessly from: "${prevEnding}".`
-    : (totalParts > 1 ? `Part 1 of ${totalParts}. End on a strong cliffhanger!` : `Complete short story with proper build-up, middle twist, and memorable punchline.`);
+    : (totalParts > 1 ? `Part 1 of ${totalParts}. End on a strong cliffhanger!` : `Complete short story with a grounded, realistic, and entertaining ending.`);
 
   const genre = toneSelect.value;
-  let styleDirection = 'Relatable, witty Indian Hinglish storytelling like NOT YOUR TYPE.';
+  let styleDirection = 'Relatable, witty Indian Hinglish conversation like NOT YOUR TYPE. End with a funny everyday punchline.';
   if (genre.includes('Emotional')) {
-    styleDirection = 'DEEP EMOTIONAL & RELATABLE storytelling! Heartfelt Hinglish conversation about life, dreams, and reality checks.';
+    styleDirection = 'DEEP EMOTIONAL & RELATABLE storytelling! Heartfelt Hinglish conversation about life, career, relationships, and reality checks.';
   } else if (genre.includes('Savage')) {
     styleDirection = 'ULTRA SAVAGE & BRUTAL ROAST style! Cold-blooded comebacks and ruthless Desi humor.';
   } else if (genre.includes('Dark')) {
-    styleDirection = 'DARK COMEDY & PLOT TWIST style! Innocent start leading to a spine-chilling dark twist.';
+    styleDirection = 'DARK COMEDY & IRONIC TWIST style! Clever betrayal, catching someone lying, or funny karma — WITHOUT killing characters!';
   } else if (genre.includes('Double Meaning')) {
-    styleDirection = 'CLEVER DOUBLE MEANING (NAUGHTY DESI) comedy! Spicy misunderstandings and witty innuendos without explicit slurs.';
+    styleDirection = 'CLEVER DOUBLE MEANING (NAUGHTY DESI) comedy! Spicy misunderstandings, teasing banter, and witty innuendos that turn out to be totally innocent in the end!';
   }
 
   const prompt = `You are a viral Indian YouTube animated storyteller ("NOT YOUR TYPE" style).
-Write an EXACTLY ${targetLines}-line Hinglish script about: "${topic}".
+Write an EXACTLY ${targetLines}-line Hinglish two-person dialogue script about: "${topic}".
 STYLE: ${styleDirection}
 ${cont}
 CRITICAL RULES:
-1. EXACT LENGTH: Return an array of EXACTLY ${targetLines} dialogue objects so the video lasts ${targetLines >= 15 ? '60 seconds (1 full minute)' : '45 seconds'}.
-2. 100% ROMAN ENGLISH LETTERS ONLY (e.g., "chupchap", "sapne"). NEVER use Hindi Devanagari!
-3. LOGICAL CASTING: "char" and "other" MUST NEVER be the same character! Only include characters who are physically present in that scene.
+1. NO FAKE DEATH / NO GHOST CLICHÉ: NEVER end the story with "someone died in an accident / is a ghost / funeral / dead body"! Keep the story grounded in real life unless the user explicitly asked for a ghost/afterlife topic.
+2. DIRECT SPOKEN DIALOGUE ONLY: Every line must be spoken directly by "char" (so their voice and lip-sync match!). Do NOT write third-person narration like "Usne kaha ki...". Instead let "gf" or "bro" speak their own line directly!
+3. EXACT LENGTH: Return an array of EXACTLY ${targetLines} dialogue objects so the video lasts ${targetLines >= 15 ? '60 seconds (1 full minute)' : '45 seconds'}.
+4. 100% ROMAN ENGLISH LETTERS ONLY (e.g., "chupchap", "sapne"). NEVER use Hindi Devanagari!
+5. LOGICAL CASTING: "char" and "other" MUST NEVER be the same character!
    - Role IDs: "hero", "bro", "bhabhi", "gf", "sister", "mom", "villain", "npc".
-4. EMOTIONS: "normal", "shocked", "smug", "angry", "crying", "sweat" (NEVER "dead").
-5. LOCATION: Choose matching setting: "room" (indoors/home/bedroom) or "park" (outdoors/street/college).
-6. PUNCH TEXT ("punch"): A short 1-to-3 word on-screen visual label for key moments (e.g., "Plot Twist", "Reality Check", or "" for normal lines).
-Return ONLY JSON array: [{"char":"hero","other":"bro","emotion":"normal","otherEmotion":"normal","location":"room","punch":"","text":"10-14 words punchy Roman Hinglish"}]`;
+6. EMOTIONS: "normal", "shocked", "smug", "angry", "crying", "sweat" (NEVER "dead").
+7. LOCATION: "room" or "park".
+8. PUNCH TEXT ("punch"): Short 1-to-3 word visual label for key moments (or "" for normal lines).
+Return ONLY JSON array: [{"char":"hero","other":"gf","emotion":"normal","otherEmotion":"normal","location":"room","punch":"","text":"10-14 words punchy spoken Roman Hinglish"}]`;
 
-  const draft = await callGeminiAgent(key, models, prompt, 0.88);
+  const draft = await callGeminiAgent(key, models, prompt, 0.85);
   setCrewState('writer', 'done');
   return draft;
 }
 
-// AGENT 2: CINEMATIC DIRECTOR (Clean Two-Shot & Close-Up Only — No Weird Eye/Half-Face Shots!)
+// AGENT 2: CINEMATIC DIRECTOR
 async function runDirectorDOPAgent(key, models, draftScript) {
   setCrewState('director', 'active');
   setStatus(`🎥 [2/3 Director] Framing clean character shots...`);
@@ -329,7 +330,7 @@ async function runDirectorDOPAgent(key, models, draftScript) {
 - shot:
   * "normal": Clean medium two-shot (Hero left, Co-star right) — use for 65% of lines.
   * "in": Smooth speaker close-up zoom for jokes, reactions, or punchlines — use for 35% of lines.
-  (DO NOT use eye_cu, half_face, brick_work, or stomp_dreams!)
+  (ONLY use "normal" or "in"!)
 - gesture: "explain", "point", "facepalm", "crossed", "shocked_hands", "shrug".
 - prop: "none" (default), "phone", "chai" (ONLY if literally mentioned in that line).
 - sfx: "none", "bonk", "boom", "sting", "gasp".
@@ -349,18 +350,15 @@ function runLightmanAgent(directedScenes) {
   setCrewState('light', 'active');
   setStatus(`💡 [3/3 Lightman] Verifying scene logic, anti-clone & lighting...`);
 
-  const isDarkGenre = toneSelect.value.includes('Dark');
   const litScenes = directedScenes.map((sc) => {
     const txt = (sc.text || '').toLowerCase();
     const s = { ...sc };
     if (s.emotion === 'dead') s.emotion = 'shocked';
 
-    // Force only clean shots ("normal" or "in") — eliminate weird eye/half-face/brick/foot shots
     if (s.shot !== 'normal' && s.shot !== 'in') {
       s.shot = 'in';
     }
 
-    // Strict anti-clone: char and other can NEVER be identical
     if (!s.other || s.other === s.char) {
       s.other = s.char === 'hero' ? 'bro' : 'hero';
     }
@@ -376,7 +374,7 @@ function runLightmanAgent(directedScenes) {
     if (s.prop === 'phone' && !/phone|mobile|reel|video|game|call|password|message|chat/.test(txt)) s.prop = 'none';
     if (s.prop === 'chai' && !/chai|tea|coffee|cup/.test(txt)) s.prop = 'none';
 
-    if (isDarkGenre || /raat|night|andhera|sad|akela|toot|mar|maut|bhoot|thand|fridge|kabr|aatma/.test(txt)) {
+    if (/raat|night|andhera|sad|akela|toot|mar|maut|bhoot|thand|fridge|kabr|aatma/.test(txt)) {
       s.lighting = 'night';
     } else if (s.emotion === 'angry') {
       s.lighting = 'dramatic';
@@ -399,7 +397,7 @@ async function runPreProductionCrew(key, topic, partNum, totalParts, prevEnding,
 }
 
 // =========================================================================
-// UNHOLY TALES PASTEL RENDERER
+// UNHOLY TALES PASTEL RENDERER (Clean Feminine Hair & Face Rig!)
 // =========================================================================
 let currentScene = DEMO_SCRIPT[0];
 let sceneStartTime = performance.now();
@@ -410,15 +408,19 @@ function easeOutCubic(t) {
   return 1 - Math.pow(1 - c, 3);
 }
 
+function isFemaleChar(char) {
+  return ['mom', 'bhabhi', 'gf', 'sister'].includes(char);
+}
+
 function getCharacterPalette(char) {
   const map = {
     hero:    { shirt: '#e2e8f0', collar: '#cbd5e1', hair: '#1e293b', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#334155' },
     bro:     { shirt: '#fed7aa', collar: '#fdba74', hair: '#1e293b', skin: '#f9dcc4', skinShadow: '#ecc0a0', pants: '#1e3a8a' },
     villain: { shirt: '#334155', collar: '#1e293b', hair: '#0f172a', skin: '#f1d5c5', skinShadow: '#dfb9a4', pants: '#0f172a' },
-    mom:     { shirt: '#fbcfe8', collar: '#f472b6', hair: '#1e293b', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#831843' },
-    bhabhi:  { shirt: '#ddd6fe', collar: '#a78bfa', hair: '#0f172a', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#4c1d95' },
-    gf:      { shirt: '#fecdd3', collar: '#fb7185', hair: '#291d18', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#881337' },
-    sister:  { shirt: '#bae6fd', collar: '#38bdf8', hair: '#1e293b', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#0369a1' },
+    mom:     { shirt: '#fbcfe8', collar: '#f472b6', hair: '#291d18', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#831843' },
+    bhabhi:  { shirt: '#ddd6fe', collar: '#a78bfa', hair: '#1e1b18', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#4c1d95' },
+    gf:      { shirt: '#fecdd3', collar: '#fb7185', hair: '#3b2316', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#881337' },
+    sister:  { shirt: '#bae6fd', collar: '#38bdf8', hair: '#291d18', skin: '#fde6d8', skinShadow: '#f5ccb8', pants: '#0369a1' },
     npc:     { shirt: '#bbf7d0', collar: '#4ade80', hair: '#334155', skin: '#f9dcc4', skinShadow: '#ecc0a0', pants: '#14532d' }
   };
   return map[char] || map.hero;
@@ -556,6 +558,7 @@ function drawFilledArm(sx, sy, ex, ey, hx, hy, pal, dir = 1, heldProp = 'none') 
 
 function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, scaleVal, isSpeaker, lookDir = 1, heldProp = 'none') {
   const pal = getCharacterPalette(char);
+  const fem = isFemaleChar(char);
   const dir = lookDir >= 0 ? 1 : -1;
   const breath = Math.sin(frameTick * 0.08) * 2.5;
   const speakBounce = isSpeaker ? talkAmt * 4.5 : 0;
@@ -569,65 +572,108 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
   ctx.translate(footX, groundY - speakBounce);
   ctx.scale(scaleVal, scaleVal);
 
+  // Female Long Hair Back-Drape BEHIND shoulders & neck (narrower than jawline so ZERO beard effect!)
+  if (fem) {
+    ctx.fillStyle = pal.hair;
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 3.2;
+    if (char === 'mom') {
+      // Neat Mom Hair Bun behind head
+      ctx.beginPath();
+      ctx.arc(-dir * 38, -356 + breath * 0.4, 28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      // Flowing Shoulder-Length Hair behind neck/shoulders (only width ±50, never wider than chin!)
+      ctx.beginPath();
+      ctx.moveTo(-48, -310);
+      ctx.quadraticCurveTo(-56, -230, -46, -185);
+      ctx.lineTo(46, -185);
+      ctx.quadraticCurveTo(56, -230, 48, -310);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
+  // Pants / Legs
   ctx.fillStyle = pal.pants;
   ctx.strokeStyle = '#334155';
   ctx.lineWidth = 3.5;
-  ctx.beginPath(); ctx.roundRect(-26, -118, 22, 108, 8); ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.roundRect(4, -118, 22, 108, 8); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(-25, -118, 21, 108, 8); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(4, -118, 21, 108, 8); ctx.fill(); ctx.stroke();
 
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.roundRect(-30, -16, 28, 16, 7); ctx.fill(); ctx.stroke();
-  ctx.beginPath(); ctx.roundRect(2, -16, 28, 16, 7); ctx.fill(); ctx.stroke();
+  // Shoes
+  ctx.fillStyle = fem ? '#fbcfe8' : '#ffffff';
+  ctx.beginPath(); ctx.roundRect(-29, -16, 27, 16, 7); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(2, -16, 27, 16, 7); ctx.fill(); ctx.stroke();
 
+  // Torso
   ctx.save();
   ctx.translate(0, breath * 0.5);
   ctx.fillStyle = pal.shirt;
-  ctx.beginPath();
-  ctx.roundRect(-38, -232, 76, 122, 22);
-  ctx.fill();
-  ctx.stroke();
+  if (fem) {
+    // Slightly tapered feminine top / kurti
+    ctx.beginPath();
+    ctx.moveTo(-34, -230);
+    ctx.lineTo(34, -230);
+    ctx.lineTo(40, -112);
+    ctx.lineTo(-40, -112);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.roundRect(-38, -232, 76, 122, 22);
+    ctx.fill();
+    ctx.stroke();
+  }
 
   ctx.fillStyle = pal.collar;
   ctx.beginPath();
-  ctx.arc(0, -230, 18, 0, Math.PI);
+  ctx.arc(0, -230, 17, 0, Math.PI);
   ctx.fill();
   ctx.stroke();
 
+  // Neck
   ctx.fillStyle = pal.skin;
-  ctx.fillRect(-12, -254, 24, 26);
-  ctx.strokeRect(-12, -254, 24, 26);
+  ctx.fillRect(-11, -254, 22, 26);
+  ctx.strokeRect(-11, -254, 22, 26);
   ctx.fillStyle = pal.skinShadow;
-  ctx.fillRect(-11, -254, 22, 10);
+  ctx.fillRect(-10, -254, 20, 9);
 
+  // Arms
   const actWave = isSpeaker ? Math.sin(frameTick * 0.16) * (6 + talkAmt * 14) : Math.sin(frameTick * 0.07) * 3;
   const effGesture = isSpeaker ? gesture : (emotion === 'shocked' ? 'shocked_hands' : (emotion === 'smug' || emotion === 'angry' ? 'crossed' : 'idle'));
+  const shoulderX = fem ? 33 : 38;
 
   if (heldProp === 'phone' || heldProp === 'chai') {
-    drawFilledArm(-dir * 38, -214, -dir * 54, -172, -dir * 42, -135, pal, dir, 'none');
-    drawFilledArm(dir * 38, -214, dir * 64, -185, dir * 78, -220 + actWave * 0.3, pal, dir, heldProp);
+    drawFilledArm(-dir * shoulderX, -214, -dir * 52, -172, -dir * 40, -135, pal, dir, 'none');
+    drawFilledArm(dir * shoulderX, -214, dir * 64, -185, dir * 78, -220 + actWave * 0.3, pal, dir, heldProp);
   } else if (effGesture === 'point') {
-    drawFilledArm(-dir * 38, -214, -dir * 56, -172, -dir * 38, -135, pal, dir);
-    drawFilledArm(dir * 38, -214, dir * 74, -206 + actWave * 0.3, dir * 112, -214 + actWave * 0.4, pal, dir);
+    drawFilledArm(-dir * shoulderX, -214, -dir * 54, -172, -dir * 38, -135, pal, dir);
+    drawFilledArm(dir * shoulderX, -214, dir * 74, -206 + actWave * 0.3, dir * 112, -214 + actWave * 0.4, pal, dir);
   } else if (effGesture === 'facepalm') {
-    drawFilledArm(-dir * 38, -214, -dir * 52, -172, -dir * 40, -132, pal, dir);
-    drawFilledArm(dir * 38, -214, dir * 72, -262, dir * 24, -312, pal, dir);
+    drawFilledArm(-dir * shoulderX, -214, -dir * 50, -172, -dir * 38, -132, pal, dir);
+    drawFilledArm(dir * shoulderX, -214, dir * 72, -262, dir * 24, -312, pal, dir);
   } else if (effGesture === 'crossed') {
-    ctx.strokeStyle = '#334155'; ctx.lineWidth = 18; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(-36, -210); ctx.quadraticCurveTo(-52, -178, 30, -178); ctx.stroke();
-    ctx.strokeStyle = pal.skin; ctx.lineWidth = 12;
-    ctx.beginPath(); ctx.moveTo(-36, -210); ctx.quadraticCurveTo(-52, -178, 30, -178); ctx.stroke();
+    ctx.strokeStyle = '#334155'; ctx.lineWidth = 17; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-34, -210); ctx.quadraticCurveTo(-48, -178, 28, -178); ctx.stroke();
+    ctx.strokeStyle = pal.skin; ctx.lineWidth = 11;
+    ctx.beginPath(); ctx.moveTo(-34, -210); ctx.quadraticCurveTo(-48, -178, 28, -178); ctx.stroke();
   } else if (effGesture === 'shocked_hands') {
-    drawFilledArm(-38, -214, -74, -238, -62, -288, pal, dir);
-    drawFilledArm(38, -214, 74, -238, 62, -288, pal, dir);
+    drawFilledArm(-shoulderX, -214, -72, -238, -60, -288, pal, dir);
+    drawFilledArm(shoulderX, -214, 72, -238, 60, -288, pal, dir);
   } else if (effGesture === 'explain') {
-    drawFilledArm(-38, -214, -66, -182 - actWave * 0.4, -84, -204 - actWave * 0.8, pal, dir);
-    drawFilledArm(38, -214, 66, -182 + actWave * 0.4, 88, -202 + actWave * 0.8, pal, dir);
+    drawFilledArm(-shoulderX, -214, -64, -182 - actWave * 0.4, -82, -204 - actWave * 0.8, pal, dir);
+    drawFilledArm(shoulderX, -214, 64, -182 + actWave * 0.4, 84, -202 + actWave * 0.8, pal, dir);
   } else {
-    drawFilledArm(-38, -214, -52, -170, -44, -126, pal, dir);
-    drawFilledArm(38, -214, 52, -170, 44, -126, pal, dir);
+    drawFilledArm(-shoulderX, -214, -50, -170, -42, -126, pal, dir);
+    drawFilledArm(shoulderX, -214, 50, -170, 42, -126, pal, dir);
   }
   ctx.restore();
 
+  // Head
   const headY = -318;
   const headNod = isSpeaker ? (talkAmt * 4.5 + breath * 0.4) : (Math.sin(frameTick * 0.1) * 2);
   const headTilt = isSpeaker ? Math.sin(frameTick * 0.12) * 0.035 * (0.3 + talkAmt) : 0.02;
@@ -636,28 +682,52 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
   ctx.translate(0, headY + headNod);
   ctx.rotate(headTilt);
 
-  ctx.fillStyle = pal.hair;
-  if (char === 'bhabhi' || char === 'gf' || char === 'sister') {
-    ctx.beginPath(); ctx.roundRect(-74, -22, 148, 125, 36); ctx.fill();
-  }
-
+  // Clean Skin Face (100% unobstructed jawline — NO beard box!)
   ctx.fillStyle = pal.skin;
   ctx.strokeStyle = '#334155';
-  ctx.lineWidth = 3.8;
+  ctx.lineWidth = 3.6;
   ctx.beginPath();
-  ctx.ellipse(0, 0, 68, 72, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, fem ? 64 : 68, 70, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
-  ctx.fillStyle = 'rgba(244, 114, 182, 0.22)';
-  ctx.beginPath(); ctx.ellipse(-34, 14, 12, 7, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(34, 14, 12, 7, 0, 0, Math.PI * 2); ctx.fill();
+  // Soft Blush Cheeks
+  ctx.fillStyle = fem ? 'rgba(244, 114, 182, 0.32)' : 'rgba(244, 114, 182, 0.20)';
+  ctx.beginPath(); ctx.ellipse(-32, 14, 12, 7, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(32, 14, 12, 7, 0, 0, Math.PI * 2); ctx.fill();
 
+  // Hair Top & Side-Locks (Above ears/temples ONLY — never below cheeks!)
   ctx.fillStyle = pal.hair;
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 3.4;
   if (char === 'bro') {
     ctx.fillStyle = '#f87171';
     ctx.beginPath(); ctx.arc(0, -24, 66, Math.PI, 0); ctx.fill(); ctx.stroke();
     ctx.fillRect(dir > 0 ? -90 : 44, -30, 46, 11); ctx.strokeRect(dir > 0 ? -90 : 44, -30, 46, 11);
+  } else if (fem) {
+    // Sleek Feminine Side-Parted Hair with Temple Side-Strands
+    ctx.beginPath();
+    ctx.moveTo(-64, -10);
+    ctx.quadraticCurveTo(-56, -84, 0, -82);
+    ctx.quadraticCurveTo(56, -84, 64, -10);
+    // Side framing strands tapering cleanly at ear level (y = +12)
+    ctx.quadraticCurveTo(60, 12, 52, 16);
+    ctx.quadraticCurveTo(50, -28, 12, -44);
+    ctx.quadraticCurveTo(-24, -34, -50, -26);
+    ctx.quadraticCurveTo(-52, 12, -52, 16);
+    ctx.quadraticCurveTo(-60, 12, -64, -10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Cute Hair Clip / Bindi detail
+    if (char === 'mom' || char === 'bhabhi') {
+      ctx.fillStyle = '#e11d48';
+      ctx.beginPath(); ctx.arc(0, -22, 3.8, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.fillStyle = '#f43f5e';
+      ctx.beginPath(); ctx.roundRect(26, -46, 16, 6, 3); ctx.fill();
+    }
   } else {
     ctx.beginPath();
     ctx.moveTo(-66, -18);
@@ -669,11 +739,21 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
     ctx.stroke();
   }
 
+  // Eyes + Feminine Eyelashes
   const eyeY = -4;
   const pupilX = dir * 4;
   const isBlinking = (blinkTimer + (isSpeaker ? 0 : 45)) % 150 > 144;
 
+  if (fem) {
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-34, eyeY - 6); ctx.lineTo(-40, eyeY - 11); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(34, eyeY - 6); ctx.lineTo(40, eyeY - 11); ctx.stroke();
+  }
+
   ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#334155';
   ctx.lineWidth = 3.2;
   ctx.beginPath(); ctx.ellipse(-20, eyeY, 15, emotion === 'shocked' ? 18 : 13, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   ctx.beginPath(); ctx.ellipse(20, eyeY, 15, emotion === 'shocked' ? 18 : 13, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -691,9 +771,10 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
     ctx.beginPath(); ctx.arc(18 + pupilX, eyeY - 2.5, 2.2, 0, Math.PI * 2); ctx.fill();
   }
 
+  // Eyebrows
   const browLift = isSpeaker ? -talkAmt * 3.5 : 0;
   ctx.strokeStyle = pal.hair;
-  ctx.lineWidth = 4.5;
+  ctx.lineWidth = fem ? 3.6 : 4.5;
   ctx.lineCap = 'round';
   if (emotion === 'angry') {
     ctx.beginPath(); ctx.moveTo(-36, eyeY - 22 + browLift); ctx.lineTo(-8, eyeY - 14 + browLift); ctx.stroke();
@@ -706,28 +787,29 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
     ctx.beginPath(); ctx.moveTo(8, eyeY - 21 + browLift); ctx.lineTo(34, eyeY - 19 + browLift); ctx.stroke();
   }
 
+  // Mouth (Soft rose-pink lips for female characters!)
   const mouthY = 30;
-  ctx.strokeStyle = '#334155';
+  ctx.strokeStyle = fem ? '#be123c' : '#334155';
   ctx.lineWidth = 3.2;
   if (isSpeaker && talkAmt > 0.08) {
     if (talkAmt > 0.52) {
       ctx.fillStyle = '#881337';
-      ctx.beginPath(); ctx.arc(0, mouthY - 5, 16, 0, Math.PI, false); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, mouthY - 5, 15, 0, Math.PI, false); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(-11, mouthY - 5, 22, 4);
+      ctx.fillRect(-10, mouthY - 5, 20, 4);
       ctx.fillStyle = '#fb7185';
       ctx.beginPath(); ctx.arc(0, mouthY + 6, 7, Math.PI, 0); ctx.fill();
     } else {
-      const h = 4 + talkAmt * 13;
-      const w = 10 + (1 - talkAmt) * 6;
+      const h = 4 + talkAmt * 12;
+      const w = 9 + (1 - talkAmt) * 6;
       ctx.fillStyle = '#881337';
       ctx.beginPath(); ctx.ellipse(0, mouthY, w, h, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     }
   } else {
     ctx.beginPath();
-    if (emotion === 'smug') ctx.arc(0, mouthY - 4, 15, 0.1 * Math.PI, 0.85 * Math.PI);
-    else if (emotion === 'crying' || emotion === 'shocked') ctx.arc(0, mouthY + 8, 12, Math.PI * 1.15, Math.PI * 1.85);
-    else { ctx.moveTo(-12, mouthY); ctx.lineTo(12, mouthY); }
+    if (emotion === 'smug') ctx.arc(0, mouthY - 4, 14, 0.1 * Math.PI, 0.85 * Math.PI);
+    else if (emotion === 'crying' || emotion === 'shocked') ctx.arc(0, mouthY + 8, 11, Math.PI * 1.15, Math.PI * 1.85);
+    else { ctx.moveTo(-11, mouthY); ctx.lineTo(11, mouthY); }
     ctx.stroke();
   }
 
@@ -826,7 +908,6 @@ function renderLoop() {
 
   const shot = currentScene.shot === 'in' ? 'in' : 'normal';
   const speaker = currentScene.char || 'hero';
-  // Hard anti-clone guarantee directly inside renderLoop
   const listener = (currentScene.other && currentScene.other !== speaker)
     ? currentScene.other
     : (speaker === 'hero' ? 'bro' : 'hero');
@@ -866,7 +947,7 @@ function renderLoop() {
 renderLoop();
 
 // =========================================================================
-// AGENT 4: SOUND & VOICE ARTIST (Per-Batch Edge Fallback — Zero Silent Scenes!)
+// AGENT 4: SOUND & VOICE ARTIST
 // =========================================================================
 function pcmToWavBuffer(base64Pcm, sampleRate = 24000) {
   const binary = atob(base64Pcm), pcmLen = binary.length, wavBuffer = new ArrayBuffer(44 + pcmLen), view = new DataView(wavBuffer);
@@ -969,7 +1050,6 @@ async function runSoundArtistAgent(scenes, partLabel = '') {
     return list;
   }
 
-  // Batch size 6 with per-batch automatic Edge TTS fallback so late scenes NEVER go silent!
   const chunkSize = 6;
   const allSlices = [];
   for (let start = 0; start < scenes.length; start += chunkSize) {
@@ -979,7 +1059,6 @@ async function runSoundArtistAgent(scenes, partLabel = '') {
       const geminiSlices = await fetchGeminiBatchVoices(batch, key);
       allSlices.push(...geminiSlices);
     } catch {
-      // Automatically switch this batch to Edge Neural Hindi TTS!
       for (let j = 0; j < batch.length; j++) {
         const globalIdx = start + j;
         setStatus(`🎙️ [Sound Artist] Edge Hindi Backup ${partLabel} (${globalIdx + 1}/${scenes.length})...`);
