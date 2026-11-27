@@ -1,4 +1,4 @@
-const APP_VERSION = 'v39.0';
+const APP_VERSION = 'v39.1';
 const canvas = document.getElementById('stageCanvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
@@ -619,6 +619,17 @@ function runContinuityAndCostumeSupervisor(directedScenes, topicHint = '') {
     litScenes[climaxIdx].cast = ['hero', 'gf', 'bro'];
     litScenes[climaxIdx].shot = 'wide';
   }
+
+  // Authority & Boss Reaction Lock: Boss (villain) never looks scared/sweating when catching employees!
+  litScenes.forEach((s) => {
+    if (s.char === 'villain') {
+      if (['sweat', 'shocked', 'crying'].includes(s.emotion)) s.emotion = 'angry';
+      if (s.gesture === 'facepalm' || s.gesture === 'shocked_hands') s.gesture = 'point';
+      if (s.cast.includes('hero') || s.cast.includes('bro')) s.otherEmotion = 'sweat';
+    } else if (s.cast.includes('villain')) {
+      if (['sweat', 'shocked', 'crying'].includes(s.otherEmotion)) s.otherEmotion = 'angry';
+    }
+  });
 
   // Pre-Flight QC Inspector: Break monotonous camera angles (if 3 same shots in a row, make middle one close-up)
   let qcFixes = 0;
@@ -1443,6 +1454,33 @@ function trimDeadSilence(buf, isLastScene = false) {
   return out;
 }
 
+function prepareTextForTTS(rawText) {
+  let hasCensor = false;
+  let t = String(rawText || '')
+    .replace(/\b(bsdk|mkc|bkl|mc|bc)\b/gi, () => { hasCensor = true; return 'beep'; })
+    .replace(/\bfir\b/gi, 'phir')
+    .replace(/\bkyu\b/gi, 'kyun')
+    .replace(/\bnhi\b/gi, 'nahin')
+    .replace(/\bpls\b/gi, 'please');
+  return { ttsText: t, hasCensor };
+}
+
+function playCensorBeep() {
+  if (!audioCtx || !destNode) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(1000, now);
+  gain.gain.setValueAtTime(0.32, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  gain.connect(destNode);
+  osc.start(now);
+  osc.stop(now + 0.25);
+}
+
 async function fetchBackendRealisticTTS(scene, provider = 'edge', isLast = false) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 11000);
@@ -1451,7 +1489,7 @@ async function fetchBackendRealisticTTS(scene, provider = 'edge', isLast = false
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: ctrl.signal,
-      body: JSON.stringify({ text: scene.text, char: scene.char, provider })
+      body: JSON.stringify({ text: prepareTextForTTS(scene.text).ttsText, char: scene.char, provider })
     });
     if (!res.ok) throw new Error(`${provider.toUpperCase()} TTS HTTP ${res.status}`);
     const arr = await res.arrayBuffer();
@@ -1745,7 +1783,7 @@ async function renderSinglePart(scenes, partNum, totalParts, recordVideo = true,
   for (let i = 0; i < litScenes.length; i++) {
     currentScene = litScenes[i];
     sceneStartTime = performance.now();
-    playSFX(litScenes[i].sfx);
+    playSFX(litScenes[i].sfx); if (prepareTextForTTS(litScenes[i].text).hasCensor) setTimeout(playCensorBeep, 350);
     setStatus(`✂️ [Editor] Shooting Take ${i + 1}/${litScenes.length} [${litScenes[i].cast.length}P • ${litScenes[i].location.toUpperCase()}] ${partLabel}...`);
     await playAudioOnce(audioList[i], litScenes[i].char, litScenes[i].emotion);
   }
