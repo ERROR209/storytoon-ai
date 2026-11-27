@@ -1,4 +1,4 @@
-const APP_VERSION = 'v39.1';
+const APP_VERSION = 'v39.2';
 const canvas = document.getElementById('stageCanvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
@@ -620,14 +620,19 @@ function runContinuityAndCostumeSupervisor(directedScenes, topicHint = '') {
     litScenes[climaxIdx].shot = 'wide';
   }
 
-  // Authority & Boss Reaction Lock: Boss (villain) never looks scared/sweating when catching employees!
+  // Smart Context-Aware Reaction Guard: Only make Boss angry when scolding/catching, allow scared Boss when story demands!
   litScenes.forEach((s) => {
-    if (s.char === 'villain') {
+    const t = (s.text || '').toLowerCase();
+    const bossScaredCue = /\b(sorry|maaf|darr|bhoot|biwi|wife|galti|bachao|kaamp|haath\s*jod|rehem)\b/.test(t);
+    const bossScoldingCue = /\b(chugli|pakde|fire|nikal|salary|cabin|bakwas|plan|wah\s*beta|kya\s*bol\s*rahe)\b/.test(t);
+
+    if (s.char === 'villain' && !bossScaredCue && bossScoldingCue) {
       if (['sweat', 'shocked', 'crying'].includes(s.emotion)) s.emotion = 'angry';
       if (s.gesture === 'facepalm' || s.gesture === 'shocked_hands') s.gesture = 'point';
       if (s.cast.includes('hero') || s.cast.includes('bro')) s.otherEmotion = 'sweat';
-    } else if (s.cast.includes('villain')) {
-      if (['sweat', 'shocked', 'crying'].includes(s.otherEmotion)) s.otherEmotion = 'angry';
+    } else if (s.char !== 'villain' && s.cast.includes('villain') && /\b(sir|boss)\b/.test(t) && /\b(sorry|maaf|galti|aap\s*yahan)\b/.test(t)) {
+      s.emotion = 'sweat';
+      s.otherEmotion = 'angry';
     }
   });
 
