@@ -1,4 +1,4 @@
-const APP_VERSION = 'v38.0';
+const APP_VERSION = 'v39.0';
 const canvas = document.getElementById('stageCanvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
@@ -36,6 +36,124 @@ apiKeyInput.value = localStorage.getItem('gemini_api_key') || '';
 apiKeyInput.addEventListener('change', () => {
   localStorage.setItem('gemini_api_key', apiKeyInput.value.trim());
 });
+
+
+// =========================================================================
+// DUAL INPUT MODE: TOPIC MODE (AI) vs CUSTOM SCRIPT MODE (USER SCRIPT)
+// =========================================================================
+let inputMode = "topic";
+const modeTopicBtn = document.getElementById("modeTopicBtn");
+const modeCustomScriptBtn = document.getElementById("modeCustomScriptBtn");
+const topicInputWrap = document.getElementById("topicInputWrap");
+const customScriptWrap = document.getElementById("customScriptWrap");
+const customScriptInput = document.getElementById("customScriptInput");
+const fillSampleCustomBtn = document.getElementById("fillSampleCustomBtn");
+
+function setInputMode(mode) {
+  inputMode = mode;
+  if (mode === "custom") {
+    modeCustomScriptBtn.className = "btn primary";
+    modeTopicBtn.className = "btn secondary";
+    customScriptWrap.classList.remove("hidden");
+    topicInputWrap.classList.add("hidden");
+    setStatus("📝 Custom Script Mode active! Apni script paste karke Action dabao.");
+  } else {
+    modeTopicBtn.className = "btn primary";
+    modeCustomScriptBtn.className = "btn secondary";
+    topicInputWrap.classList.remove("hidden");
+    customScriptWrap.classList.add("hidden");
+    setStatus("💡 Topic Mode active! Topic likho ya Random Viral Topic chuno.");
+  }
+}
+
+if (modeTopicBtn) modeTopicBtn.onclick = () => setInputMode("topic");
+if (modeCustomScriptBtn) modeCustomScriptBtn.onclick = () => setInputMode("custom");
+
+if (fillSampleCustomBtn) {
+  fillSampleCustomBtn.onclick = () => {
+    customScriptInput.value = [
+      "Hero: Bhai aaj meri girlfriend cafe mein milne aa rahi hai, bilkul hero lag raha hoon na?",
+      "Bro: Saale shakal dekh apni, aur bill ke paise hain ya phir mera wallet lootega?",
+      "GF: Sorry guys late ho gayi! Waise aaj ka coffee treat kaun de raha hai?",
+      "Bro: Bhabhi ji aaj toh isne khud bola hai ki chahe 5000 ka bill aaye wahi pay karega!"
+    ].join("\n");
+    setStatus("✨ Sample Custom Script loaded! Ab Action dabao.");
+  };
+}
+
+function mapSpeakerLabelToRole(rawName, fallbackIdx = 0) {
+  const n = (rawName || "").toLowerCase().trim();
+  if (/^(gf|girlfriend|crush|ladki|baby|jaan|riya|priya|ananya|neha)$/.test(n)) return "gf";
+  if (/^(sister|behen|didi|sis)$/.test(n)) return "sister";
+  if (/^(bhabhi)$/.test(n)) return "bhabhi";
+  if (/^(mom|mummy|maa|mother)$/.test(n)) return "mom";
+  if (/^(bro|dost|friend|yaar|rahul|rohit|aman)$/.test(n)) return "bro";
+  if (/^(boss|villain|sir|teacher|doctor|uncle|papa|dad)$/.test(n)) return "villain";
+  if (/^(hero|main|me|boy|guy)$/.test(n)) return "hero";
+  return fallbackIdx % 2 === 0 ? "hero" : "bro";
+}
+
+function parseCustomUserScript(rawText) {
+  const trimmed = (rawText || "").trim();
+  if (!trimmed) throw new Error("Pehle apni script paste ya type karo!");
+
+  // 1. If user pasted valid JSON array directly
+  if (trimmed.startsWith("[")) {
+    const parsed = JSON.parse(trimmed);
+    if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("JSON script empty hai!");
+    return parsed;
+  }
+
+  // 2. Parse Plain Dialogue Lines ("Hero: text" or plain lines)
+  const lines = trimmed.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const fullStoryText = lines.join(" ");
+  const detectedLoc = inferTopicLocation(fullStoryText) || "room";
+  const activeCast = ["hero", "bro"];
+  const scenes = [];
+
+  lines.forEach((line, idx) => {
+    let speaker = idx % 2 === 0 ? "hero" : "bro";
+    let dialogue = line;
+
+    const colonMatch = line.match(/^([a-zA-Z0-9_\s]{1,18})\s*:\s*(.+)$/);
+    if (colonMatch) {
+      speaker = mapSpeakerLabelToRole(colonMatch[1], idx);
+      dialogue = colonMatch[2].trim();
+    }
+
+    if (!activeCast.includes(speaker)) {
+      if (activeCast.length < 3) activeCast.push(speaker);
+      else activeCast[2] = speaker;
+    }
+
+    const t = dialogue.toLowerCase();
+    let emotion = "normal";
+    let sfx = "none";
+    let punch = "";
+    if (/!|\?|kya|kaise|shock|omg|pagal/.test(t)) { emotion = "shocked"; sfx = idx > 0 ? "gasp" : "none"; }
+    if (/saale|kamine|harami|gussa|maar|bhag|nikal|bsdk|chomu/.test(t)) { emotion = "angry"; sfx = "bonk"; punch = "Savage Roast"; }
+    if (/haha|treat|bill|wallet|maza|chill|smart/.test(t)) { emotion = "smug"; }
+    if (/sorry|dard|rona|cry|tension|darr/.test(t)) { emotion = "sweat"; }
+
+    const lineLoc = inferTopicLocation(dialogue) || detectedLoc;
+    scenes.push({
+      char: speaker,
+      cast: [...activeCast],
+      emotion,
+      otherEmotion: emotion === "angry" ? "sweat" : "normal",
+      gesture: emotion === "angry" ? "point" : (emotion === "smug" ? "crossed" : "explain"),
+      shot: activeCast.length >= 3 ? "wide" : (idx % 3 === 1 ? "in" : "normal"),
+      location: lineLoc,
+      lighting: /raat|night|andhera|light off/.test(t) ? "night" : "pastel",
+      punch,
+      prop: /phone|mobile|upi|message|call/.test(t) ? "phone" : (/chai|coffee|tea/.test(t) ? "chai" : "none"),
+      sfx,
+      text: dialogue
+    });
+  });
+
+  return scenes;
+}
 
 function parseEpisodeConfig() {
   const val = episodeModeSelect.value;
@@ -1654,6 +1772,37 @@ document.getElementById('oneClickAutoBtn').onclick = async () => {
   if (isPlayingSequence) return;
   const rawKeys = apiKeyInput.value.split(",").map(k => k.trim()).filter(Boolean);
   const key = rawKeys[0] || "";
+
+  if (inputMode === "custom") {
+    let customScenes;
+    try {
+      setCrewState("reset");
+      setCrewState("writer", "active");
+      customScenes = parseCustomUserScript(customScriptInput.value);
+      setCrewState("writer", "done");
+      setCrewState("director", "done");
+    } catch (err) {
+      return setStatus(`Script Error: ${err.message}`);
+    }
+    isPlayingSequence = true;
+    initAudio();
+    downloadLink.classList.add("hidden");
+    try {
+      const prepared = runContinuityAndCostumeSupervisor(customScenes, customScriptInput.value);
+      scriptEditor.value = JSON.stringify(prepared, null, 2);
+      if (prepared[0]) { currentScene = prepared[0]; sceneStartTime = performance.now(); }
+      cachedScriptHash = "";
+      renderMicControls();
+      const { secs, sizeKB, ext } = await renderSinglePart(prepared, 1, 1, true, true);
+      setStatus(`🎉 Custom Script Video Ready! (${secs}s • ${sizeKB} KB ${ext.toUpperCase()})`);
+    } catch (err) {
+      setStatus(`Production Error: ${err.message}`);
+    } finally {
+      isPlayingSequence = false;
+    }
+    return;
+  }
+
   const topic = topicInput.value.trim();
   if (!key) return setStatus('Enter your Google AI Studio API Key first!');
   if (!topic) return setStatus('Enter a Story Topic first!');
@@ -1688,6 +1837,21 @@ document.getElementById('oneClickAutoBtn').onclick = async () => {
 
 document.getElementById('generateScriptBtn').onclick = async () => {
   if (isPlayingSequence) return;
+  if (inputMode === "custom") {
+    try {
+      setCrewState("reset");
+      setCrewState("writer", "done");
+      setCrewState("director", "done");
+      const parsed = parseCustomUserScript(customScriptInput.value);
+      const prepared = runContinuityAndCostumeSupervisor(parsed, customScriptInput.value);
+      scriptEditor.value = JSON.stringify(prepared, null, 2);
+      if (prepared[0]) { currentScene = prepared[0]; sceneStartTime = performance.now(); }
+      cachedScriptHash = "";
+      renderMicControls();
+      setStatus(`✅ Custom Script Prepared! (${prepared.length} shots ready to shoot).`);
+    } catch (err) { setStatus(`Script Error: ${err.message}`); }
+    return;
+  }
   const rawKeys = apiKeyInput.value.split(",").map(k => k.trim()).filter(Boolean);
   const key = rawKeys[0] || "";
   const topic = topicInput.value.trim();

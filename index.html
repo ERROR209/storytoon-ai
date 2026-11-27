@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>StoryToon AI v38.0 — Unfiltered Scriptwriter, Reaction Cuts & QC</title>
-  <link rel="stylesheet" href="style.css?v=38" />
+  <title>StoryToon AI v39.0 — Topic + Custom Script Studio</title>
+  <link rel="stylesheet" href="style.css?v=39" />
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div class="brand">🎬 <span>StoryToon Studio</span></div>
-      <div class="badge" id="appVersionBadge">Build v38.0</div>
+      <div class="badge" id="appVersionBadge">Build v39.0</div>
     </header>
 
     <main class="workspace">
@@ -20,13 +20,36 @@
           <input type="password" id="apiKeyInput" placeholder="AIzaSyKey1, AIzaSyKey2 (Multi-Key Auto Rotation)" />
         </label>
 
-        <label class="field">
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span>Story Topic / Movie Scene Idea</span>
-            <button type="button" id="randomTopicBtn" class="btn tiny" style="background:#334155;color:#fef08a;">🎲 Random Viral Topic</button>
+        <!-- DUAL INPUT MODE SWITCHER -->
+        <div class="btn-row" style="margin-bottom:4px;">
+          <button type="button" id="modeTopicBtn" class="btn primary" style="font-size:0.8rem;">💡 Topic Se Banao (AI)</button>
+          <button type="button" id="modeCustomScriptBtn" class="btn secondary" style="font-size:0.8rem;">📝 Apni Script Paste Karo</button>
+        </div>
+
+        <!-- PANEL A: TOPIC INPUT -->
+        <div id="topicInputWrap">
+          <label class="field">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span>Story Topic / Movie Scene Idea</span>
+              <button type="button" id="randomTopicBtn" class="btn tiny" style="background:#334155;color:#fef08a;">🎲 Random Viral Topic</button>
+            </div>
+            <textarea id="topicInput" rows="2" placeholder="e.g., Dost ke saath room mein gf ki naughty baatein aur achanak behen ki entry..."></textarea>
+          </label>
+        </div>
+
+        <!-- PANEL B: CUSTOM SCRIPT INPUT -->
+        <div id="customScriptWrap" class="hidden">
+          <label class="field">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span>Apni Script Likho / Paste Karo (Plain Dialogues ya JSON)</span>
+              <button type="button" id="fillSampleCustomBtn" class="btn tiny" style="background:#334155;color:#38bdf8;">✨ Sample Format</button>
+            </div>
+            <textarea id="customScriptInput" rows="5" placeholder="Hero: Bhai aaj meri gf cafe mein aa rahi hai!&#10;Bro: Saale bill ke paise hain ya phir bartan dhoyega?&#10;GF: Sorry guys late ho gayi, aaj ka treat meri taraf se!"></textarea>
+          </label>
+          <div style="font-size:0.71rem;color:#94a3b8;margin-top:-2px;">
+            💡 Tip: Har line mein <b>Hero:</b>, <b>Bro:</b>, <b>GF:</b>, <b>Sister:</b>, <b>Mom:</b>, <b>Bhabhi:</b>, ya <b>Boss:</b> likho — Crew khud location, kapde aur camera set kar dega!
           </div>
-          <textarea id="topicInput" rows="2" placeholder="e.g., Dost ke saath late night room mein gf ki naughty baatein aur pakde jaane ka scene..."></textarea>
-        </label>
+        </div>
 
         <div class="row-2">
           <label class="field">
@@ -81,14 +104,14 @@
         </div>
 
         <button id="oneClickAutoBtn" class="btn accent" style="width:100%;padding:13px;font-size:0.96rem;">
-          🎬 Action! Auto-Produce & Download Video
+          🎬 Action! Produce & Download Video
         </button>
 
         <div class="btn-row">
           <button id="generateScriptBtn" class="btn secondary" style="font-size:0.78rem;">Crew Pre-Production Only</button>
           <button id="playRecordBtn" class="btn primary" style="font-size:0.78rem;">Shoot & Export Current</button>
         </div>
-        <div id="statusBar" class="status-bar">StoryToon v38.0 ready! Unfiltered Desi Scriptwriter + Reaction Cutaways + Pre-Flight QC active!</div>
+        <div id="statusBar" class="status-bar">StoryToon v39.0 ready! Topic Mode (AI) aur Custom Script Mode dono active hain!</div>
       </section>
 
       <section class="card stage-card">
@@ -103,13 +126,13 @@
 
       <section class="card script-card">
         <div class="script-header">
-          <span>Shooting Script (v38.0 • Unfiltered Desi + Reaction Cutaways)</span>
+          <span>Final Shooting Script (JSON • Auto-Prepared by Crew)</span>
           <button id="loadDemoBtn" class="btn tiny">Load Demo</button>
         </div>
         <textarea id="scriptEditor" rows="7"></textarea>
       </section>
     </main>
   </div>
-  <script src="app.js?v=38"></script>
+  <script src="app.js?v=39"></script>
 </body>
 </html>
