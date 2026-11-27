@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>StoryToon AI v36.0 — Costume Designer, VFX & Continuity Studio</title>
-  <link rel="stylesheet" href="style.css?v=36" />
+  <title>StoryToon AI v37.0 — Unlimited Realistic Voice Studio</title>
+  <link rel="stylesheet" href="style.css?v=37" />
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div class="brand">🎬 <span>StoryToon Studio</span></div>
-      <div class="badge" id="appVersionBadge">Build v36.0</div>
+      <div class="badge" id="appVersionBadge">Build v37.0</div>
     </header>
 
     <main class="workspace">
       <section class="card control-card">
         <label class="field">
-          <span>Google AI Studio (Gemini) API Key</span>
-          <input type="password" id="apiKeyInput" placeholder="Paste AIzaSy... key here" />
+          <span>Google AI Studio API Key(s) — Comma lagakar multiple keys daal sakte ho</span>
+          <input type="password" id="apiKeyInput" placeholder="AIzaSyKey1, AIzaSyKey2 (Multi-Key Auto Rotation)" />
         </label>
 
         <label class="field">
@@ -59,11 +59,12 @@
             </select>
           </label>
           <label class="field">
-            <span>Voice Engine</span>
+            <span>Voice Engine (Realistic)</span>
             <select id="voiceEngineSelect">
-              <option value="auto" selected>Auto (Gemini + Edge Hindi)</option>
-              <option value="edge">Edge Neural Hindi (Fast Free)</option>
-              <option value="gemini">Gemini Multi-Speaker TTS</option>
+              <option value="auto" selected>Auto (Edge Neural + HF + Gemini)</option>
+              <option value="edge">Edge Neural Hindi (Unlimited Free)</option>
+              <option value="hf">Hugging Face Realistic AI (Free)</option>
+              <option value="gemini">Gemini Multi-Speaker (Multi-Key)</option>
             </select>
           </label>
         </div>
@@ -84,7 +85,7 @@
           <button id="generateScriptBtn" class="btn secondary" style="font-size:0.78rem;">Crew Pre-Production Only</button>
           <button id="playRecordBtn" class="btn primary" style="font-size:0.78rem;">Shoot & Export Current</button>
         </div>
-        <div id="statusBar" class="status-bar">StoryToon v36.0 ready! Costume Designer, Anime VFX, & Continuity Supervisor active!</div>
+        <div id="statusBar" class="status-bar">StoryToon v37.0 ready! Unlimited Edge Neural + Hugging Face Realistic AI + Multi-Key Gemini active!</div>
       </section>
 
       <section class="card stage-card">
@@ -99,13 +100,13 @@
 
       <section class="card script-card">
         <div class="script-header">
-          <span>Shooting Script (v36.0 • Location Costumes + Anime VFX + Continuity)</span>
+          <span>Shooting Script (v37.0 • Multi-Engine Realistic Voices)</span>
           <button id="loadDemoBtn" class="btn tiny">Load Demo</button>
         </div>
         <textarea id="scriptEditor" rows="7"></textarea>
       </section>
     </main>
   </div>
-  <script src="app.js?v=36"></script>
+  <script src="app.js?v=37"></script>
 </body>
 </html>

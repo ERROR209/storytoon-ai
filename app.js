@@ -1,4 +1,4 @@
-const APP_VERSION = 'v36.0';
+const APP_VERSION = 'v37.0';
 const canvas = document.getElementById('stageCanvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
@@ -1250,7 +1250,7 @@ function renderLoop() {
 renderLoop();
 
 // =========================================================================
-// AGENT 4: SOUND & DUBBING DIRECTOR (UNCHANGED)
+// AGENT 4: MULTI-ENGINE REALISTIC SOUND DIRECTOR (Edge + HF + Multi-Key Gemini)
 // =========================================================================
 function pcmToWavBuffer(base64Pcm, sampleRate = 24000) {
   const binary = atob(base64Pcm), pcmLen = binary.length, wavBuffer = new ArrayBuffer(44 + pcmLen), view = new DataView(wavBuffer);
@@ -1282,17 +1282,17 @@ function trimDeadSilence(buf, isLastScene = false) {
   return out;
 }
 
-async function fetchSingleEdgeTTS(scene, isLast = false) {
+async function fetchBackendRealisticTTS(scene, provider = 'edge', isLast = false) {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 8500);
+  const timer = setTimeout(() => ctrl.abort(), 11000);
   try {
     const res = await fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: ctrl.signal,
-      body: JSON.stringify({ text: scene.text, char: scene.char })
+      body: JSON.stringify({ text: scene.text, char: scene.char, provider })
     });
-    if (!res.ok) throw new Error(`Edge TTS HTTP ${res.status}`);
+    if (!res.ok) throw new Error(`${provider.toUpperCase()} TTS HTTP ${res.status}`);
     const arr = await res.arrayBuffer();
     const decoded = await audioCtx.decodeAudioData(arr);
     return trimDeadSilence(decoded, isLast);
@@ -1301,12 +1301,13 @@ async function fetchSingleEdgeTTS(scene, isLast = false) {
   }
 }
 
-async function fetchEdgeTTSPerScene(scenes, partLabel = '') {
+async function fetchBackendTTSPerScene(scenes, provider = 'edge', partLabel = '') {
+  const label = provider === 'hf' ? 'HuggingFace Realistic AI' : 'Edge Neural Hindi';
   const buffers = [];
   for (let i = 0; i < scenes.length; i++) {
-    setStatus(`🎙️ [Sound Director] Recording Edge Hindi Voice ${partLabel} (${i + 1}/${scenes.length})...`);
+    setStatus(`🎙️ [Sound Director] ${label} ${partLabel} (${i + 1}/${scenes.length})...`);
     try {
-      buffers.push(await fetchSingleEdgeTTS(scenes[i], i === scenes.length - 1));
+      buffers.push(await fetchBackendRealisticTTS(scenes[i], provider, i === scenes.length - 1));
     } catch {
       buffers.push(createSilentBuffer(Math.max(2.4, (scenes[i].text || '').split(' ').length * 0.36)));
     }
@@ -1314,65 +1315,107 @@ async function fetchEdgeTTSPerScene(scenes, partLabel = '') {
   return buffers;
 }
 
-async function fetchGeminiBatchVoices(batch, key) {
+async function fetchGeminiBatchWithMultiKeys(batch, keysList) {
   const dialogueLines = batch.map((sc) => `${isFemaleChar(sc.char) ? 'FemaleVoice' : 'MaleVoice'}: ${sc.text}`).join('\n');
+  let lastErr = 'Gemini TTS quota exceeded';
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 35000);
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(key)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    signal: ctrl.signal,
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: 'Perform EVERY single line with natural Indian Hindi/Hinglish expression from start to finish without cutting off:\n' + dialogueLines }] }],
-      generationConfig: {
-        responseModalities: ["AUDIO"],
-        speechConfig: {
-          multiSpeakerVoiceConfig: {
-            speakerVoiceConfigs: [
-              { speaker: 'MaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
-              { speaker: 'FemaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
-            ]
+  for (let kIdx = 0; kIdx < keysList.length; kIdx++) {
+    const apiKey = keysList[kIdx];
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 32000);
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${encodeURIComponent(apiKey)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: 'Perform EVERY single line with natural Indian Hindi/Hinglish expression from start to finish without cutting off:\n' + dialogueLines }] }],
+          generationConfig: {
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              multiSpeakerVoiceConfig: {
+                speakerVoiceConfigs: [
+                  { speaker: 'MaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Puck' } } },
+                  { speaker: 'FemaleVoice', voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } }
+                ]
+              }
+            }
           }
-        }
+        })
+      });
+      clearTimeout(timer);
+      if (!res.ok) {
+        lastErr = `Key #${kIdx + 1} HTTP ${res.status}`;
+        continue; // Try next API key!
       }
-    })
-  });
-  clearTimeout(timer);
-  if (!res.ok) throw new Error(`Gemini TTS HTTP ${res.status}`);
-  const data = await res.json();
-  const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-  if (!inlineData?.data) throw new Error('No audio returned');
-  const batchBuf = await audioCtx.decodeAudioData(pcmToWavBuffer(inlineData.data, 24000));
-  if (batchBuf.duration < batch.length * 1.1) throw new Error('Gemini TTS audio too short');
-  return splitAudioBufferByScenes(batchBuf, batch);
+      const data = await res.json();
+      const inlineData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+      if (!inlineData?.data) { lastErr = 'No audio returned'; continue; }
+      const batchBuf = await audioCtx.decodeAudioData(pcmToWavBuffer(inlineData.data, 24000));
+      if (batchBuf.duration < batch.length * 1.1) { lastErr = 'Audio too short'; continue; }
+      return splitAudioBufferByScenes(batchBuf, batch);
+    } catch (err) {
+      clearTimeout(timer);
+      lastErr = err.message;
+    }
+  }
+  throw new Error(lastErr);
 }
 
 async function runSoundArtistAgent(scenes, partLabel = '') {
   setCrewState('sound', 'active');
   const mode = voiceEngineSelect.value;
-  const key = apiKeyInput.value.trim();
+  const keysList = apiKeyInput.value.split(',').map(k => k.trim()).filter(Boolean);
 
-  if (mode === 'edge' || !key) {
-    const list = await fetchEdgeTTSPerScene(scenes, partLabel);
+  // Mode 1: Pure Edge Neural Hindi (Unlimited Free Realistic)
+  if (mode === 'edge') {
+    const list = await fetchBackendTTSPerScene(scenes, 'edge', partLabel);
     setCrewState('sound', 'done');
     return list;
   }
 
+  // Mode 2: Hugging Face Realistic AI (Free)
+  if (mode === 'hf') {
+    const list = await fetchBackendTTSPerScene(scenes, 'hf', partLabel);
+    setCrewState('sound', 'done');
+    return list;
+  }
+
+  // Mode 3: Auto (Prioritizes Unlimited Edge Neural + HF Realistic so Gemini quota never blocks!)
+  if (mode === 'auto') {
+    const buffers = [];
+    for (let i = 0; i < scenes.length; i++) {
+      setStatus(`🎙️ [Sound Director] Realistic Neural Voice ${partLabel} (${i + 1}/${scenes.length})...`);
+      try {
+        buffers.push(await fetchBackendRealisticTTS(scenes[i], 'edge', i === scenes.length - 1));
+      } catch {
+        try {
+          setStatus(`🎙️ [Sound Director] HuggingFace Backup ${partLabel} (${i + 1}/${scenes.length})...`);
+          buffers.push(await fetchBackendRealisticTTS(scenes[i], 'hf', i === scenes.length - 1));
+        } catch {
+          buffers.push(createSilentBuffer(Math.max(2.4, (scenes[i].text || '').split(' ').length * 0.36)));
+        }
+      }
+    }
+    setCrewState('sound', 'done');
+    return buffers;
+  }
+
+  // Mode 4: Gemini Multi-Speaker TTS (with Multi-Key Auto Rotation + Edge Neural Fallback)
   const chunkSize = 6;
   const allSlices = [];
   for (let start = 0; start < scenes.length; start += chunkSize) {
     const batch = scenes.slice(start, start + chunkSize);
-    setStatus(`🎙️ [Sound Director] Recording Voices ${partLabel} (${start + 1}-${start + batch.length}/${scenes.length})...`);
+    setStatus(`🎙️ [Sound Director] Gemini Multi-Speaker ${partLabel} (${start + 1}-${start + batch.length}/${scenes.length})...`);
     try {
-      const geminiSlices = await fetchGeminiBatchVoices(batch, key);
+      const geminiSlices = await fetchGeminiBatchWithMultiKeys(batch, keysList);
       allSlices.push(...geminiSlices);
     } catch {
       for (let j = 0; j < batch.length; j++) {
         const globalIdx = start + j;
-        setStatus(`🎙️ [Sound Director] Edge Hindi Backup ${partLabel} (${globalIdx + 1}/${scenes.length})...`);
+        setStatus(`🎙️ [Sound Director] Edge Neural Fallback ${partLabel} (${globalIdx + 1}/${scenes.length})...`);
         try {
-          allSlices.push(await fetchSingleEdgeTTS(batch[j], globalIdx === scenes.length - 1));
+          allSlices.push(await fetchBackendRealisticTTS(batch[j], 'edge', globalIdx === scenes.length - 1));
         } catch {
           allSlices.push(createSilentBuffer(Math.max(2.4, (batch[j].text || '').split(' ').length * 0.36)));
         }
@@ -1566,7 +1609,8 @@ async function renderSinglePart(scenes, partNum, totalParts, recordVideo = true,
 
 document.getElementById('oneClickAutoBtn').onclick = async () => {
   if (isPlayingSequence) return;
-  const key = apiKeyInput.value.trim();
+  const rawKeys = apiKeyInput.value.split(",").map(k => k.trim()).filter(Boolean);
+  const key = rawKeys[0] || "";
   const topic = topicInput.value.trim();
   if (!key) return setStatus('Enter your Google AI Studio API Key first!');
   if (!topic) return setStatus('Enter a Story Topic first!');
@@ -1601,7 +1645,8 @@ document.getElementById('oneClickAutoBtn').onclick = async () => {
 
 document.getElementById('generateScriptBtn').onclick = async () => {
   if (isPlayingSequence) return;
-  const key = apiKeyInput.value.trim();
+  const rawKeys = apiKeyInput.value.split(",").map(k => k.trim()).filter(Boolean);
+  const key = rawKeys[0] || "";
   const topic = topicInput.value.trim();
   if (!key || !topic) return setStatus('Enter API Key & Topic first!');
   const { targetLines } = parseEpisodeConfig();
