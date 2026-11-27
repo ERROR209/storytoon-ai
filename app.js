@@ -1,4 +1,4 @@
-const APP_VERSION = 'v42.0';
+const APP_VERSION = 'v42.1';
 const canvas = document.getElementById('stageCanvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
@@ -376,6 +376,18 @@ function playSFX(type) {
       osc.connect(gain); gain.connect(audioCtx.destination); gain.connect(destNode);
       osc.start(now); osc.stop(now + 0.66);
     });
+  } else if (type === 'cricket') {
+    [0, 0.22, 0.44].forEach((offset) => {
+      const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(4200, now + offset);
+      osc.frequency.setValueAtTime(4600, now + offset + 0.05);
+      gain.gain.setValueAtTime(0.001, now + offset);
+      gain.gain.linearRampToValueAtTime(0.14, now + offset + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.14);
+      osc.connect(gain); gain.connect(audioCtx.destination); gain.connect(destNode);
+      osc.start(now + offset); osc.stop(now + offset + 0.15);
+    });
   } else if (type === 'gasp') {
     const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
     osc.type = 'sine'; osc.frequency.setValueAtTime(280, now); osc.frequency.exponentialRampToValueAtTime(760, now + 0.18);
@@ -624,24 +636,11 @@ function runContinuityAndCostumeSupervisor(directedScenes, topicHint = '') {
       }
     });
 
-    // Context-aware sanity guard: Boss/Authority scolding employees is NEVER scared/sweating
-    const bossScaredCue = /\b(sorry|maaf|darr|bhoot|biwi|wife|galti|bachao|kaamp|haath\s*jod|rehem)\b/.test(txt);
-    if (s.cast.includes('villain') && !bossScaredCue) {
-      if (s.char === 'villain') {
-        if (['sweat', 'shocked', 'crying'].includes(rx.villain)) rx.villain = 'angry';
-        if (s.gesture === 'facepalm' || s.gesture === 'shocked_hands') s.gesture = 'point';
-        s.cast.forEach((r) => {
-          if (r !== 'villain' && ['angry', 'smug'].includes(rx[r])) rx[r] = 'sweat';
-        });
-      } else if (/\b(sir|boss|sorry|maaf|galti|aap\s*yahan)\b/.test(txt)) {
-        if (['sweat', 'shocked', 'crying'].includes(rx.villain)) rx.villain = 'angry';
-        if (['angry', 'smug'].includes(rx[s.char])) rx[s.char] = 'sweat';
-      }
-    }
-
-    // Context-aware sanity guard: GF/Mom confronting BF/Son is NEVER scared unless ghost/danger
-    if (s.cast.includes('gf') && !bossScaredCue && s.char === 'gf' && ['sweat', 'shocked'].includes(rx.gf)) {
-      rx.gf = 'angry';
+    // Pure Dialogue-Driven Guard (Zero role bias: Boss/GF can laugh, get scared, or get angry naturally!)
+    const isConfronting = /\b(wah\s*beta|kya\s*bol\s*rahe|pakda\s*gaya|pakde\s*gaye|password\s*dikha|chugli|sharam\s*nahi)\b/.test(txt);
+    if (isConfronting && ['sweat', 'shocked', 'crying'].includes(rx[s.char])) {
+      rx[s.char] = 'angry';
+      if (s.gesture === 'facepalm' || s.gesture === 'shocked_hands') s.gesture = 'point';
     }
 
     s.reactions = rx;
@@ -1001,7 +1000,7 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
   const fem = isFemaleChar(char);
   const dir = lookDir >= 0 ? 1 : -1;
   const breath = Math.sin(frameTick * 0.08) * 2.5;
-  const speakBounce = isSpeaker ? talkAmt * 5.0 : 0;
+  const speakBounce = isSpeaker ? (talkAmt * 7.5 + Math.abs(Math.sin(frameTick * 0.22)) * talkAmt * 3.5) : 0;
 
   // Human Body Acting: Shivering when scared/sweating, leaning forward when angry!
   const isScared = emotion === 'sweat' || emotion === 'shocked' || emotion === 'crying';
@@ -1128,7 +1127,7 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
   ctx.restore();
 
   const headY = -318;
-  const headNod = isSpeaker ? (talkAmt * 5.0 + breath * 0.4) : (Math.sin(frameTick * 0.1) * 2);
+  const headNod = isSpeaker ? (talkAmt * 7.0 + Math.sin(frameTick * 0.25) * talkAmt * 3.0) : (Math.sin(frameTick * 0.1) * 2);
   const headTilt = isSpeaker ? Math.sin(frameTick * 0.14) * 0.045 * (0.3 + talkAmt) : (isAngry ? dir * 0.04 : 0.01);
 
   ctx.save();
@@ -1546,6 +1545,7 @@ function prepareTextForTTS(rawText) {
     .replace(/\bkyu\b/gi, 'kyun')
     .replace(/\bnhi\b/gi, 'nahin')
     .replace(/\bpls\b/gi, 'please');
+  t = t.replace(/\s+(lekin|par|magar|aur\s+tabhi|achanak)\s+/gi, '... $1 ');
   return { ttsText: t, hasCensor };
 }
 
