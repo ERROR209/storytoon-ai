@@ -3,22 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>StoryToon AI v39.0 — Topic + Custom Script Studio</title>
-  <link rel="stylesheet" href="style.css?v=39" />
+  <title>StoryToon AI v41.0 — Expressive Desi Voice & Per-Character Reaction Studio</title>
+  <link rel="stylesheet" href="style.css?v=41" />
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div class="brand">🎬 <span>StoryToon Studio</span></div>
-      <div class="badge" id="appVersionBadge">Build v40.0</div>
+      <div class="badge" id="appVersionBadge">Build v41.0</div>
     </header>
 
     <main class="workspace">
       <section class="card control-card">
-        <label class="field">
-          <span>Google AI Studio API Key(s) — Comma lagakar multiple keys daal sakte ho</span>
-          <input type="password" id="apiKeyInput" placeholder="AIzaSyKey1, AIzaSyKey2 (Multi-Key Auto Rotation)" />
-        </label>
+        <div class="row-2">
+          <label class="field">
+            <span>Gemini API Key(s)</span>
+            <input type="password" id="apiKeyInput" placeholder="AIzaSyKey1, AIzaSyKey2" />
+          </label>
+          <label class="field">
+            <span>Sarvam AI Key (Optional • Hyper-Desi)</span>
+            <input type="password" id="sarvamKeyInput" placeholder="sk_... (dashboard.sarvam.ai)" />
+          </label>
+        </div>
 
         <!-- DUAL INPUT MODE SWITCHER -->
         <div class="btn-row" style="margin-bottom:4px;">
@@ -33,7 +39,7 @@
               <span>Story Topic / Movie Scene Idea</span>
               <button type="button" id="randomTopicBtn" class="btn tiny" style="background:#334155;color:#fef08a;">🎲 Random Viral Topic</button>
             </div>
-            <textarea id="topicInput" rows="2" placeholder="e.g., Dost ke saath room mein gf ki naughty baatein aur achanak behen ki entry..."></textarea>
+            <textarea id="topicInput" rows="2" placeholder="e.g., Office mein boss ki chugli karte waqt peeche khud boss khada tha..."></textarea>
           </label>
         </div>
 
@@ -46,9 +52,6 @@
             </div>
             <textarea id="customScriptInput" rows="5" placeholder="Hero: Bhai aaj meri gf cafe mein aa rahi hai!&#10;Bro: Saale bill ke paise hain ya phir bartan dhoyega?&#10;GF: Sorry guys late ho gayi, aaj ka treat meri taraf se!"></textarea>
           </label>
-          <div style="font-size:0.71rem;color:#94a3b8;margin-top:-2px;">
-            💡 Tip: Har line mein <b>Hero:</b>, <b>Bro:</b>, <b>GF:</b>, <b>Sister:</b>, <b>Mom:</b>, <b>Bhabhi:</b>, ya <b>Boss:</b> likho — Crew khud location, kapde aur camera set kar dega!
-          </div>
         </div>
 
         <div class="row-2">
@@ -85,12 +88,13 @@
             </select>
           </label>
           <label class="field">
-            <span>Voice Engine (Realistic)</span>
+            <span>Voice Engine (Expressive Acting)</span>
             <select id="voiceEngineSelect">
-              <option value="auto" selected>Auto (Edge Neural + HF + Gemini)</option>
-              <option value="edge">Edge Neural Hindi (Unlimited Free)</option>
-              <option value="hf">Hugging Face Realistic AI (Free)</option>
-              <option value="gemini">Gemini Multi-Speaker (Multi-Key)</option>
+              <option value="auto" selected>Auto (Sarvam / 4-Voice Expressive Neural)</option>
+              <option value="sarvam">🇮🇳 Sarvam AI Desi (Hyper-Realistic)</option>
+              <option value="edge">4-Voice Expressive Indian Neural (Free)</option>
+              <option value="gemini">Gemini 4-Actor Studio (Multi-Key)</option>
+              <option value="hf">Hugging Face Neural AI (Free)</option>
             </select>
           </label>
         </div>
@@ -111,7 +115,7 @@
           <button id="generateScriptBtn" class="btn secondary" style="font-size:0.78rem;">Crew Pre-Production Only</button>
           <button id="playRecordBtn" class="btn primary" style="font-size:0.78rem;">Shoot & Export Current</button>
         </div>
-        <div id="statusBar" class="status-bar">StoryToon v39.0 ready! Topic Mode (AI) aur Custom Script Mode dono active hain!</div>
+        <div id="statusBar" class="status-bar">StoryToon v41.0 ready! 4-Voice Expressive Indian Acting + Sarvam AI Bulbul v2 + Real Censor Beep active!</div>
       </section>
 
       <section class="card stage-card">
@@ -126,13 +130,13 @@
 
       <section class="card script-card">
         <div class="script-header">
-          <span>Final Shooting Script (JSON • Auto-Prepared by Crew)</span>
+          <span>Final Shooting Script (JSON • Per-Character Reactions)</span>
           <button id="loadDemoBtn" class="btn tiny">Load Demo</button>
         </div>
         <textarea id="scriptEditor" rows="7"></textarea>
       </section>
     </main>
   </div>
-  <script src="app.js?v=39"></script>
+  <script src="app.js?v=41"></script>
 </body>
 </html>

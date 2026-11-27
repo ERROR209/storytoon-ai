@@ -21,17 +21,51 @@ function escapeXml(str) {
     .replace(/'/g, '&apos;');
 }
 
-function synthesizeEdgeNeural(text, char = 'hero') {
-  return new Promise((resolve, reject) => {
-    const isFemale = ['mom', 'bhabhi', 'gf', 'sister'].includes(char);
-    const voice = isFemale ? 'hi-IN-SwaraNeural' : 'hi-IN-MadhurNeural';
-    let pitch = '+0Hz';
-    let rate = '+4%';
-    if (char === 'bro') { pitch = '+12Hz'; rate = '+7%'; }
-    else if (char === 'villain') { pitch = '-18Hz'; rate = '-3%'; }
-    else if (char === 'sister') { pitch = '+18Hz'; rate = '+8%'; }
-    else if (char === 'mom' || char === 'bhabhi') { pitch = '-6Hz'; rate = '+2%'; }
+function getExpressiveVoiceConfig(char = 'hero', emotion = 'normal') {
+  let voice = 'hi-IN-MadhurNeural';
+  let lang = 'hi-IN';
+  let pitch = '+4Hz';
+  let rate = '+8%';
 
+  if (char === 'bro') {
+    voice = 'en-IN-PrabhatNeural';
+    lang = 'en-IN';
+    pitch = '+14Hz';
+    rate = '+11%';
+  } else if (char === 'gf' || char === 'sister') {
+    voice = 'en-IN-NeerjaNeural';
+    lang = 'en-IN';
+    pitch = char === 'sister' ? '+16Hz' : '+8Hz';
+    rate = '+9%';
+  } else if (char === 'mom' || char === 'bhabhi') {
+    voice = 'hi-IN-SwaraNeural';
+    lang = 'hi-IN';
+    pitch = '-4Hz';
+    rate = '+5%';
+  } else if (char === 'villain') {
+    voice = 'hi-IN-MadhurNeural';
+    lang = 'hi-IN';
+    pitch = '-22Hz';
+    rate = '+0%';
+  }
+
+  if (emotion === 'angry') {
+    rate = '+15%';
+    pitch = char === 'villain' ? '-14Hz' : '+18Hz';
+  } else if (emotion === 'shocked' || emotion === 'sweat') {
+    rate = '+13%';
+    pitch = '+20Hz';
+  } else if (emotion === 'crying') {
+    rate = '-6%';
+    pitch = '-10Hz';
+  }
+
+  return { voice, lang, pitch, rate };
+}
+
+function synthesizeEdgeNeural(text, char = 'hero', emotion = 'normal') {
+  return new Promise((resolve, reject) => {
+    const { voice, lang, pitch, rate } = getExpressiveVoiceConfig(char, emotion);
     const reqId = crypto.randomBytes(16).toString('hex');
     const secMsGec = generateSecMsGec();
     const wsUrl = `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${TRUSTED_CLIENT_TOKEN}&Sec-MS-GEC=${secMsGec}&Sec-MS-GEC-Version=1-130.0.2849.68&ConnectionId=${reqId}`;
@@ -50,13 +84,13 @@ function synthesizeEdgeNeural(text, char = 'hero') {
     const timer = setTimeout(() => {
       try { ws.close(); } catch {}
       reject(new Error('Edge Neural timeout'));
-    }, 8000);
+    }, 8500);
 
     ws.onopen = () => {
       const cfg = `X-Timestamp:${new Date().toISOString()}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{"context":{"synthesis":{"audio":{"metadataoptions":{"sentenceBoundaryEnabled":false,"wordBoundaryEnabled":false},"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}`;
       ws.send(cfg);
 
-      const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='hi-IN'><voice name='${voice}'><prosody pitch='${pitch}' rate='${rate}'>${escapeXml(text)}</prosody></voice></speak>`;
+      const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${lang}'><voice name='${voice}'><prosody pitch='${pitch}' rate='${rate}'>${escapeXml(text)}</prosody></voice></speak>`;
       const msg = `X-RequestId:${reqId}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:${new Date().toISOString()}\r\nPath:ssml\r\n\r\n${ssml}`;
       ws.send(msg);
     };
@@ -91,9 +125,57 @@ function synthesizeEdgeNeural(text, char = 'hero') {
   });
 }
 
+async function synthesizeSarvamTTS(text, char = 'hero', emotion = 'normal', sarvamKey = '') {
+  if (!sarvamKey) throw new Error('Missing Sarvam API key');
+  const speakerMap = {
+    hero: 'abhilash',
+    bro: 'karun',
+    villain: 'hitesh',
+    npc: 'abhilash',
+    gf: 'anushka',
+    sister: 'vidya',
+    mom: 'manisha',
+    bhabhi: 'manisha'
+  };
+  const speaker = speakerMap[char] || 'abhilash';
+  const pitch = char === 'villain' ? -0.25 : (char === 'bro' ? 0.15 : 0.05);
+  const pace = emotion === 'angry' ? 1.18 : (emotion === 'crying' ? 0.94 : 1.10);
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10000);
+  try {
+    const res = await fetch('https://api.sarvam.ai/text-to-speech', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-subscription-key': sarvamKey
+      },
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        inputs: [text],
+        target_language_code: 'hi-IN',
+        speaker,
+        pitch,
+        pace,
+        loudness: 1.3,
+        speech_sample_rate: 22050,
+        enable_preprocessing: true,
+        model: 'bulbul:v2'
+      })
+    });
+    if (!res.ok) throw new Error(`Sarvam HTTP ${res.status}`);
+    const data = await res.json();
+    const b64 = data.audios && data.audios[0];
+    if (!b64) throw new Error('No Sarvam audio');
+    return { buffer: Buffer.from(b64, 'base64'), mime: 'audio/wav' };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function synthesizeHuggingFaceTTS(text, char = 'hero') {
   const isFemale = ['mom', 'bhabhi', 'gf', 'sister'].includes(char);
-  const voice = isFemale ? 'hi-IN-SwaraNeural - hi-IN (Female)' : 'hi-IN-MadhurNeural - hi-IN (Male)';
+  const voice = isFemale ? 'en-IN-NeerjaNeural - en-IN (Female)' : 'en-IN-PrabhatNeural - en-IN (Male)';
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 9500);
   try {
@@ -101,7 +183,7 @@ async function synthesizeHuggingFaceTTS(text, char = 'hero') {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: ctrl.signal,
-      body: JSON.stringify({ data: [text, voice, 0, 0] })
+      body: JSON.stringify({ data: [text, voice, 8, 8] })
     });
     if (!callRes.ok) throw new Error(`HF Call ${callRes.status}`);
     const { event_id } = await callRes.json();
@@ -129,19 +211,30 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { text, char = 'hero', provider = 'edge' } = req.body || {};
+    const { text, char = 'hero', emotion = 'normal', provider = 'edge', sarvamKey = '' } = req.body || {};
     if (!text || !text.trim()) return res.status(400).json({ error: 'Missing text' });
+
+    if (provider === 'sarvam' && sarvamKey) {
+      try {
+        const out = await synthesizeSarvamTTS(text.trim(), char, emotion, sarvamKey);
+        res.setHeader('Content-Type', out.mime);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).send(out.buffer);
+      } catch {
+        // Fallback to expressive Edge Neural if Sarvam key fails
+      }
+    }
 
     let audioBuf;
     if (provider === 'hf') {
       try {
         audioBuf = await synthesizeHuggingFaceTTS(text.trim(), char);
       } catch {
-        audioBuf = await synthesizeEdgeNeural(text.trim(), char);
+        audioBuf = await synthesizeEdgeNeural(text.trim(), char, emotion);
       }
     } else {
       try {
-        audioBuf = await synthesizeEdgeNeural(text.trim(), char);
+        audioBuf = await synthesizeEdgeNeural(text.trim(), char, emotion);
       } catch {
         audioBuf = await synthesizeHuggingFaceTTS(text.trim(), char);
       }
