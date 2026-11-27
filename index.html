@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>StoryToon AI v37.0 — Unlimited Realistic Voice Studio</title>
-  <link rel="stylesheet" href="style.css?v=37" />
+  <title>StoryToon AI v38.0 — Unfiltered Scriptwriter, Reaction Cuts & QC</title>
+  <link rel="stylesheet" href="style.css?v=38" />
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div class="brand">🎬 <span>StoryToon Studio</span></div>
-      <div class="badge" id="appVersionBadge">Build v37.0</div>
+      <div class="badge" id="appVersionBadge">Build v38.0</div>
     </header>
 
     <main class="workspace">
@@ -21,8 +21,11 @@
         </label>
 
         <label class="field">
-          <span>Story Topic / Movie Scene Idea</span>
-          <textarea id="topicInput" rows="2" placeholder="e.g., Main meri Girlfriend or mera dost coffee pine gaye hai..."></textarea>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span>Story Topic / Movie Scene Idea</span>
+            <button type="button" id="randomTopicBtn" class="btn tiny" style="background:#334155;color:#fef08a;">🎲 Random Viral Topic</button>
+          </div>
+          <textarea id="topicInput" rows="2" placeholder="e.g., Dost ke saath late night room mein gf ki naughty baatein aur pakde jaane ka scene..."></textarea>
         </label>
 
         <div class="row-2">
@@ -50,12 +53,12 @@
           <label class="field">
             <span>Vibe / Genre</span>
             <select id="toneSelect">
-              <option value="Relatable Desi Storytime" selected>Relatable Storytime</option>
-              <option value="Emotional & Deep Metaphor">🎭 Emotional & Deep Metaphor</option>
+              <option value="Unfiltered Desi Roast + 18+ Banter" selected>🤬 Unfiltered Desi Roast + 18+ Banter</option>
+              <option value="Double Meaning Naughty Comedy">😏 Bold Double Meaning (Desi 18+)</option>
               <option value="Savage & Brutal Roast">🔥 Savage & Brutal Roast</option>
+              <option value="Relatable Desi Storytime">Relatable Storytime</option>
+              <option value="Emotional & Deep Metaphor">🎭 Emotional & Deep Metaphor</option>
               <option value="Dark Comedy & Plot Twist">💀 Dark Comedy & Twist</option>
-              <option value="Double Meaning Naughty Comedy">😏 Double Meaning (Desi)</option>
-              <option value="Desi Comedy + Superpower">⚡ Comedy + Superpower</option>
             </select>
           </label>
           <label class="field">
@@ -74,7 +77,7 @@
           <div class="crew-chip" id="crew-director"><b>🎥</b><span>DOP/VFX</span></div>
           <div class="crew-chip" id="crew-light"><b>👔</b><span>Set/Costume</span></div>
           <div class="crew-chip" id="crew-sound"><b>🎙️</b><span>Sound</span></div>
-          <div class="crew-chip" id="crew-editor"><b>✂️</b><span>Editor</span></div>
+          <div class="crew-chip" id="crew-editor"><b>✂️</b><span>Editor/QC</span></div>
         </div>
 
         <button id="oneClickAutoBtn" class="btn accent" style="width:100%;padding:13px;font-size:0.96rem;">
@@ -85,7 +88,7 @@
           <button id="generateScriptBtn" class="btn secondary" style="font-size:0.78rem;">Crew Pre-Production Only</button>
           <button id="playRecordBtn" class="btn primary" style="font-size:0.78rem;">Shoot & Export Current</button>
         </div>
-        <div id="statusBar" class="status-bar">StoryToon v37.0 ready! Unlimited Edge Neural + Hugging Face Realistic AI + Multi-Key Gemini active!</div>
+        <div id="statusBar" class="status-bar">StoryToon v38.0 ready! Unfiltered Desi Scriptwriter + Reaction Cutaways + Pre-Flight QC active!</div>
       </section>
 
       <section class="card stage-card">
@@ -100,13 +103,13 @@
 
       <section class="card script-card">
         <div class="script-header">
-          <span>Shooting Script (v37.0 • Multi-Engine Realistic Voices)</span>
+          <span>Shooting Script (v38.0 • Unfiltered Desi + Reaction Cutaways)</span>
           <button id="loadDemoBtn" class="btn tiny">Load Demo</button>
         </div>
         <textarea id="scriptEditor" rows="7"></textarea>
       </section>
     </main>
   </div>
-  <script src="app.js?v=37"></script>
+  <script src="app.js?v=38"></script>
 </body>
 </html>

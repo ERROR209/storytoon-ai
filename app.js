@@ -1,4 +1,4 @@
-const APP_VERSION = 'v37.0';
+const APP_VERSION = 'v38.0';
 const canvas = document.getElementById('stageCanvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
@@ -14,6 +14,23 @@ const downloadLink = document.getElementById('downloadLink');
 
 const VALID_LOCATIONS = ['room', 'cafe', 'college', 'office', 'park', 'street', 'hospital', 'gym'];
 const FEMALE_ROLES = ['mom', 'bhabhi', 'gf', 'sister'];
+
+const randomTopics = [
+  "Dost ke saath room mein gf ki naughty baatein aur achanak behen ki entry",
+  "Gym mein sundar ladki ko impress karne ke chakkar mein dost ne beizzati karwa di",
+  "Cafe date par bill aaya 5000 aur dost ne bola mera wallet ghar reh gaya",
+  "Late night hostel room mein lights off karke bhoot ki baatein aur pant geeli",
+  "Office mein boss ki chugli karte waqt peeche khud boss khada tha",
+  "Girlfriend ne phone ka password manga aur dost ke naughty messages khul gaye"
+];
+const rndBtn = document.getElementById("randomTopicBtn");
+if (rndBtn) {
+  rndBtn.onclick = () => {
+    const pick = randomTopics[Math.floor(Math.random() * randomTopics.length)];
+    topicInput.value = pick;
+    setStatus("🎲 Viral Desi topic loaded! Click Action to shoot.");
+  };
+}
 
 apiKeyInput.value = localStorage.getItem('gemini_api_key') || '';
 apiKeyInput.addEventListener('change', () => {
@@ -290,55 +307,58 @@ async function callGeminiAgent(key, models, prompt, temp = 0.85, expectObject = 
   throw new Error(lastErr);
 }
 
-// AGENT 1: SCRIPTWRITER + CASTING DIRECTOR
+// AGENT 1: UNFILTERED DESI SCRIPTWRITER + CASTING DIRECTOR
 async function runScriptwriterAgent(key, models, topic, partNum, totalParts, prevEnding, targetLines) {
   setCrewState('writer', 'active');
-  setStatus(`✍️ [1/4 Scriptwriter & Casting] Writing ${targetLines}-line script with strict character entry (Part ${partNum}/${totalParts})...`);
+  setStatus(`✍️ [1/4 Unfiltered Writer] Crafting raw Desi hook & ${targetLines}-line script (Part ${partNum}/${totalParts})...`);
   const cont = partNum > 1
     ? `Continue seamlessly from: "${prevEnding}".`
-    : (totalParts > 1 ? `Part 1 of ${totalParts}. End on a strong cliffhanger!` : `Complete short story with a grounded, realistic, and entertaining ending.`);
+    : (totalParts > 1 ? `Part 1 of ${totalParts}. End on a wild cliffhanger!` : `Complete short story with a killer callback punchline.`);
 
   const genre = toneSelect.value;
-  let styleDirection = 'Relatable, witty Indian Hinglish conversation like NOT YOUR TYPE. End with a funny everyday punchline.';
-  if (genre.includes('Emotional')) {
-    styleDirection = 'DEEP EMOTIONAL & RELATABLE storytelling! Heartfelt Hinglish conversation about life, career, relationships, and reality checks.';
+  let styleDirection = 'RAW UNFILTERED DESI YOUTUBE COMEDY (CarryMinati / BB Ki Vines / Ashish Chanchlani vibe)! Characters roast each other mercilessly using natural Indian street slang & mild gaaliyan ("saale", "kamine", "harami", "chomu", "ullu ke patthe", "abey bsdk", "nikamme", "tharki") + bold naughty/double-meaning adult banter when talking about girls, dates, or night scenes! Zero boring moral gyaan!';
+
+  if (genre.includes('Double Meaning')) {
+    styleDirection = 'BOLD 18+ DOUBLE MEANING (NAUGHTY DESI) COMEDY! Heavy adult innuendos, spicy bedroom/gym/date misunderstandings, naughty teasing between friends or couple, and raw Desi slang ("saale", "tharki", "kamine") that hilariously turns out to be about gaming, food, or gym in the climax!';
   } else if (genre.includes('Savage')) {
-    styleDirection = 'ULTRA SAVAGE & BRUTAL ROAST style! Cold-blooded comebacks and ruthless Desi humor.';
+    styleDirection = 'ULTRA SAVAGE & BRUTAL ROAST! Ruthless personal insults, raw Desi gaali-style comebacks ("saale", "harami", "chomu", "aukaat dekh"), zero mercy!';
+  } else if (genre.includes('Emotional')) {
+    styleDirection = 'DEEP EMOTIONAL & RELATABLE storytelling! Heartfelt Hinglish conversation about life, heartbreak, career, and reality checks.';
   } else if (genre.includes('Dark')) {
-    styleDirection = 'DARK COMEDY & IRONIC TWIST style! Clever betrayal, catching someone lying, or funny karma — WITHOUT killing characters!';
-  } else if (genre.includes('Double Meaning')) {
-    styleDirection = 'CLEVER DOUBLE MEANING (NAUGHTY DESI) comedy! Spicy misunderstandings, teasing banter, and witty innuendos that turn out to be totally innocent in the end!';
+    styleDirection = 'DARK COMEDY & IRONIC TWIST! Clever betrayal, catching someone red-handed, or savage karma — WITHOUT killing characters!';
+  } else if (genre.includes('Relatable')) {
+    styleDirection = 'Relatable, witty Indian Hinglish banter like NOT YOUR TYPE with natural friend-group slang ("saale", "bhai", "kamine") and a sharp punchline.';
   }
 
-  const prompt = `You are a lead human scriptwriter & casting director for a viral Indian YouTube animated channel ("NOT YOUR TYPE" style).
-Plan a Cast List & Story Bible first, then write an EXACTLY ${targetLines}-line Hinglish script about: "${topic}".
-STYLE: ${styleDirection}
+  const prompt = `You are an unfiltered, top-tier Indian YouTube comedy scriptwriter & casting director (BB Ki Vines / CarryMinati / NOT YOUR TYPE style).
+Write an EXACTLY ${targetLines}-line raw Hinglish dialogue script about: "${topic}".
+STYLE & TONE: ${styleDirection}
 ${cont}
 
-STRICT CASTING, ENTRY & SCRIPT RULES:
-1. STRICT CHARACTER ENTRY ("cast"): Do NOT put a character in "cast" before they physically arrive in the scene! For example, if Hero and Bro are waiting for the girlfriend ("gf") in a cafe, scenes 1-4 MUST have "cast": ["hero", "bro"] ONLY. Only add "gf" to "cast": ["hero", "gf", "bro"] in the exact scene where she arrives and speaks!
-2. ACTIVE ACTRESS CASTING: If the topic mentions a girl, crush, ladki, girlfriend, sister, bhabhi, or mom, she MUST physically enter the story by the middle/climax and speak dialogues using female Role IDs ("gf", "sister", "bhabhi", "mom").
-3. ROLE IDS (Strict Gender Mapping):
+VIRAL RETENTION & SCRIPT RULES:
+1. 3-SECOND SCROLL-STOPPER HOOK: Lines 1 and 2 MUST start directly in the middle of juicy action, a wild accusation, or a naughty/funny confession — NEVER boring greetings like "Hello bhai kaise ho"!
+2. NATURAL DESI SLANG & NAUGHTY BANTER: Write how real Indian guys and couples actually talk in private — use spicy teasing, naughty double-meanings, and raw Desi slang ("saale", "kamine", "harami", "tharki", "chomu", "abey bsdk") naturally where anger or roasting happens. (Avoid extreme hate speech or self-harm so TTS speaks smoothly).
+3. STRICT CHARACTER ENTRY ("cast"): Do NOT put a character in "cast" before they physically arrive in the scene! Only add "gf" / "sister" / "bhabhi" / "mom" to "cast" in the exact scene where she enters and speaks!
+4. ACTIVE ACTRESS CASTING: If the topic mentions a girl, crush, ladki, girlfriend, sister, bhabhi, or mom, she MUST physically enter the story and speak bold/witty dialogues using female Role IDs ("gf", "sister", "bhabhi", "mom").
+5. ROLE IDS:
    - Male roles: "hero", "bro", "villain", "npc".
    - Female roles: "gf", "sister", "bhabhi", "mom".
-   NEVER assign a female dialogue to "npc" or "bro"!
-4. STORY-MATCHED LOCATIONS ("location"): Choose from: "room", "cafe", "college", "office", "park", "street", "hospital", "gym".
-5. NO FAKE DEATH / NO GHOST CLICHÉ: Keep endings grounded in real life.
-6. DIRECT SPOKEN DIALOGUE ONLY: Every line is spoken directly by "char" in 100% ROMAN ENGLISH LETTERS ONLY (never Hindi Devanagari).
-7. EXACT LENGTH: Return EXACTLY ${targetLines} dialogue objects inside "scenes".
-8. EMOTIONS: "normal", "shocked", "smug", "angry", "crying", "sweat".
-9. LIGHTING: "pastel", "night", or "dramatic".
-10. PUNCH TEXT ("punch"): Short 1-to-3 word visual label for key moments (or "" for normal lines).
+6. STORY-MATCHED LOCATIONS ("location"): Choose from: "room", "cafe", "college", "office", "park", "street", "hospital", "gym".
+7. DIRECT SPOKEN DIALOGUE ONLY: 100% ROMAN ENGLISH LETTERS ONLY (never Hindi Devanagari).
+8. EXACT LENGTH: Return EXACTLY ${targetLines} dialogue objects inside "scenes".
+9. EMOTIONS: "normal", "shocked", "smug", "angry", "crying", "sweat".
+10. LIGHTING: "pastel", "night", or "dramatic".
+11. PUNCH TEXT ("punch"): Short 1-to-3 word bold label for key moments (or "" for normal lines).
 
 Return ONLY a JSON object:
 {
-  "bible": { "primaryLocation": "cafe", "characters": ["hero", "bro", "gf"], "summary": "1-sentence plot" },
+  "bible": { "primaryLocation": "room", "characters": ["hero", "bro", "gf"], "summary": "1-sentence plot" },
   "scenes": [
-    {"char":"bro","cast":["hero","bro"],"emotion":"smug","otherEmotion":"sweat","location":"cafe","lighting":"pastel","punch":"Cafe Wait","text":"10-14 words punchy spoken Roman Hinglish"}
+    {"char":"bro","cast":["hero","bro"],"emotion":"smug","otherEmotion":"sweat","location":"room","lighting":"pastel","punch":"Tharki Pakda Gaya","text":"10-14 words punchy raw Roman Hinglish"}
   ]
 }`;
 
-  const result = await callGeminiAgent(key, models, prompt, 0.82, true);
+  const result = await callGeminiAgent(key, models, prompt, 0.88, true);
   setCrewState('writer', 'done');
   return Array.isArray(result) ? result : (result.scenes || []);
 }
@@ -480,6 +500,20 @@ function runContinuityAndCostumeSupervisor(directedScenes, topicHint = '') {
     const climaxIdx = Math.max(1, litScenes.length - 3);
     litScenes[climaxIdx].cast = ['hero', 'gf', 'bro'];
     litScenes[climaxIdx].shot = 'wide';
+  }
+
+  // Pre-Flight QC Inspector: Break monotonous camera angles (if 3 same shots in a row, make middle one close-up)
+  let qcFixes = 0;
+  for (let i = 2; i < litScenes.length; i++) {
+    if (litScenes[i].cast.length === 2 &&
+        litScenes[i].shot === litScenes[i - 1].shot &&
+        litScenes[i - 1].shot === litScenes[i - 2].shot) {
+      litScenes[i - 1].shot = litScenes[i - 1].shot === 'normal' ? 'in' : 'normal';
+      qcFixes++;
+    }
+  }
+  if (qcFixes > 0) {
+    setStatus(`📋 [Pre-Flight QC] Auto-optimized ${qcFixes} repetitive camera angle(s) for dynamic pacing!`);
   }
 
   setCrewState('light', 'done');
@@ -1230,6 +1264,15 @@ function renderLoop() {
 
   } else {
     const leftX = W * 0.28, rightX = W * 0.72;
+    // Smart DOP Reaction Cutaway: After 2.2s on shocked/angry lines, subtly focus toward listener reaction!
+    if (elapsed > 2.2 && (currentScene.otherEmotion === 'shocked' || currentScene.emotion === 'shocked')) {
+      const rt = easeOutCubic(Math.min(1, (elapsed - 2.2) / 0.4));
+      const rZoom = 1 + rt * 0.10;
+      const listenerX = (speaker === 'hero') ? rightX : leftX;
+      ctx.translate(W * 0.5, groundY);
+      ctx.scale(rZoom, rZoom);
+      ctx.translate(-(W * 0.5 + (listenerX - W * 0.5) * 0.35 * rt), -groundY);
+    }
     const listener = castList.find(c => c !== speaker) || 'bro';
     const speakerOnLeft = speaker === 'hero' || (listener !== 'hero' && castList.indexOf(speaker) === 0);
 
