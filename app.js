@@ -1,4 +1,4 @@
-const APP_VERSION = 'v41.0';
+const APP_VERSION = 'v41.5';
 const canvas = document.getElementById('stageCanvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');

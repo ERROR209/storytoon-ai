@@ -10,7 +10,7 @@
   <div class="app-shell">
     <header class="topbar">
       <div class="brand">🎬 <span>StoryToon Studio</span></div>
-      <div class="badge" id="appVersionBadge">Build v41.0</div>
+      <div class="badge" id="appVersionBadge">Build v41.5</div>
     </header>
 
     <main class="workspace">
@@ -25,6 +25,11 @@
             <input type="password" id="sarvamKeyInput" placeholder="sk_... (dashboard.sarvam.ai)" />
           </label>
         </div>
+
+        <label class="field">
+          <span>ElevenLabs Free API Key(s) (Optional • Ultra-Realistic • Comma se multiple keys)</span>
+          <input type="password" id="elevenKeyInput" placeholder="sk_... (elevenlabs.io -> Profile -> API Keys)" />
+        </label>
 
         <!-- DUAL INPUT MODE SWITCHER -->
         <div class="btn-row" style="margin-bottom:4px;">
@@ -90,7 +95,8 @@
           <label class="field">
             <span>Voice Engine (Expressive Acting)</span>
             <select id="voiceEngineSelect">
-              <option value="auto" selected>Auto (Sarvam / 4-Voice Expressive Neural)</option>
+              <option value="auto" selected>Auto (ElevenLabs / Sarvam / Expressive Neural)</option>
+              <option value="elevenlabs">🎙️ ElevenLabs Flash v2.5 (Free Key)</option>
               <option value="sarvam">🇮🇳 Sarvam AI Desi (Hyper-Realistic)</option>
               <option value="edge">4-Voice Expressive Indian Neural (Free)</option>
               <option value="gemini">Gemini 4-Actor Studio (Multi-Key)</option>
