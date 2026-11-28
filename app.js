@@ -1,4 +1,4 @@
-const APP_VERSION = 'v42.1';
+const APP_VERSION = 'v43.0';
 const canvas = document.getElementById('stageCanvas');
 const ctx = canvas.getContext('2d');
 const canvasWrap = document.getElementById('canvasWrap');
@@ -1185,6 +1185,15 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
     ctx.stroke();
   }
 
+  // VFX ARTIST: Flowing Tears for Crying, Anime Sweat Drop & Red Anger Vein
+  if (emotion === 'crying') {
+    const tearY = ((frameTick * 1.4) % 28);
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';
+    ctx.beginPath();
+    ctx.ellipse(-22 + dir * 4, 12 + tearY, 3.5, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(18 + dir * 4, 12 + ((tearY + 14) % 28), 3.5, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
   // VFX ARTIST: Anime Sweat Drop & Red Anger Vein
   if (emotion === 'sweat' || emotion === 'shocked') {
     const dropOffset = (frameTick % 45) * 0.35;
@@ -1262,26 +1271,39 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
     ctx.beginPath(); ctx.moveTo(8, eyeY - 21 + browLift); ctx.lineTo(34, eyeY - 19 + browLift); ctx.stroke();
   }
 
-  // Expressive Human Mouth (Gritted teeth on angry, trembling wave on scared, smirk on smug)
+  // Expressive Human Mouth (Strictly emotion-locked: NEVER smiles when crying, scared, or shocked!)
   const mouthY = 30;
+  const isCrying = emotion === 'crying';
+  const isShocked = emotion === 'shocked';
   ctx.strokeStyle = fem ? '#be123c' : '#334155';
   ctx.lineWidth = 3.2;
+
   if (isSpeaker && talkAmt > 0.08) {
     if (isAngry) {
       const h = 8 + talkAmt * 9;
       ctx.fillStyle = '#ffffff';
       ctx.beginPath(); ctx.roundRect(-14, mouthY - h * 0.5, 28, h, 5); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(-13, mouthY); ctx.lineTo(13, mouthY); ctx.stroke();
-    } else if (talkAmt > 0.52) {
+    } else if (isCrying || isScared || isShocked) {
+      // Wailing / Panicking open mouth (inverted oval / trembling cry — NO smile!)
+      const h = 7 + talkAmt * 13;
+      const w = 10 + talkAmt * 5;
       ctx.fillStyle = '#881337';
-      ctx.beginPath(); ctx.arc(0, mouthY - 5, 15, 0, Math.PI, false); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-w, mouthY + 4);
+      ctx.quadraticCurveTo(0, mouthY - h * 1.15, w, mouthY + 4);
+      ctx.quadraticCurveTo(0, mouthY + h * 0.55, -w, mouthY + 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (talkAmt > 0.55 && emotion === 'smug') {
+      ctx.fillStyle = '#881337';
+      ctx.beginPath(); ctx.arc(0, mouthY - 5, 14, 0, Math.PI, false); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(-10, mouthY - 5, 20, 4);
-      ctx.fillStyle = '#fb7185';
-      ctx.beginPath(); ctx.arc(0, mouthY + 6, 7, Math.PI, 0); ctx.fill();
+      ctx.fillRect(-9, mouthY - 5, 18, 4);
     } else {
-      const h = 4 + talkAmt * 12;
-      const w = 9 + (1 - talkAmt) * 6;
+      const h = 4 + talkAmt * 11;
+      const w = 9 + (1 - talkAmt) * 5;
       ctx.fillStyle = '#881337';
       ctx.beginPath(); ctx.ellipse(0, mouthY, w, h, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     }
@@ -1294,6 +1316,11 @@ function drawPastelCharacter(char, emotion, gesture, talkAmt, footX, groundY, sc
       ctx.beginPath();
       ctx.moveTo(-12, mouthY + 2);
       ctx.quadraticCurveTo(2, mouthY + 5, 14, mouthY - 6);
+      ctx.stroke();
+    } else if (isCrying) {
+      ctx.beginPath();
+      ctx.moveTo(-13, mouthY + 7);
+      ctx.quadraticCurveTo(0, mouthY - 5, 13, mouthY + 7);
       ctx.stroke();
     } else if (isScared) {
       ctx.beginPath();
@@ -1443,22 +1470,22 @@ function renderLoop() {
 
     castList.forEach((role, idx) => {
       if (role === speaker) return;
-      const lookDir = idx < speakerIdx ? 1 : (idx > speakerIdx ? -1 : (idx === 0 ? 1 : -1));
+      // Left slot always looks right (+1), Right slot always looks left (-1), Middle slot looks directly at active speaker!
+      const lookDir = idx === 0 ? 1 : (idx === 2 ? -1 : (speakerIdx === 0 ? -1 : 1));
       const roleEm = getCharEmotionForScene(currentScene, role, false);
       drawPastelCharacter(role, roleEm, 'idle', 0, slots[idx], groundY, baseScale * 0.90, false, lookDir, 'none', loc);
     });
-    const spLook = speakerIdx === 2 ? -1 : 1;
+    const spLook = speakerIdx === 0 ? 1 : (speakerIdx === 2 ? -1 : (speaker === 'hero' ? 1 : -1));
     drawPastelCharacter(speaker, speakerEm, speakerGesture, mouthOpen, slots[speakerIdx], groundY, baseScale * 0.94, true, spLook, activeProp, loc);
 
   } else if (shot === 'in') {
+    // Clean Solo Close-up: Hides listener cleanly so nobody gets half-cropped at screen edge!
     const heroIsSpeaker = speaker === 'hero';
     const leftX = W * 0.28, rightX = W * 0.72;
-    const listener = castList.find(c => c !== speaker) || 'bro';
-    const listenerEm = getCharEmotionForScene(currentScene, listener, false);
-    const t = easeOutCubic(Math.min(1, elapsed / 0.45));
-    const zoom = 1 + t * 0.16;
+    const t = easeOutCubic(Math.min(1, elapsed / 0.35));
+    const zoom = 1 + t * 0.18;
     const speakerStartX = heroIsSpeaker ? leftX : rightX;
-    const speakerSoloX = heroIsSpeaker ? W * 0.44 : W * 0.56;
+    const speakerSoloX = heroIsSpeaker ? W * 0.46 : W * 0.54;
     const speakerX = speakerStartX + (speakerSoloX - speakerStartX) * t;
 
     ctx.translate(W * 0.5, groundY);
@@ -1466,18 +1493,13 @@ function renderLoop() {
     ctx.translate(-speakerX, -groundY);
 
     drawPastelEnvironment(loc, lighting);
-
-    if (t < 0.95) {
-      const offX = heroIsSpeaker ? rightX + t * (W * 0.55) : leftX - t * (W * 0.55);
-      drawPastelCharacter(listener, listenerEm, 'idle', 0, offX, groundY, baseScale * 0.94, false, heroIsSpeaker ? -1 : 1, 'none', loc);
-    }
     drawPastelCharacter(speaker, speakerEm, speakerGesture, mouthOpen, speakerX, groundY, baseScale, true, heroIsSpeaker ? 1 : -1, activeProp, loc);
 
   } else {
     const leftX = W * 0.28, rightX = W * 0.72;
     const listener = castList.find(c => c !== speaker) || 'bro';
     const listenerEm = getCharEmotionForScene(currentScene, listener, false);
-    const speakerOnLeft = speaker === 'hero' || (listener !== 'hero' && castList.indexOf(speaker) === 0);
+    const speakerOnLeft = speaker === 'hero';
 
     if (elapsed > 2.2 && (listenerEm === 'shocked' || speakerEm === 'shocked')) {
       const rt = easeOutCubic(Math.min(1, (elapsed - 2.2) / 0.4));
@@ -1598,7 +1620,8 @@ async function fetchBackendTTSPerScene(scenes, provider = 'edge', partLabel = ''
     setStatus(`🎙️ [Sound Director] ${label} ${partLabel} (${i + 1}/${scenes.length})...`);
     try {
       buffers.push(await fetchBackendRealisticTTS(scenes[i], provider, i === scenes.length - 1));
-    } catch {
+    } catch (err) {
+      if (provider === 'sarvam') throw new Error(`Sarvam AI Error: ${err.message}`);
       buffers.push(createSilentBuffer(Math.max(2.4, (scenes[i].text || '').split(' ').length * 0.36)));
     }
   }
@@ -1716,7 +1739,7 @@ async function runSoundArtistAgent(scenes, partLabel = '') {
   }
 
   // Mode 5: Gemini Multi-Speaker TTS
-  const chunkSize = 6;
+  const chunkSize = 2;
   const allSlices = [];
   for (let start = 0; start < scenes.length; start += chunkSize) {
     const batch = scenes.slice(start, start + chunkSize);
@@ -1724,10 +1747,10 @@ async function runSoundArtistAgent(scenes, partLabel = '') {
     try {
       const geminiSlices = await fetchGeminiBatchWithMultiKeys(batch, keysList);
       allSlices.push(...geminiSlices);
-    } catch {
+    } catch (gemErr) {
       for (let j = 0; j < batch.length; j++) {
         const globalIdx = start + j;
-        setStatus(`🎙️ [Sound Director] Expressive Neural Fallback ${partLabel} (${globalIdx + 1}/${scenes.length})...`);
+        setStatus(`🎙️ [Sound Director] Gemini TTS (${gemErr.message}) -> Neural (${globalIdx + 1}/${scenes.length})...`);
         try {
           allSlices.push(await fetchBackendRealisticTTS(batch[j], 'edge', globalIdx === scenes.length - 1));
         } catch {

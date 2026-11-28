@@ -50,14 +50,14 @@ function getExpressiveVoiceConfig(char = 'hero', emotion = 'normal') {
   }
 
   if (emotion === 'angry') {
-    rate = '+15%';
+    rate = '+16%';
     pitch = char === 'villain' ? '-14Hz' : '+18Hz';
   } else if (emotion === 'shocked' || emotion === 'sweat') {
-    rate = '+13%';
+    rate = '+14%';
     pitch = '+20Hz';
   } else if (emotion === 'crying') {
-    rate = '-6%';
-    pitch = '-10Hz';
+    rate = '-8%';
+    pitch = '-12Hz';
   }
 
   return { voice, lang, pitch, rate };
@@ -125,62 +125,6 @@ function synthesizeEdgeNeural(text, char = 'hero', emotion = 'normal') {
   });
 }
 
-async function synthesizeElevenLabsTTS(text, char = 'hero', emotion = 'normal', elevenKeyRaw = '') {
-  const keys = String(elevenKeyRaw || '').split(',').map(k => k.trim()).filter(Boolean);
-  if (keys.length === 0) throw new Error('Missing ElevenLabs API key');
-
-  // Distinct pre-made ElevenLabs voices mapped to Desi characters
-  const voiceMap = {
-    hero: 'TxGEqnHWrfWFTfGW9XjX',    // Josh (energetic young male)
-    bro: 'yoZ06aMxZJJ28mfd3POQ',     // Sam (expressive buddy)
-    villain: 'VR6AewLTigWG4xSOukaG', // Arnold (deep heavy boss)
-    npc: 'pNInz6obpgDQGcFmaJgB',     // Adam
-    gf: 'EXAVITQu4vr4xnSDxMaL',      // Bella (expressive young female)
-    sister: 'MF3mGyEYCl7XYWbV9V6O',  // Elli
-    mom: '21m00Tcm4TlvDq8ikWAM',     // Rachel
-    bhabhi: 'AZnzlk1XvdvUeBnXmlld'   // Domi
-  };
-  const voiceId = voiceMap[char] || voiceMap.hero;
-  const stability = (emotion === 'angry' || emotion === 'shocked') ? 0.30 : 0.45;
-
-  let lastErr = 'ElevenLabs failed';
-  for (const apiKey of keys) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 11000);
-    try {
-      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'xi-api-key': apiKey,
-          'Accept': 'audio/mpeg'
-        },
-        signal: ctrl.signal,
-        body: JSON.stringify({
-          text,
-          model_id: 'eleven_flash_v2_5',
-          voice_settings: {
-            stability,
-            similarity_boost: 0.78,
-            style: 0.45,
-            use_speaker_boost: true
-          }
-        })
-      });
-      clearTimeout(timer);
-      if (!res.ok) {
-        lastErr = `ElevenLabs HTTP ${res.status}`;
-        continue; // Auto-rotate to next ElevenLabs key if quota/block hit
-      }
-      return Buffer.from(await res.arrayBuffer());
-    } catch (err) {
-      clearTimeout(timer);
-      lastErr = err.message;
-    }
-  }
-  throw new Error(lastErr);
-}
-
 async function synthesizeSarvamTTS(text, char = 'hero', emotion = 'normal', sarvamKey = '') {
   if (!sarvamKey) throw new Error('Missing Sarvam API key');
   const speakerMap = {
@@ -195,7 +139,7 @@ async function synthesizeSarvamTTS(text, char = 'hero', emotion = 'normal', sarv
   };
   const speaker = speakerMap[char] || 'abhilash';
   const pitch = char === 'villain' ? -0.25 : (char === 'bro' ? 0.15 : 0.05);
-  const pace = emotion === 'angry' ? 1.18 : (emotion === 'crying' ? 0.94 : 1.10);
+  const pace = emotion === 'angry' ? 1.18 : (emotion === 'crying' ? 0.92 : 1.10);
 
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 10000);
@@ -219,7 +163,10 @@ async function synthesizeSarvamTTS(text, char = 'hero', emotion = 'normal', sarv
         model: 'bulbul:v2'
       })
     });
-    if (!res.ok) throw new Error(`Sarvam HTTP ${res.status}`);
+    if (!res.ok) {
+      const errTxt = await res.text().catch(() => '');
+      throw new Error(`Sarvam HTTP ${res.status}: ${errTxt.slice(0, 80)}`);
+    }
     const data = await res.json();
     const b64 = data.audios && data.audios[0];
     if (!b64) throw new Error('No Sarvam audio');
@@ -267,29 +214,14 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { text, char = 'hero', emotion = 'normal', provider = 'edge', sarvamKey = '', elevenKey = '' } = req.body || {};
+    const { text, char = 'hero', emotion = 'normal', provider = 'edge', sarvamKey = '' } = req.body || {};
     if (!text || !text.trim()) return res.status(400).json({ error: 'Missing text' });
 
-    if (provider === 'elevenlabs' && elevenKey) {
-      try {
-        const mp3Buf = await synthesizeElevenLabsTTS(text.trim(), char, emotion, elevenKey);
-        res.setHeader('Content-Type', 'audio/mpeg');
-        res.setHeader('Cache-Control', 'no-store');
-        return res.status(200).send(mp3Buf);
-      } catch {
-        // Fallback to Sarvam or Edge Neural if ElevenLabs quota/block hit
-      }
-    }
-
-    if ((provider === 'sarvam' || (provider === 'elevenlabs' && sarvamKey)) && sarvamKey) {
-      try {
-        const out = await synthesizeSarvamTTS(text.trim(), char, emotion, sarvamKey);
-        res.setHeader('Content-Type', out.mime);
-        res.setHeader('Cache-Control', 'no-store');
-        return res.status(200).send(out.buffer);
-      } catch {
-        // Fallback to expressive Edge Neural
-      }
+    if (provider === 'sarvam') {
+      const out = await synthesizeSarvamTTS(text.trim(), char, emotion, sarvamKey);
+      res.setHeader('Content-Type', out.mime);
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).send(out.buffer);
     }
 
     let audioBuf;
